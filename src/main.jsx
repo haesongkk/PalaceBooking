@@ -9,12 +9,19 @@
 // app.jsx : 메인 프로세스 컴포넌트 정의
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import './index.css';  
 import App from './App.jsx'; 
+import PaymentPage from './PaymentPage.jsx';
 
 // 진입점 : APP/ = APP()
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<App />} />
+        <Route path="/payment" element={<PaymentPage />} />
+      </Routes>
+    </BrowserRouter>
   </React.StrictMode>
 );
