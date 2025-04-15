@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>팔레스 예약</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    body {
+      margin: 0;
+      background-color: #0b0b24;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .wrapper {
+      width: 100%;
+      max-width: 430px;
+      background: #1a1a2e;
+      padding: 20px;
+      border-radius: 20px;
+    }
+    .step { display: none; }
+    .step.active { display: block; }
+    .step-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 12px;
+    }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: bold;
+      border: none;
+      border-radius: 12px;
+      background-color: white;
+      color: black;
+      cursor: pointer;
+      margin-top: 16px;
+    }
+    .btn:hover { background-color: #eee; }
+    .room-types div {
+      padding: 12px;
+      background: #2a2a40;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+    .room-types .selected {
+      background-color: #ffd600;
+      color: black;
+    }
+    .input-field {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      border: none;
+    }
+    .summary-box {
+      background-color: #2e2e4a;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .calendar-header button {
+      background: none;
+      color: white;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+    }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      text-align: center;
+    }
+    .day {
+      padding: 8px;
+      border-radius: 50%;
+      background: none;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+    .day:hover { border-color: white; }
+    .day.selected {
+      background-color: white;
+      color: black;
+      font-weight: bold;
+    }
+    .day.range {
+      background-color: gray;
+      color: white;
+    }
+    .people-count {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #2a2a40;
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .people-count button {
+      padding: 6px 12px;
+      font-size: 16px;
+      background: white;
+      color: black;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #deal-banner {
+      background-color: #ffd600;
+      color: black;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    #deal-banner button {
+      margin-top: 8px;
+      background-color: black;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div id="deal-banner" style="display:none">
+      🔥 <strong>오늘의 심야 특가</strong>: 디럭스룸 1박 단 25,000원!<br>
+      🗓️ 4/14 ~ 4/15 | 👥 2명
+      <button onclick="applyDeal()">지금 바로 예약하기 →</button>
+    </div>
+
+    <div class="step active" id="step-1">
+      <div class="step-title">📅 예약 날짜 선택</div>
+      <div class="calendar-header">
+        <button onclick="changeMonth(-1)">←</button>
+        <span id="calendar-month"></span>
+        <button onclick="changeMonth(1)">→</button>
+      </div>
+      <div style="text-align:center; margin-bottom:10px;">
+        <span id="selected-dates">날짜를 선택하세요</span>
+      </div>
+      <div class="calendar-grid" id="calendar"></div>
+      <button class="btn" onclick="goToStep(2)">다음 단계 →</button>
+    </div>
+
+    <div class="step" id="step-2">
+      <div id="progress-summary-step2" class="summary-box"></div>
+      <div class="step-title">🏨 객실 및 옵션 선택</div>
+      <div class="room-types">
+        <div onclick="selectRoom(this)">스탠다드룸 (2인)</div>
+        <div onclick="selectRoom(this)">디럭스룸 (2인)</div>
+        <div onclick="selectRoom(this)">패밀리룸 (4인)</div>
+      </div>
+      <div class="people-count">
+        <span>👤 인원수</span>
+        <div>
+          <button onclick="changePeople(-1)">-</button>
+          <span id="people-num">2</span>명
+          <button onclick="changePeople(1)">+</button>
+        </div>
+      </div>
+      <button class="btn" onclick="goToStep(1)">← 이전 단계</button>
+      <button class="btn" onclick="goToStep(3)">다음 단계 →</button>
+    </div>
+
+    <div class="step" id="step-3">
+      <div id="progress-summary-step3" class="summary-box"></div>
+      <div class="step-title">👤 예약자 정보 입력</div>
+      <input type="text" class="input-field" placeholder="이름" id="name" />
+      <input type="text" class="input-field" placeholder="연락처 (010-1234-5678)" id="phone" />
+      <button class="btn" onclick="goToStep(2)">← 이전 단계</button>
+      <button class="btn" onclick="alert('결제 완료!')">결제하기</button>
+    </div>
+  </div>
+
+  <script>
+    let start = null, end = null, people = 2;
+    let roomType = "";
+    let specialDealPrice = null;
+    let calendarYear = new Date().getFullYear();
+    let calendarMonth = new Date().getMonth();
+
+    function applyDeal() {
+      start = new Date("2025-04-14");
+      end = new Date("2025-04-15");
+      roomType = "디럭스룸 (2인)";
+      people = 2;
+      specialDealPrice = 25000;
+      goToStep(3);
+    }
+
+    function isDealTime() {
+      return new Date().getHours() >= 19;
+    }
+
+    function goToStep(n) {
+      document.querySelectorAll('.step').forEach((el, idx) => {
+        el.classList.toggle('active', idx === n - 1);
+      });
+      const dateText = start ? `${format(start)}${end ? `~${format(end)}` : ''}` : '';
+      if (n === 2) {
+        document.getElementById('progress-summary-step2').textContent = dateText;
+      }
+      if (n === 3) {
+        const summaryText = `${dateText}, ${roomType}, ${people}명`;
+        document.getElementById('progress-summary-step3').textContent = summaryText;
+      }
+      const banner = document.getElementById('deal-banner');
+      if (banner) banner.style.display = (n === 1 && isDealTime()) ? 'block' : 'none';
+    }
+
+    function changeMonth(offset) {
+      calendarMonth += offset;
+      if (calendarMonth < 0) {
+        calendarMonth = 11;
+        calendarYear--;
+      } else if (calendarMonth > 11) {
+        calendarMonth = 0;
+        calendarYear++;
+      }
+      renderCalendar();
+    }
+
+    function selectRoom(el) {
+      document.querySelectorAll('.room-types div').forEach(div => div.classList.remove('selected'));
+      el.classList.add('selected');
+      roomType = el.textContent;
+    }
+
+    function changePeople(delta) {
+      people = Math.min(4, Math.max(1, people + delta));
+      document.getElementById('people-num').textContent = people;
+    }
+
+    function format(date) {
+      return `${date.getMonth() + 1}/${date.getDate()}`;
+    }
+
+    function renderCalendar() {
+      const cal = document.getElementById('calendar');
+      const monthLabel = document.getElementById('calendar-month');
+      const year = calendarYear;
+      const month = calendarMonth;
+      const firstDay = new Date(year, month, 1).getDay();
+      const lastDate = new Date(year, month + 1, 0).getDate();
+      cal.innerHTML = '';
+      monthLabel.textContent = `${year}년 ${month + 1}월`;
+      for (let i = 0; i < firstDay; i++) cal.appendChild(document.createElement('div'));
+      for (let d = 1; d <= lastDate; d++) {
+        const btn = document.createElement('div');
+        btn.className = 'day';
+        btn.textContent = d;
+        const thisDate = new Date(year, month, d);
+        btn.setAttribute('data-date', thisDate.toISOString().split('T')[0]);
+        btn.onclick = () => selectDate(thisDate, btn);
+        cal.appendChild(btn);
+      }
+    }
+
+    function selectDate(date, el) {
+      if (!start || (start && end)) {
+        start = date;
+        end = null;
+      } else {
+        if (date < start) {
+          start = date;
+        } else {
+          end = date;
+        }
+      }
+      updateCalendarUI();
+    }
+
+    function updateCalendarUI() {
+      document.querySelectorAll('.day').forEach(el => el.classList.remove('selected', 'range'));
+      if (!start) return;
+
+      const startDateStr = start.toISOString().split('T')[0];
+      const endDateStr = end?.toISOString().split('T')[0];
+
+      document.querySelectorAll('.day').forEach(el => {
+        const dateStr = el.getAttribute('data-date');
+        if (dateStr === startDateStr || dateStr === endDateStr) {
+          el.classList.add('selected');
+        } else if (start && end && dateStr > startDateStr && dateStr < endDateStr) {
+          el.classList.add('range');
+        }
+      });
+
+      document.getElementById('selected-dates').textContent = end
+        ? `${format(start)} ~ ${format(end)}`
+        : format(start);
+    }
+
+    renderCalendar();
+    if (isDealTime()) document.getElementById('deal-banner').style.display = 'block';
+  </script>
+</body>
+</html>
