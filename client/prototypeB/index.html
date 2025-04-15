@@ -1,90 +1,31 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>팔레스 예약 PRO</title>
-  <link rel="manifest" href="manifest.json" />
-  <style>
-    * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-    body {
-      margin: 0;
-      background: #0b0b24;
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: start;
-      padding: 20px;
-      min-height: 100vh;
-    }
-    .app {
-      width: 100%;
-      max-width: 430px;
-      background: #1a1a2e;
-      border-radius: 20px;
-      padding: 20px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.5);
-    }
-    .title {
-      font-size: 20px;
-      font-weight: bold;
-      margin-bottom: 16px;
-    }
-    .chat-box {
-      background: #2e2e4a;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 12px;
-    }
-    .btn-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    button {
-      width: 100%;
-      padding: 14px;
-      font-size: 16px;
-      font-weight: bold;
-      border: none;
-      border-radius: 12px;
-      background-color: white;
-      color: black;
-      cursor: pointer;
-    }
-    button:hover { background-color: #ddd; }
-  </style>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="app">
-    <div class="title">팔레스 예약</div>
-    <div class="chat-box" id="chat-box">
-      무엇을 도와드릴까요?
+<div class="app">
+  <div class="chat-window" id="chat">
+    <div class="message bot">무엇을 도와드릴까요?</div>
+  </div>
+  <div class="chat-footer">
+    <div class="quick-buttons">
+      <button onclick="sendQuick('📅 날짜로 예약')">📅 날짜로 예약</button>
+      <button onclick="sendQuick('🛏️ 상품으로 예약')">🛏️ 상품으로 예약</button>
+      <button onclick="sendQuick('🔥 오늘 예약')">🔥 오늘 예약</button>
+      <button onclick="sendQuick('💰 재방문 할인예약')">💰 재방문 할인예약</button>
+      <button onclick="sendQuick('📄 예약 내역')">📄 예약 내역</button>
+      <button onclick="resetFlow()">🔄 처음으로</button>
     </div>
-    <div class="btn-grid" id="options">
-      <button onclick="selectOption('date')">📅 날짜로 예약</button>
-      <button onclick="selectOption('product')">🛏️ 상품으로 예약</button>
-      <button onclick="selectOption('return')">💰 재방문 할인예약</button>
-      <button onclick="selectOption('cancel')">❌ 예약 취소</button>
+    <div class="chat-input">
+      <div class="capsule-wrap" id="selectedRange" tabindex="0" onkeydown="handleBackspace(event)"></div>
+      <button onclick="submitSelectedDate()">전송</button>
     </div>
   </div>
-
-  <script>
-    function selectOption(type) {
-      const chatBox = document.getElementById('chat-box');
-      const options = document.getElementById('options');
-      if (type === 'date') {
-        chatBox.textContent = "예약하실 날짜를 선택해주세요 (캘린더는 추후 구현 예정)";
-      } else if (type === 'product') {
-        chatBox.textContent = "상품으로 예약을 도와드릴게요. (리스트 구조 예정)";
-      } else if (type === 'return') {
-        chatBox.textContent = "이전 예약 정보를 불러오고 있어요. (할인 적용 예정)";
-      } else if (type === 'cancel') {
-        chatBox.textContent = "예약 취소 요청을 확인하고 있어요.";
-      }
-      options.innerHTML = '<button onclick="location.reload()">← 처음으로 돌아가기</button>';
-    }
-  </script>
+</div>
+<script src="script.js"></script>
 </body>
 </html>

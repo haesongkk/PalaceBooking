@@ -1,137 +1,116 @@
-
-* {
-  box-sizing: border-box;
-  font-family: 'Segoe UI', sans-serif;
-}
+* { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
 body {
   margin: 0;
-  background-color: #0b0b24;
+  background: #0b0b24;
   color: white;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: start;
+  padding: 0;
   min-height: 100vh;
 }
-.wrapper {
+.app {
   width: 100%;
   max-width: 430px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: #1a1a2e;
-  padding: 20px;
-  border-radius: 20px;
 }
-.step { display: none; }
-.step.active { display: block; }
-.step-title {
+.chat-window {
+  flex: 1;
+  display: flex;
+  flex-direction: column-reverse;
+  overflow-y: auto;
+  padding: 14px;
+  gap: 12px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.chat-window::-webkit-scrollbar {
+  display: none;
+}
+.message {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.message.bot {
+  align-self: flex-start;
+  background: #2e2e4a;
+}
+.message.user {
+  align-self: flex-end;
+  background: #ffd600;
+  color: black;
+  font-weight: bold;
+}
+.chat-footer {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #333;
+  background: #1a1a2e;
+  padding: 10px;
+}
+.quick-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+.quick-buttons button {
+  padding: 10px 14px;
+  border-radius: 20px;
+  border: none;
+  background: #ffd600;
+  color: black;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 14px;
+}
+.chat-input {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.capsule-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+.capsule {
+  background: #ffd600;
+  color: black;
+  font-weight: bold;
+  border-radius: 20px;
+  padding: 6px 12px;
+}
+.chat-input button {
+  margin-left: 10px;
+  padding: 0 16px;
+  background: none;
+  border: none;
+  color: #ffd600;
   font-size: 18px;
   font-weight: bold;
-  margin-bottom: 12px;
+  cursor: pointer;
 }
-.btn {
-  width: 100%;
-  padding: 14px;
-  font-size: 16px;
-  font-weight: bold;
+.room-list, .pay-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.room-list button, .pay-list button {
+  background: #ffd600;
+  color: black;
   border: none;
   border-radius: 12px;
-  background-color: white;
-  color: black;
-  cursor: pointer;
-  margin-top: 16px;
-}
-.btn:hover { background-color: #eee; }
-.room-types div {
-  padding: 12px;
-  background: #2a2a40;
-  border-radius: 10px;
-  margin-bottom: 8px;
-  cursor: pointer;
-}
-.room-types .selected {
-  background-color: #ffd600;
-  color: black;
-}
-.input-field {
-  width: 100%;
   padding: 10px;
-  margin-bottom: 10px;
-  border-radius: 8px;
-  border: none;
-}
-.summary-box {
-  background-color: #2e2e4a;
-  padding: 10px 12px;
-  border-radius: 10px;
-  font-size: 14px;
-  margin-bottom: 12px;
-}
-.calendar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-.calendar-header button {
-  background: none;
-  color: white;
-  border: none;
-  font-size: 20px;
   cursor: pointer;
-}
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-  text-align: center;
-}
-.day {
-  padding: 8px;
-  border-radius: 50%;
-  background: none;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-.day:hover { border-color: white; }
-.day.selected {
-  background-color: white;
-  color: black;
   font-weight: bold;
-}
-.day.range {
-  background-color: gray;
-  color: white;
-}
-.people-count {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #2a2a40;
-  border-radius: 10px;
-  padding: 12px;
-}
-.people-count button {
-  padding: 6px 12px;
-  font-size: 16px;
-  background: white;
-  color: black;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-#deal-banner {
-  background-color: #ffd600;
-  color: black;
-  padding: 12px;
-  border-radius: 10px;
-  margin-bottom: 16px;
-  font-size: 14px;
-}
-#deal-banner button {
-  margin-top: 8px;
-  background-color: black;
-  color: white;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
+  text-align: left;
 }

@@ -1,121 +1,325 @@
-
-let start = null, end = null, people = 2;
-let roomType = "";
-let specialDealPrice = null;
 let calendarYear = new Date().getFullYear();
 let calendarMonth = new Date().getMonth();
+let rangeStart = null;
+let rangeEnd = null;
+let calendarEnabled = true;
+let selectedRoom = '';
 
-function applyDeal() {
-  start = new Date("2025-04-14");
-  end = new Date("2025-04-15");
-  roomType = "디럭스룸 (2인)";
-  people = 2;
-  specialDealPrice = 25000;
-  goToStep(3);
+let selectedMode = "date-first"; // 기본은 날짜기반
+let selectedProduct = "";
+
+let recommendedDate = new Date(2025, 3, 20); // 2025-04-20 추천 날짜 (예시)
+let recommendedRoom = "디럭스룸 (2인) - 90,000원";
+
+let reservations = [
+  { id: 1, text: "디럭스룸 (2인) - 4/15", cancelled: false },
+  { id: 2, text: "스탠다드룸 (2인) - 4/20", cancelled: false }
+];
+
+
+function appendMessage(text, sender = 'bot') {
+  const chatBox = document.getElementById('chat');
+  const msg = document.createElement('div');
+  msg.className = 'message ' + sender;
+  msg.textContent = text;
+  chatBox.insertBefore(msg, chatBox.firstChild);
 }
 
-function isDealTime() {
-  return new Date().getHours() >= 19;
+function sendQuick(label) {
+  appendMessage(label, 'user');
+  if (label.includes('날짜')) {
+    calendarEnabled = true;
+    appendMessage('예약하실 날짜를 선택해주세요.');
+    const cal = document.createElement('div');
+    cal.className = 'message bot';
+    cal.id = 'calendarBox';
+    cal.innerHTML = renderCalendar();
+    document.getElementById('chat').insertBefore(cal, document.getElementById('chat').firstChild);
+  } 
+  else if (label.includes("상품으로")) {
+	selectedMode = "product-first";
+	selectedProduct = "";
+	calendarEnabled = false;
+	appendMessage("예약하실 상품을 선택해주세요.");
+	showProductList();
+  }
+  else if (label.includes("재방문")) {
+	selectedMode = "return-customer";
+	rangeStart = recommendedDate;
+	rangeEnd = null;
+	selectedRoom = recommendedRoom;
+	updateSelectedRangeUI(); // 캡슐 UI에 날짜/객실 표시
+	
+	appendMessage("지난 숙박 이력을 바탕으로 추천 정보를 불러왔습니다.");
+	showReturnCalendar(); // 추천 날짜가 표시된 달력
+	showRoomButtons(true); // 추천 객실이 자동 선택된 상태
+  }
+  else if (label.includes("오늘")) {
+	selectedMode = "today";
+	const todayText = formatDate(new Date());
+	appendMessage(`${todayText} 오늘 예약 가능한 객실을 보여드릴게요.`);
+	showRoomButtons(); // 기존과 동일한 버튼 사용
+  }
+  else if (label.includes("예약 내역")) {
+	appendMessage("📄 현재 예약 내역입니다:");
+	showReservationList();
+  }
+
+  else {
+    appendMessage("기능 준비 중입니다.");
+  }
 }
 
-function goToStep(n) {
-  document.querySelectorAll('.step').forEach((el, idx) => {
-    el.classList.toggle('active', idx === n - 1);
+function showReturnCalendar() {
+  calendarEnabled = true;
+  const cal = document.createElement('div');
+  cal.className = 'message bot';
+  cal.id = 'calendarBox';
+  cal.innerHTML = renderCalendar(recommendedDate, null);
+  document.getElementById('chat').insertBefore(cal, document.getElementById('chat').firstChild);
+}
+function showReservationList() {
+  const chatBox = document.getElementById('chat');
+  const container = document.createElement('div');
+  container.className = 'message bot';
+
+  let html = `<div class="room-list">`;
+  let hasActive = false;
+  reservations.forEach(res => {
+    if (!res.cancelled) {
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <span>${res.text}</span>
+        <button onclick="cancelReservation(${res.id})" style="background:red;color:white;border:none;padding:6px 12px;border-radius:8px;cursor:pointer;">취소</button>
+      </div>`;
+      hasActive = true;
+    }
   });
-  const dateText = start ? `${format(start)}${end ? `~${format(end)}` : ''}` : '';
-  if (n === 2) {
-    document.getElementById('progress-summary-step2').textContent = dateText;
+
+  if (!hasActive) html += `<div>❌ 현재 예약된 내역이 없습니다.</div>`;
+  html += `</div>`;
+
+  container.innerHTML = html;
+  chatBox.insertBefore(container, chatBox.firstChild);
+}
+
+function cancelReservation(id) {
+  const target = reservations.find(r => r.id === id);
+  if (target) {
+    target.cancelled = true;
+    appendMessage(`🗑️ '${target.text}' 예약이 취소되었습니다.`, 'bot');
+    showReservationList(); // 새로고침처럼 다시 보여줌
   }
-  if (n === 3) {
-    const summaryText = `${dateText}, ${roomType}, ${people}명`;
-    document.getElementById('progress-summary-step3').textContent = summaryText;
-  }
-  const banner = document.getElementById('deal-banner');
-  if (banner) banner.style.display = (n === 1 && isDealTime()) ? 'block' : 'none';
 }
 
-function changeMonth(offset) {
-  calendarMonth += offset;
-  if (calendarMonth < 0) {
-    calendarMonth = 11;
-    calendarYear--;
-  } else if (calendarMonth > 11) {
-    calendarMonth = 0;
-    calendarYear++;
-  }
-  renderCalendar();
+
+function resetFlow() {
+  calendarEnabled = false;
+  rangeStart = null;
+  rangeEnd = null;
+  selectedRoom = '';
+  updateSelectedRangeUI();
+  appendMessage("진행 중인 예약을 초기화했어요. 무엇을 도와드릴까요?");
 }
 
-function selectRoom(el) {
-  document.querySelectorAll('.room-types div').forEach(div => div.classList.remove('selected'));
-  el.classList.add('selected');
-  roomType = el.textContent;
-}
-
-function changePeople(delta) {
-  people = Math.min(4, Math.max(1, people + delta));
-  document.getElementById('people-num').textContent = people;
-}
-
-function format(date) {
-  return `${date.getMonth() + 1}/${date.getDate()}`;
-}
-
-function renderCalendar() {
-  const cal = document.getElementById('calendar');
-  const monthLabel = document.getElementById('calendar-month');
+// 달력
+function renderCalendar(customStart = null, customEnd = null) {
   const year = calendarYear;
   const month = calendarMonth;
   const firstDay = new Date(year, month, 1).getDay();
   const lastDate = new Date(year, month + 1, 0).getDate();
-  cal.innerHTML = '';
-  monthLabel.textContent = `${year}년 ${month + 1}월`;
-  for (let i = 0; i < firstDay; i++) cal.appendChild(document.createElement('div'));
+
+  let html = `<div style="margin-bottom:4px; display:flex; justify-content:space-between;">
+    <button onclick="changeMonth(-1)">◀</button>
+    <strong>${year}년 ${month + 1}월</strong>
+    <button onclick="changeMonth(1)">▶</button>
+  </div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">`;
+
+  for (let i = 0; i < firstDay; i++) html += `<div></div>`;
+
   for (let d = 1; d <= lastDate; d++) {
-    const btn = document.createElement('div');
-    btn.className = 'day';
-    btn.textContent = d;
     const thisDate = new Date(year, month, d);
-    btn.setAttribute('data-date', thisDate.toISOString().split('T')[0]);
-    btn.onclick = () => selectDate(thisDate, btn);
-    cal.appendChild(btn);
+
+    const isStart = customStart && thisDate.toDateString() === customStart.toDateString();
+    const isEnd = customEnd && thisDate.toDateString() === customEnd.toDateString();
+    const isInRange =
+      customStart && customEnd && thisDate > customStart && thisDate < customEnd;
+
+    let bgColor = "#ffd600";
+    if (isStart || isEnd) bgColor = "white";
+    if (isInRange) bgColor = "gray";
+
+    html += `<button onclick="selectDate('${year}-${month + 1}-${d}')"
+      style="padding:6px;border-radius:8px;
+      background:${bgColor};
+      color:${(isStart || isEnd) ? "black" : "black"};
+      font-weight:bold;">${d}</button>`;
   }
+
+  html += `</div>`;
+  return html;
 }
 
-function selectDate(date, el) {
-  if (!start || (start && end)) {
-    start = date;
-    end = null;
+
+function changeMonth(offset) {
+  if (!calendarEnabled) return;
+  calendarMonth += offset;
+  if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+  else if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+  const cal = document.getElementById('calendarBox');
+  if (cal) cal.innerHTML = renderCalendar(rangeStart, rangeEnd);
+}
+
+function selectDate(dateStr) {
+  if (!calendarEnabled) return;
+  const d = new Date(dateStr);
+  if (!rangeStart || (rangeStart && rangeEnd)) {
+    rangeStart = d;
+    rangeEnd = null;
   } else {
-    if (date < start) {
-      start = date;
-    } else {
-      end = date;
-    }
+    if (d < rangeStart) rangeStart = d;
+    else rangeEnd = d;
   }
-  updateCalendarUI();
+  updateSelectedRangeUI();
+  renderCalendar();
 }
 
-function updateCalendarUI() {
-  document.querySelectorAll('.day').forEach(el => el.classList.remove('selected', 'range'));
-  if (!start) return;
+function updateSelectedRangeUI() {
+  const wrap = document.getElementById("selectedRange");
+  wrap.innerHTML = "";
+  if (rangeStart && !rangeEnd)
+    wrap.innerHTML = `<span class='capsule'>${formatDate(rangeStart)}</span>`;
+  else if (rangeStart && rangeEnd)
+    wrap.innerHTML = `<span class='capsule'>${formatDate(rangeStart)}</span> ~ 
+                      <span class='capsule'>${formatDate(rangeEnd)}</span>`;
 
-  const startDateStr = start.toISOString().split('T')[0];
-  const endDateStr = end?.toISOString().split('T')[0];
+  // ✅ 캘린더 다시 그리기!
+  const cal = document.getElementById("calendarBox");
+  if (cal) cal.innerHTML = renderCalendar(rangeStart, rangeEnd);
+}
 
-  document.querySelectorAll('.day').forEach(el => {
-    const dateStr = el.getAttribute('data-date');
-    if (dateStr === startDateStr || dateStr === endDateStr) {
-      el.classList.add('selected');
-    } else if (start && end && dateStr > startDateStr && dateStr < endDateStr) {
-      el.classList.add('range');
-    }
+
+function formatDate(d) {
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function submitSelectedDate() {
+  if (!rangeStart) return appendMessage("날짜를 선택해주세요.", 'bot');
+
+  const summary = rangeEnd
+    ? `${formatDate(rangeStart)} ~ ${formatDate(rangeEnd)}`
+    : `${formatDate(rangeStart)} 당일`;
+
+  if (selectedMode === "product-first") {
+    appendMessage(`${selectedProduct}\n📅 ${summary}`, 'user');
+    selectedRoom = `${selectedProduct}\n📅 ${summary}`;
+    showPaymentOptions();
+  } else if (selectedMode === "return-customer") {
+    // ✅ 재방문 할인예약: 이미 선택된 상태라 바로 결제
+    appendMessage(`${selectedRoom}\n📅 ${summary}`, 'user');
+    showPaymentOptions();
+  } else {
+    // 📅 날짜로 예약
+    appendMessage(`${summary} 예약`, 'user');
+    appendMessage("해당 날짜로 예약 가능한 객실을 확인 중입니다...");
+    showRoomButtons();
+  }
+
+  calendarEnabled = false;
+  rangeStart = null;
+  rangeEnd = null;
+  updateSelectedRangeUI();
+}
+
+
+
+function showRoomButtons(highlight = false) {
+  const chatBox = document.getElementById('chat');
+  const container = document.createElement('div');
+  container.className = 'message bot';
+
+  const rooms = [
+    "디럭스룸 (2인) - 90,000원",
+    "스탠다드룸 (2인) - 70,000원",
+    "패밀리룸 (4인) - 120,000원"
+  ];
+
+  let html = '<div class="room-list">';
+  rooms.forEach(room => {
+    const isSelected = highlight && room === recommendedRoom;
+    html += `<button onclick="selectRoom('${room}')" 
+               style="${isSelected ? 'background:black;color:white;' : ''}">
+               ${room}</button>`;
   });
-
-  document.getElementById('selected-dates').textContent = end
-    ? `${format(start)} ~ ${format(end)}`
-    : format(start);
+  html += '</div>';
+  container.innerHTML = html;
+  chatBox.insertBefore(container, chatBox.firstChild);
 }
 
-renderCalendar();
-if (isDealTime()) document.getElementById('deal-banner').style.display = 'block';
+function selectRoom(room) {
+  selectedRoom = room;
+  appendMessage(room, 'user');
+
+  if (selectedMode === "today") {
+    // ✅ 오늘 날짜 포함 결제 진행
+    const todayText = formatDate(new Date());
+    selectedRoom = `${room}\n📅 ${todayText}`;
+    showPaymentOptions();
+  } else {
+    showPaymentOptions();
+  }
+}
+
+
+function showPaymentOptions() {
+  const chatBox = document.getElementById('chat');
+  const container = document.createElement('div');
+  container.className = 'message bot';
+  container.innerHTML = `
+    <div class="pay-list">
+      <button onclick="selectPay('계좌이체')">🏦 계좌이체</button>
+      <button onclick="selectPay('일반결제')">💳 일반결제 (신용카드)</button>
+      <button onclick="selectPay('카카오페이')">💛 카카오페이</button>
+      <button onclick="selectPay('네이버페이')">💚 네이버페이</button>
+    </div>
+  `;
+  chatBox.insertBefore(container, chatBox.firstChild);
+}
+
+function selectPay(method) {
+  appendMessage(`💳 ${method} 선택`, 'user');
+  appendMessage(`(결제 과정)`, 'bot');
+  appendMessage(`✅ 예약이 완료되었습니다!\n${selectedRoom}`, 'bot');
+}
+function showProductList() {
+  const container = document.createElement('div');
+  container.className = 'message bot';
+  container.innerHTML = `
+    <div class="room-list">
+      <button onclick="selectProduct('2PC (60,000원)')">🖥️ 2PC (60,000원)</button>
+      <button onclick="selectProduct('멀티플렉스 (50,000원)')">🎥 멀티플렉스 (50,000원)</button>
+      <button onclick="selectProduct('노래방 (60,000원)')">🎤 노래방 (60,000원)</button>
+      <button onclick="selectProduct('스탠다드 (45,000원)')">🛏️ 스탠다드 (45,000원)</button>
+      <button onclick="selectProduct('트윈 (50,000원)')">🛌 트윈 (50,000원)</button>
+    </div>`;
+  document.getElementById('chat').insertBefore(container, document.getElementById('chat').firstChild);
+}
+
+function selectProduct(product) {
+  selectedProduct = product;
+  appendMessage(product, 'user');
+  appendMessage("이용하실 날짜를 선택해주세요.");
+  calendarEnabled = true;
+  const cal = document.createElement('div');
+  cal.className = 'message bot';
+  cal.id = 'calendarBox';
+  cal.innerHTML = renderCalendar();
+  document.getElementById('chat').insertBefore(cal, document.getElementById('chat').firstChild);
+}
+
+function handleBackspace(event) {
+  if (event.key === 'Backspace') {
+    if (rangeEnd) rangeEnd = null;
+    else if (rangeStart) rangeStart = null;
+    updateSelectedRangeUI();
+  }
+}
