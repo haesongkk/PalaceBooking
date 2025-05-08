@@ -43,7 +43,7 @@ body {
 }
 .message.user {
   align-self: flex-end;
-  background: #ffd600;
+  background: #ebc811;
   color: black;
   font-weight: bold;
 }
@@ -105,7 +105,7 @@ body {
   gap: 8px;
 }
 .room-list button, .pay-list button {
-  background: #ffd600;
+  background: #9292cf;
   color: black;
   border: none;
   border-radius: 12px;

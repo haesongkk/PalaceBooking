@@ -1,150 +1,3 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>팔레스 예약 PRO</title>
-  <style>
-    * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-    body {
-      margin: 0;
-      background: #0b0b24;
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: start;
-      padding: 0;
-      min-height: 100vh;
-    }
-    .app {
-      width: 100%;
-      max-width: 430px;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      background: #1a1a2e;
-    }
-    .chat-window {
-      flex: 1;
-      display: flex;
-      flex-direction: column-reverse;
-      overflow-y: auto;
-      padding: 14px;
-      gap: 12px;
-      scrollbar-width: none; /* Firefox */
-	  -ms-overflow-style: none; /* IE & Edge */
-	}
-	.chat-window::-webkit-scrollbar {
-	  display: none; /* Chrome, Safari */
-	}
-    .message {
-      max-width: 80%;
-      padding: 10px 14px;
-      border-radius: 16px;
-      line-height: 1.4;
-      word-break: break-word;
-    }
-    .message.bot {
-      align-self: flex-start;
-      background: #2e2e4a;
-    }
-    .message.user {
-      align-self: flex-end;
-      background: #ffd600;
-      color: black;
-      font-weight: bold;
-    }
-    .chat-footer {
-      display: flex;
-      flex-direction: column;
-      border-top: 1px solid #333;
-      background: #1a1a2e;
-      padding: 10px;
-    }
-    .quick-buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: center;
-      margin-bottom: 8px;
-    }
-    .quick-buttons button {
-      padding: 10px 14px;
-      border-radius: 20px;
-      border: none;
-      background: #ffd600;
-      color: black;
-      font-weight: bold;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    .chat-input {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .capsule-wrap {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      flex: 1;
-    }
-    .capsule {
-      background: #ffd600;
-      color: black;
-      font-weight: bold;
-      border-radius: 20px;
-      padding: 6px 12px;
-    }
-    .chat-input button {
-      margin-left: 10px;
-      padding: 0 16px;
-      background: none;
-      border: none;
-      color: #ffd600;
-      font-size: 18px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .room-list, .pay-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .room-list button, .pay-list button {
-      background: #ffd600;
-      color: black;
-      border: none;
-      border-radius: 12px;
-      padding: 10px;
-      cursor: pointer;
-      font-weight: bold;
-      text-align: left;
-    }
-  </style>
-</head>
-<body>
-<div class="app">
-  <div class="chat-window" id="chat">
-    <div class="message bot">무엇을 도와드릴까요?</div>
-  </div>
-  <div class="chat-footer">
-    <div class="quick-buttons">
-      <button onclick="sendQuick('📅 날짜로 예약')">📅 날짜로 예약</button>
-      <button onclick="sendQuick('🛏️ 상품으로 예약')">🛏️ 상품으로 예약</button>
-      <button onclick="sendQuick('🔥 오늘 예약')">🔥 오늘 예약</button>
-      <button onclick="sendQuick('💰 재방문 할인예약')">💰 재방문 할인예약</button>
-      <button onclick="sendQuick('📄 예약 내역')">📄 예약 내역</button>
-      <button onclick="resetFlow()">🔄 처음으로</button>
-    </div>
-    <div class="chat-input">
-      <div class="capsule-wrap" id="selectedRange" tabindex="0" onkeydown="handleBackspace(event)"></div>
-      <button onclick="submitSelectedDate()">전송</button>
-    </div>
-  </div>
-</div>
-
-<script>
 let calendarYear = new Date().getFullYear();
 let calendarMonth = new Date().getMonth();
 let rangeStart = null;
@@ -435,7 +288,19 @@ function showPaymentOptions() {
 function selectPay(method) {
   appendMessage(`💳 ${method} 선택`, 'user');
   appendMessage(`(결제 과정)`, 'bot');
-  appendMessage(`✅ 예약이 완료되었습니다!\n${selectedRoom}`, 'bot');
+  // ✅ 서버에 예약 정보 전송
+  fetch('http://localhost:3000/api/reserve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: selectedRoom })
+  })
+  .then(res => res.json())
+  .then(data => {
+    appendMessage(`✅ 예약이 완료되었습니다!\n${selectedRoom}`, 'bot');
+  })
+  .catch(err => {
+    appendMessage(`❌ 서버에 예약 저장 중 오류 발생`, 'bot');
+  });
 }
 function showProductList() {
   const container = document.createElement('div');
@@ -470,6 +335,3 @@ function handleBackspace(event) {
     updateSelectedRangeUI();
   }
 }
-</script>
-</body>
-</html>
