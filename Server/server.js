@@ -102,8 +102,13 @@ app.post("/api/reserve", (req, res) => {
     `);
     const info = stmt.run(username, phone, room, startDate, endDate);
 
+    // [AUTO_CONFIRM_TEST] 테스트용: 예약 생성 시 자동 확정 처리
+    db.prepare('UPDATE reservations SET confirmed = 1 WHERE id = ?').run(info.lastInsertRowid);
     // 관리자에게 실시간 알림
     if (io) io.to("admin").emit("reservation-updated");
+    // 해당 예약자에게 실시간 확정 알림
+    const row = db.prepare('SELECT phone FROM reservations WHERE id = ?').get(info.lastInsertRowid);
+    if (row && row.phone) io.to(`user_${row.phone}`).emit("reservation-confirmed", { id: info.lastInsertRowid });
 
     res.json({ success: true, id: info.lastInsertRowid });
 });
@@ -153,9 +158,14 @@ app.post("/api/payment", (req, res) => {
         VALUES (?, ?, ?, ?, ?)
     `);
     const info = stmt.run(username, phone, room, startDate, endDate);
-    
+
+    // [AUTO_CONFIRM_TEST] 테스트용: 예약 생성 시 자동 확정 처리
+    db.prepare('UPDATE reservations SET confirmed = 1 WHERE id = ?').run(info.lastInsertRowid);
     // 관리자에게 실시간 알림
     if (io) io.to("admin").emit("reservation-updated");
+    // 해당 예약자에게 실시간 확정 알림
+    const row = db.prepare('SELECT phone FROM reservations WHERE id = ?').get(info.lastInsertRowid);
+    if (row && row.phone) io.to(`user_${row.phone}`).emit("reservation-confirmed", { id: info.lastInsertRowid });
 
     // 결제 정보 응답
     res.json({

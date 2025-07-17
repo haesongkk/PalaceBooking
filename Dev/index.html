@@ -45,10 +45,15 @@
           userList.innerHTML = data.map(u => `
             <div class="user-item${selectedNick===u.nick?' selected':''}" onclick="selectUser('${encodeURIComponent(u.nick)}')">
               <span>${u.nick}</span>
-              <span class="user-meta">${u.cnt}건<br>${u.first_ts?u.first_ts.replace('T',' ').slice(0,16):''}</span>
+              <span class="user-meta">${u.cnt}건<br>${u.first_ts?formatKST(u.first_ts):''}</span>
             </div>
           `).join('');
         });
+    }
+    function formatKST(isoString) {
+      if (!isoString) return '';
+      const date = new Date(isoString);
+      return date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
     }
     function selectUser(nickEnc) {
       const nick = decodeURIComponent(nickEnc);
@@ -65,7 +70,7 @@
           logsDiv.innerHTML = data.map(log => `
             <div class="message ${log.sender}">
               <span class="log-type-${log.type}">${log.type === 'keyword' ? log.content : log.content.replace(/</g,'&lt;')}</span>
-              <span class="timestamp">${log.timestamp ? log.timestamp.replace('T',' ').slice(0,19) : ''}</span>
+              <span class="timestamp">${log.timestamp ? formatKST(log.timestamp) : ''}</span>
             </div>
           `).join('');
         });

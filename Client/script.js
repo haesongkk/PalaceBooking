@@ -1025,9 +1025,10 @@ function connectSocket(phone) {
     socket = io();
     socket.emit('join', phone);
     socket.on('reservation-confirmed', (data) => {
-        appendMessage('🎉 예약이 확정되었습니다! 관리자 승인 완료.', 'bot');
-        // 필요하다면 예약 내역 새로고침 등 추가
-        // showReservationList();
+        // setTimeout으로 확정 메시지가 항상 뒤에 오도록
+        setTimeout(() => {
+            appendMessage('🎉 예약이 확정되었습니다! 관리자 승인 완료.', 'bot');
+        }, 100);
     });
 }
 
