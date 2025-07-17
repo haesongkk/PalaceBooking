@@ -354,10 +354,10 @@ app.post('/api/admin/roomStock', (req, res) => {
     res.json({ success: true });
 });
 
-// Serve /dev page for log viewing
-app.use('/dev', express.static(path.join(__dirname, '../Client/dev')));
+// Serve /dev page for log viewing (now from top-level dev folder)
+app.use('/dev', express.static(path.join(__dirname, '../dev')));
 app.get('/dev', (req, res) => {
-    res.sendFile(path.join(__dirname, '../Client/dev/index.html'));
+    res.sendFile(path.join(__dirname, '../dev/index.html'));
 });
 
 // Ensure user_logs table has 'nick' column
