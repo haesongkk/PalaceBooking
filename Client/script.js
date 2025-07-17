@@ -17,7 +17,12 @@ function appendMessage(text, sender = "bot") {
     const msg = document.createElement("div");
     msg.className = "message " + sender;
     msg.textContent = text;
-    chatBox.insertBefore(msg, chatBox.firstChild);
+    chatBox.appendChild(msg); // 메시지를 맨 아래에 추가
+    // 메시지 추가 후 스크롤 아래로 이동
+    const chatWindow = document.querySelector('.chat-window');
+    if (chatWindow) {
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -26,21 +31,33 @@ document.addEventListener("DOMContentLoaded", () => {
     const input = document.getElementById("customInput");
     input.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault(); 
-            
-            // 예약 과정 중인지 확인 (날짜나 룸이 선택된 상태)
+            e.preventDefault();
             if (rangeStart || selectedRoom) {
                 submitSelectedDate();
             } else {
-                // 일반 텍스트 입력 처리
                 const text = input.innerText.trim();
                 if (text) {
                     handleUserInput(text);
-                    input.innerHTML = ""; 
+                    input.innerHTML = "";
                 }
             }
         }
     });
+    // 전송 버튼도 동일하게 처리
+    const submitBtn = document.querySelector('.submit-btn');
+    if (submitBtn) {
+        submitBtn.onclick = () => {
+            if (rangeStart || selectedRoom) {
+                submitSelectedDate();
+            } else {
+                const text = input.innerText.trim();
+                if (text) {
+                    handleUserInput(text);
+                    input.innerHTML = "";
+                }
+            }
+        };
+    }
 });
 
 window.onload = () => {
@@ -57,6 +74,10 @@ window.addEventListener('message', function(event) {
     } else if(event.data === 'payment-fail') {
         appendMessage('❌ 결제에 실패했습니다. 다시 시도해주세요.', 'bot');
     }
+});
+
+window.addEventListener('resize', () => {
+  window.scrollTo(0, 0);
 });
 
 
@@ -158,12 +179,17 @@ function phoneHandler(input)
             updateHeaderNickname(username, userphone);
             appendMessage(welcomeMessage);
             showQuickMenuWith(menuOptions);
-			
+
+            // 입력창 비우기
+            const inputBox = document.getElementById("customInput");
+            if (inputBox) inputBox.innerHTML = "";
+
+            // curHandler를 예약 관련 handler로 변경
+            curHandler = defaultHandler;
         })
         .catch(() => {
             console.log("[ERROR] 서버 통신 오류");
         });
-
 }
 function reserveHandler(input){
 }
@@ -181,6 +207,7 @@ function handleUserInput(text)
 }
 
 async function showQuickMenuWith(labels = []) {
+    removeOldCalendars(); // 기존 달력 삭제
     const container = document.createElement("div");
     container.className = "message bot";
 
@@ -246,7 +273,7 @@ async function showQuickMenuWith(labels = []) {
     btn.onclick = () => sendQuick("📄 예약 내역 확인");
     container.appendChild(btn);
 
-    document.getElementById("chat").insertBefore(container, document.getElementById("chat").firstChild);
+    document.getElementById("chat").appendChild(container);
 }
 
 function handleSpecialProduct(special) {
@@ -263,7 +290,7 @@ function handleSpecialProduct(special) {
     renderCalendar().then(html => {
         cal.innerHTML = html;
     });
-    document.getElementById("chat").insertBefore(cal, document.getElementById("chat").firstChild);
+    document.getElementById("chat").appendChild(cal);
     selectedMode = "product-first";
 }
 
@@ -277,13 +304,14 @@ function sendQuick(label) {
         // 날짜 먼저 선택
         selectedMode = "date-first";
         appendMessage("이용하실 날짜를 선택해주세요.");
+        removeOldCalendars(); // 기존 달력 삭제
         const cal = document.createElement("div");
         cal.className = "message bot";
         cal.id = "calendarBox";
         renderCalendar().then(html => {
             cal.innerHTML = html;
         });
-        document.getElementById("chat").insertBefore(cal, document.getElementById("chat").firstChild);
+        document.getElementById("chat").appendChild(cal);
     }
     else if (label.includes("상품으로 예약")) {
         // 상품 먼저 선택
@@ -401,7 +429,7 @@ async function showRoomButtons() {
         console.log('[room 버튼]', room, 'stockMap:', stockMap[room], 'btn.disabled:', btn.disabled);
     });
 
-    chatBox.insertBefore(container, chatBox.firstChild);
+    chatBox.appendChild(container);
 }
 
 
@@ -535,11 +563,11 @@ function showReservationList() {
             }
             html += `</div>`;
             container.innerHTML = html;
-            chatBox.insertBefore(container, chatBox.firstChild);
+            chatBox.appendChild(container);
         })
         .catch(() => {
             container.innerHTML = `<div>❌ 예약 내역을 불러오는 중 오류가 발생했습니다.</div>`;
-            chatBox.insertBefore(container, chatBox.firstChild);
+            chatBox.appendChild(container);
         });
 }
 
@@ -588,13 +616,12 @@ function updateSelectedRangeUI() {
         wrap.insertBefore(capsule, wrap.firstChild);
     }
 
-    // 달력 갱신
-    const cal = document.getElementById("calendarBox");
-    if (cal) {
+    // 모든 달력 갱신
+    document.querySelectorAll('#calendarBox').forEach(cal => {
         renderCalendar(rangeStart, rangeEnd).then(html => {
             cal.innerHTML = html;
         });
-    }
+    });
 }
 
 
@@ -661,7 +688,8 @@ function showProductList() {
         container.appendChild(btn);
     });
 
-    chatBox.insertBefore(container, chatBox.firstChild);
+    // 반드시 appendChild로 추가!
+    chatBox.appendChild(container);
 }
 
 // selectProduct 함수는 더 이상 자동으로 날짜 선택으로 넘어가지 않도록 수정 또는 사용하지 않음
@@ -692,7 +720,6 @@ function submitSelectedDate() {
 
     // 날짜와 룸이 모두 선택되었는지 확인
     if (rangeStart && selectedRoom) {
-        appendMessage("결제하기 버튼을 눌러주세요.");
         showPaymentButton();
     } else if (rangeStart && !selectedRoom) {
         appendMessage("객실을 선택해주세요.");
@@ -700,13 +727,15 @@ function submitSelectedDate() {
     } else if (!rangeStart && selectedRoom) {
         appendMessage("날짜를 선택해주세요.");
         // 달력 띄우기
+        removeOldCalendars(); // 기존 달력 삭제
         const cal = document.createElement("div");
         cal.className = "message bot";
         cal.id = "calendarBox";
+        disableOldCalendars();
         renderCalendar().then(html => {
             cal.innerHTML = html;
         });
-        document.getElementById("chat").insertBefore(cal, document.getElementById("chat").firstChild);
+        document.getElementById("chat").appendChild(cal);
     } else {
         appendMessage("날짜와 객실을 모두 선택해주세요.");
     }
@@ -761,14 +790,13 @@ function showPaymentButton() {
     btn.onclick = () => processPayment("자동"); // 결제수단은 의미 없음
 
     container.appendChild(btn);
-    chatBox.insertBefore(container, chatBox.firstChild);
+    chatBox.appendChild(container);
 }
 
 // 토스페이먼츠 결제 처리
 function processPayment(paymentMethod) {
     appendMessage('⚠️ 테스트 페이지이므로 결제 과정 없이 예약이 바로 진행됩니다.', 'user');
     appendMessage("예약을 진행합니다...", "bot");
-    
     // 서버에 예약 정보 요청 (결제 없이 바로 예약)
     const payload = {
         username: username,
@@ -777,7 +805,6 @@ function processPayment(paymentMethod) {
         startDate: rangeStart?.toISOString().split('T')[0],
         endDate: rangeEnd?.toISOString().split('T')[0] || null
     };
-    
     fetch("/api/reserve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -907,8 +934,12 @@ async function renderCalendar(selectedStart = null, selectedEnd = null) {
         if (!isInMonth) classes += " inactive";
         if (isStart || isEnd) classes += " selected";
         else if (isInRange) classes += " range";
+        // 날짜 포맷을 항상 두 자리로 맞춤
+        const y = currentDate.getFullYear();
+        const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const d = String(currentDate.getDate()).padStart(2, '0');
         html += `
-            <button class="${classes}" onclick="selectDate('${currentDate.getFullYear()}-${currentDate.getMonth() + 1}-${currentDate.getDate()}')">
+            <button class="${classes}" onclick="selectDate('${y}-${m}-${d}')">
                 ${currentDate.getDate()}
             </button>
         `;
@@ -929,6 +960,7 @@ function changeMonth(offset) {
         });
     }
 }
+window.changeMonth = changeMonth;
 
 function selectDate(dateStr) {
     if (!calendarEnabled) return;
@@ -989,13 +1021,14 @@ function handleDayUseSpecial() {
     rangeStart = null;
     rangeEnd = null;
     // 날짜만 선택, 객실 선택 없이
+    removeOldCalendars(); // 기존 달력 삭제
     const cal = document.createElement("div");
     cal.className = "message bot";
     cal.id = "calendarBox";
     renderCalendar().then(html => {
         cal.innerHTML = html;
     });
-    document.getElementById("chat").insertBefore(cal, document.getElementById("chat").firstChild);
+    document.getElementById("chat").appendChild(cal);
     // 결제는 날짜 선택 후 submitSelectedDate에서 처리
 }
 function handleWalkSpecial() {
@@ -1003,26 +1036,28 @@ function handleWalkSpecial() {
     selectedRoom = "도보 특가";
     rangeStart = null;
     rangeEnd = null;
+    removeOldCalendars(); // 기존 달력 삭제
     const cal = document.createElement("div");
     cal.className = "message bot";
     cal.id = "calendarBox";
     renderCalendar().then(html => {
         cal.innerHTML = html;
     });
-    document.getElementById("chat").insertBefore(cal, document.getElementById("chat").firstChild);
+    document.getElementById("chat").appendChild(cal);
 }
 function handle2PCSpecial() {
     appendMessage("2PC 특가 예약을 진행합니다. 날짜를 선택해 주세요. (1박, 30,000원)", "bot");
     selectedRoom = "2PC 특가";
     rangeStart = null;
     rangeEnd = null;
+    removeOldCalendars(); // 기존 달력 삭제
     const cal = document.createElement("div");
     cal.className = "message bot";
     cal.id = "calendarBox";
     renderCalendar().then(html => {
         cal.innerHTML = html;
     });
-    document.getElementById("chat").insertBefore(cal, document.getElementById("chat").firstChild);
+    document.getElementById("chat").appendChild(cal);
 }
 
 // 특가상품 결제 금액 강제 지정용
@@ -1036,5 +1071,27 @@ function showPaymentButtonWithAmount(amount, label) {
     btn.textContent = `${amount.toLocaleString()}원 결제하기`;
     btn.onclick = () => processPayment("자동");
     container.appendChild(btn);
-    chatBox.insertBefore(container, chatBox.firstChild);
+    chatBox.appendChild(container);
+}
+
+function disableOldCalendars() {
+    document.querySelectorAll('#calendarBox').forEach(el => {
+        el.dataset.active = "false";
+        el.querySelectorAll('button').forEach(btn => btn.disabled = true);
+    });
+}
+
+function removeOldCalendars() {
+    document.querySelectorAll('#calendarBox').forEach(el => el.remove());
+}
+
+// 달력 생성 전 기존 달력 비활성화, 새 달력만 활성화
+function activateNewCalendar(cal) {
+    // 기존 달력 모두 비활성화
+    document.querySelectorAll('#calendarBox').forEach(el => {
+        el.dataset.active = "false";
+        el.querySelectorAll('button').forEach(btn => btn.disabled = true);
+    });
+    // 새 달력 활성화
+    cal.dataset.active = "true";
 }
