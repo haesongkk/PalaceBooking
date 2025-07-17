@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Dev Log Viewer</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #181828; color: #fff; margin: 0; padding: 0; }
+    .container { max-width: 900px; margin: 40px auto; background: #23234a; border-radius: 12px; padding: 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); display: flex; gap: 32px; }
+    h1 { font-size: 1.5rem; margin-bottom: 24px; }
+    .user-list { width: 260px; background: #181828; border-radius: 8px; padding: 16px; min-height: 120px; max-height: 600px; overflow-y: auto; }
+    .user-item { padding: 10px 8px; border-radius: 6px; margin-bottom: 6px; cursor: pointer; transition: background 0.15s; display: flex; justify-content: space-between; align-items: center; }
+    .user-item.selected, .user-item:hover { background: #ffd600; color: #222; }
+    .user-meta { font-size: 0.85em; color: #aaa; }
+    .logs { flex: 1; background: #181828; border-radius: 8px; padding: 16px; min-height: 120px; max-height: 600px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    /* 채팅 버블 스타일 */
+    .message { display: inline-block; max-width: 80%; padding: 10px 16px; border-radius: 16px; font-size: 16px; line-height: 1.5; word-break: break-word; margin-bottom: 2px; }
+    .message.bot { align-self: flex-start; background: #2e2e4a; color: #fff; }
+    .message.user { align-self: flex-end; background: #ebcb11; color: #222; font-weight: bold; }
+    .log-type-keyword { font-style: italic; color: #aaa; }
+    .timestamp { font-size: 0.85em; color: #888; margin-left: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div>
+      <h1>유저 목록</h1>
+      <div class="user-list" id="userList"></div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;">
+      <h1 id="logTitle">대화 로그</h1>
+      <div class="logs" id="logs"></div>
+    </div>
+  </div>
+  <script>
+    let selectedNick = null;
+    function fetchUsers() {
+      fetch('/api/logs/all')
+        .then(res => res.json())
+        .then(data => {
+          const userList = document.getElementById('userList');
+          if (!Array.isArray(data) || data.length === 0) {
+            userList.innerHTML = '<div>유저 없음</div>';
+            return;
+          }
+          userList.innerHTML = data.map(u => `
+            <div class="user-item${selectedNick===u.nick?' selected':''}" onclick="selectUser('${encodeURIComponent(u.nick)}')">
+              <span>${u.nick}</span>
+              <span class="user-meta">${u.cnt}건<br>${u.first_ts?u.first_ts.replace('T',' ').slice(0,16):''}</span>
+            </div>
+          `).join('');
+        });
+    }
+    function selectUser(nickEnc) {
+      const nick = decodeURIComponent(nickEnc);
+      selectedNick = nick;
+      document.getElementById('logTitle').textContent = `대화 로그: ${nick}`;
+      fetch(`/api/logs?nick=${encodeURIComponent(nick)}`)
+        .then(res => res.json())
+        .then(data => {
+          const logsDiv = document.getElementById('logs');
+          if (!Array.isArray(data) || data.length === 0) {
+            logsDiv.innerHTML = '<div>로그 없음</div>';
+            return;
+          }
+          logsDiv.innerHTML = data.map(log => `
+            <div class="message ${log.sender}">
+              <span class="log-type-${log.type}">${log.type === 'keyword' ? log.content : log.content.replace(/</g,'&lt;')}</span>
+              <span class="timestamp">${log.timestamp ? log.timestamp.replace('T',' ').slice(0,19) : ''}</span>
+            </div>
+          `).join('');
+        });
+      fetchUsers();
+    }
+    fetchUsers();
+  </script>
+</body>
+</html> 
