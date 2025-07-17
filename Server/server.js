@@ -246,17 +246,7 @@ try {
         stock INTEGER DEFAULT 10
     )`).run();
     // 디폴트 특가 상품 등록 (중복 방지)
-    const specials = [
-        { name: '오늘 예약 특가', roomType: '🛏️ 스탠다드 (45,000원)', price: 39000, stock: 10 },
-        { name: '2PC 한정 특가', roomType: '🖥️ 2PC (60,000원)', price: 55000, stock: 5 }
-    ];
-    for (const s of specials) {
-        const exists = db.prepare('SELECT 1 FROM specials WHERE name = ?').get(s.name);
-        if (!exists) {
-            db.prepare('INSERT INTO specials (name, roomType, price, stock) VALUES (?, ?, ?, ?)')
-                .run(s.name, s.roomType, s.price, s.stock);
-        }
-    }
+    // 기본 특가 상품 등록 코드 제거
 } catch (e) {}
 
 // 특가 상품 목록 조회

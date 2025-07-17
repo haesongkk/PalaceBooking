@@ -766,20 +766,19 @@ function showPaymentButton() {
 
 // 토스페이먼츠 결제 처리
 function processPayment(paymentMethod) {
-    appendMessage(`💳 ${paymentMethod} 선택`, "user");
-    appendMessage("결제를 진행합니다...", "bot");
+    appendMessage('⚠️ 테스트 페이지이므로 결제 과정 없이 예약이 바로 진행됩니다.', 'user');
+    appendMessage("예약을 진행합니다...", "bot");
     
-    // 서버에서 결제 정보 요청
+    // 서버에 예약 정보 요청 (결제 없이 바로 예약)
     const payload = {
         username: username,
         phone: userphone,
         room: selectedRoom,
         startDate: rangeStart?.toISOString().split('T')[0],
-        endDate: rangeEnd?.toISOString().split('T')[0] || null,
-        paymentMethod: paymentMethod
+        endDate: rangeEnd?.toISOString().split('T')[0] || null
     };
     
-    fetch("/api/payment", {
+    fetch("/api/reserve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -787,10 +786,11 @@ function processPayment(paymentMethod) {
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            // 토스페이먼츠 결제 요청
-            requestTossPayment(data, paymentMethod);
+            appendMessage('✅ 예약이 완료되었습니다! 예약 확정 대기 중입니다.', 'bot');
+            // 필요하다면 예약 내역 새로고침 함수 호출
+            // showReservationList();
         } else {
-            appendMessage("❌ 결제 정보 생성 중 오류가 발생했습니다.", "bot");
+            appendMessage("❌ 예약 처리 중 오류가 발생했습니다.", "bot");
         }
     })
     .catch(err => {
