@@ -37,9 +37,10 @@ app.use(cors());
 app.use(bodyParser.json());
 
 app.use(express.static(path.join(__dirname, "../Client")));
-app.use('/admin', express.static(path.join(__dirname, '../admin')));
+// Serve Admin page (case-sensitive path)
+app.use('/admin', express.static(path.join(__dirname, '../Admin')));
 app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, '../admin/index.html'));
+    res.sendFile(path.join(__dirname, '../Admin/index.html'));
 });
 
 // 결제 성공 페이지
@@ -354,10 +355,10 @@ app.post('/api/admin/roomStock', (req, res) => {
     res.json({ success: true });
 });
 
-// Serve /dev page for log viewing (now from top-level dev folder)
-app.use('/dev', express.static(path.join(__dirname, '../dev')));
+// Serve /dev page for log viewing (now from top-level Dev folder)
+app.use('/dev', express.static(path.join(__dirname, '../Dev')));
 app.get('/dev', (req, res) => {
-    res.sendFile(path.join(__dirname, '../dev/index.html'));
+    res.sendFile(path.join(__dirname, '../Dev/index.html'));
 });
 
 // Ensure user_logs table has 'nick' column
