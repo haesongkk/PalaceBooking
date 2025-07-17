@@ -354,6 +354,49 @@ app.post('/api/admin/roomStock', (req, res) => {
     res.json({ success: true });
 });
 
+// Serve /dev page for log viewing
+app.use('/dev', express.static(path.join(__dirname, '../Client/dev')));
+app.get('/dev', (req, res) => {
+    res.sendFile(path.join(__dirname, '../Client/dev/index.html'));
+});
+
+// Ensure user_logs table has 'nick' column
+try {
+  db.prepare('ALTER TABLE user_logs ADD COLUMN nick TEXT').run();
+} catch (e) {}
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS user_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nick TEXT,
+    sender TEXT,
+    type TEXT,
+    content TEXT,
+    timestamp TEXT
+  )
+`).run();
+
+// API: Save a log
+app.post('/api/log', (req, res) => {
+  const { nick, sender, type, content, timestamp } = req.body;
+  db.prepare(`INSERT INTO user_logs (nick, sender, type, content, timestamp) VALUES (?, ?, ?, ?, ?)`)
+    .run(nick, sender, type, content, timestamp);
+  res.json({ success: true });
+});
+
+// API: Get all unique nicks
+app.get('/api/logs/all', (req, res) => {
+  const rows = db.prepare('SELECT nick, MIN(timestamp) as first_ts, COUNT(*) as cnt FROM user_logs WHERE nick IS NOT NULL GROUP BY nick ORDER BY first_ts DESC').all();
+  res.json(rows);
+});
+
+// API: Get logs by nick
+app.get('/api/logs', (req, res) => {
+  const { nick } = req.query;
+  if (!nick) return res.status(400).json({ error: 'nick required' });
+  const rows = db.prepare('SELECT * FROM user_logs WHERE nick = ? ORDER BY id ASC').all(nick);
+  res.json(rows);
+});
+
 
 const os = require("os");
 

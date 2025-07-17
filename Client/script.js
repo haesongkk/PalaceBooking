@@ -9,8 +9,18 @@ let selectedRoom = '';
 let selectedMode = "date-first";
 let selectedProduct = "";
 
+let logBuffer = [];
+let userNick = null; // ex: "몽글몽글한 젤리(1234)"
 
-function appendMessage(text, sender = "bot") {
+function sendLogToServer(log) {
+    fetch("/api/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(log)
+    });
+}
+
+function appendMessage(text, sender = "bot", type = "text") {
 	console.log(sender, ": ", text);
 	
     const chatBox = document.getElementById("chat");
@@ -22,6 +32,19 @@ function appendMessage(text, sender = "bot") {
     const chatWindow = document.querySelector('.chat-window');
     if (chatWindow) {
       chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+    // 로그 저장
+    const log = {
+        nick: userNick,
+        sender,
+        type,
+        content: text,
+        timestamp: new Date().toISOString()
+    };
+    if (!userNick) {
+        logBuffer.push(log);
+    } else {
+        sendLogToServer(log);
     }
 }
 
@@ -186,6 +209,9 @@ function phoneHandler(input)
 
             // curHandler를 예약 관련 handler로 변경
             curHandler = defaultHandler;
+
+            // 닉네임 할당 후 로그 전송
+            onNicknameAssigned(username, userphone);
         })
         .catch(() => {
             console.log("[ERROR] 서버 통신 오류");
@@ -1094,4 +1120,15 @@ function activateNewCalendar(cal) {
     });
     // 새 달력 활성화
     cal.dataset.active = "true";
+}
+
+// 닉네임+뒷번호가 정해지는 시점(전화번호 인증 후)
+function onNicknameAssigned(nick, phone) {
+    userNick = `${nick}(${phone.slice(-4)})`;
+    // 지금까지 쌓인 로그를 서버로 전송
+    logBuffer.forEach(log => {
+        log.nick = userNick;
+        sendLogToServer(log);
+    });
+    logBuffer = [];
 }
