@@ -567,20 +567,21 @@ function showReservationList() {
     const container = document.createElement("div");
     container.className = "message bot";
 
-    fetch(`/recentReserve?phone=${encodeURIComponent(userphone)}`)
+    fetch(`/reservationList?phone=${encodeURIComponent(userphone)}`)
         .then(res => res.json())
         .then(data => {
-            let html = `<div class="room-list">`;
+            console.log("[예약내역] 서버 응답:", data);
+            let html = `<div class=\"room-list\">`;
             if (Array.isArray(data) && data.length > 0) {
-                html += `<div style="margin-bottom:8px;">📄 현재 예약 내역입니다:</div>`;
+                html += `<div style=\"margin-bottom:8px;\">📄 현재 예약 내역입니다:</div>`;
                 data.forEach(item => {
                     if (!item.cancelled) {
-                        html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px;background:#f5f5f5;border-radius:8px;margin-bottom:10px;">
+                        html += `<div style=\"display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;background:#23233b;color:#fff;border-radius:10px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04);\">
                             <div>
-                                <strong>${item.room}</strong><br>
-                                <small>${item.start_date} ~ ${item.end_date}</small>
+                                <strong style=\"color:#ffd700;font-size:1.08em;\">${item.room}</strong><br>
+                                <small style=\"color:#b0b8d1;\">${item.start_date} ~ ${item.end_date || ''}</small>
                             </div>
-                            <button onclick="cancelReservation(${item.id})" style="background:red;color:white;border:none;padding:6px 12px;border-radius:8px;cursor:pointer;">취소</button>
+                            <button onclick=\"cancelReservation(${item.id})\" style=\"background:#ff3b3b;color:#fff;font-weight:bold;border:none;padding:7px 16px;border-radius:8px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.08);transition:background 0.2s;\" onmouseover=\"this.style.background='#c62828'\" onmouseout=\"this.style.background='#ff3b3b'\">취소</button>
                         </div>`;
                     }
                 });
@@ -606,7 +607,9 @@ function cancelReservation(id) {
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            appendMessage(`🗑️ 예약이 취소되었습니다.`, "bot");
+            appendMessage(`🗑️ 예약이 취소되었습니다.`);
+            appendMessage(`💸 결제된 금액은 며칠내로 환불됩니다.`);
+            // 나중에 여기에 환불 처리 로직 추가 !!!!!
             // 예약 내역 다시 로드
             setTimeout(() => {
                 showReservationList();

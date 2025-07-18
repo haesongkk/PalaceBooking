@@ -119,9 +119,9 @@ app.post("/api/cancel", (req, res) => {
         return res.status(400).json({ error: "예약 ID가 필요합니다." });
     }
 
+    // 완전 삭제로 변경
     const stmt = db.prepare(`
-        UPDATE reservations 
-        SET cancelled = 1 
+        DELETE FROM reservations
         WHERE id = ?
     `);
     const info = stmt.run(id);
@@ -208,6 +208,25 @@ app.get("/recentReserve", (req, res) => {
             cancelled: null
         });
     }
+});
+
+// 전체 예약 내역 조회 (배열 반환)
+app.get("/reservationList", (req, res) => {
+    const { phone } = req.query;
+    if (!phone) {
+        return res.status(400).json({ error: "전화번호가 필요합니다." });
+    }
+
+    const stmt = db.prepare(`
+        SELECT *
+        FROM reservations
+        WHERE phone = ? AND cancelled = 0
+        ORDER BY end_date DESC
+    `);
+
+    const rows = stmt.all(phone);
+
+    res.json(rows);
 });
 
 // 관리자용 예약 목록 조회 API
