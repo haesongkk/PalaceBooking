@@ -5,6 +5,7 @@ const path = require("path");
 
 const Database = require("better-sqlite3");
 const db = new Database("data.db");
+const roomDb = new Database("room.db");
 
 const http = require("http");
 const { Server: SocketIOServer } = require("socket.io");
@@ -382,6 +383,82 @@ app.post('/api/admin/roomStock', (req, res) => {
         db.prepare('INSERT INTO room_stock (date, room_type, reserved) VALUES (?, ?, ?)').run(date, room_type, reserved);
     }
     res.json({ success: true });
+});
+
+// 객실 관리 테이블 생성
+roomDb.prepare(`
+  CREATE TABLE IF NOT EXISTS rooms (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    checkInOut TEXT,
+    price TEXT,
+    status TEXT,
+    usageTime TEXT,
+    openClose TEXT,
+    rentalPrice TEXT,
+    rentalStatus TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`).run();
+
+// 객실 관리 API
+// 모든 객실 조회
+app.get('/api/admin/rooms', (req, res) => {
+    try {
+        const rows = roomDb.prepare('SELECT * FROM rooms ORDER BY created_at DESC').all();
+        res.json(rows);
+    } catch (error) {
+        console.error('객실 조회 오류:', error);
+        res.status(500).json({ error: '객실 조회 실패' });
+    }
+});
+
+// 객실 저장/수정 (upsert)
+app.post('/api/admin/rooms', (req, res) => {
+    try {
+        const { id, name, checkInOut, price, status, usageTime, openClose, rentalPrice, rentalStatus } = req.body;
+        
+        if (!id || !name) {
+            return res.status(400).json({ error: '객실 ID와 이름은 필수입니다.' });
+        }
+
+        // 기존 객실 확인
+        const existingRoom = roomDb.prepare('SELECT id FROM rooms WHERE id = ?').get(id);
+        
+        if (existingRoom) {
+            // 기존 객실 수정
+            roomDb.prepare(`
+                UPDATE rooms 
+                SET name = ?, checkInOut = ?, price = ?, status = ?, usageTime = ?, 
+                    openClose = ?, rentalPrice = ?, rentalStatus = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            `).run(name, checkInOut, price, status, usageTime, openClose, rentalPrice, rentalStatus, id);
+        } else {
+            // 새 객실 생성
+            roomDb.prepare(`
+                INSERT INTO rooms (id, name, checkInOut, price, status, usageTime, openClose, rentalPrice, rentalStatus)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(id, name, checkInOut, price, status, usageTime, openClose, rentalPrice, rentalStatus);
+        }
+        
+        res.json({ success: true, id });
+    } catch (error) {
+        console.error('객실 저장 오류:', error);
+        res.status(500).json({ error: '객실 저장 실패' });
+    }
+});
+
+// 객실 삭제
+app.delete('/api/admin/rooms/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const info = roomDb.prepare('DELETE FROM rooms WHERE id = ?').run(id);
+        res.json({ success: info.changes > 0 });
+    } catch (error) {
+        console.error('객실 삭제 오류:', error);
+        res.status(500).json({ error: '객실 삭제 실패' });
+    }
 });
 
 // Serve /dev page for log viewing (now from top-level Dev folder)

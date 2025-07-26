@@ -95,6 +95,9 @@ function switchTab(tabName) {
 document.addEventListener('DOMContentLoaded', function() {
     // 초기 데이터 로드
     fetchReservations();
+    
+    // 객실 데이터 로드
+    loadRoomsFromDB();
 
     // Socket.IO 클라이언트 연결 및 실시간 갱신
     const socket = io();
@@ -112,7 +115,7 @@ function addRoom() {
     const newRoomId = `room${String.fromCharCode(65 + roomCount)}`; // roomC, roomD ...
     const newRoomName = `객실 ${String.fromCharCode(65 + roomCount)}`;
 
-    // 기본 데이터 생성 (빈 값으로 초기화)
+    // 기본 데이터 생성 (초기값)
     roomData[newRoomId] = {
         name: newRoomName,
         data: {
@@ -126,26 +129,20 @@ function addRoom() {
         }
     };
 
-    // 객실 버튼 추가
-    const roomButtons = document.querySelector('.room-buttons');
-    const btn = document.createElement('button');
-    btn.className = 'room-btn';
-    btn.textContent = newRoomName;
-    btn.onclick = function(e) { switchRoom(newRoomId); };
-    roomButtons.appendChild(btn);
+    // UI 업데이트
+    renderRoomButtons();
+    renderRoomList();
 
     // 새 객실로 전환
     switchRoom(newRoomId);
-    // 버튼 활성화
-    document.querySelectorAll('.room-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    
+    // DB에 새 객실 저장
+    saveRoomToDB(newRoomId);
     
     // 바로 수정 모드 진입
     setTimeout(() => {
-        const editBtn = document.querySelector('#panel-room .btn-edit');
-        if (editBtn) {
-            editBtn.click();
-        }
+        const editBtn = document.querySelector(`[onclick="editRoom('${newRoomId}')"]`);
+        if (editBtn) editBtn.click();
     }, 100);
 }
 
@@ -157,16 +154,20 @@ function editRoom(roomId) {
         editButton.textContent = '저장';
         editButton.classList.add('btn-save');
         
-        // 객실 이름 수정
-        const roomNameElement = document.querySelector('#panel-room .room-item h3');
+        // 객실 이름 수정 - 특정 객실의 제목을 찾기 위해 부모 요소를 통해 접근
+        const roomItem = editButton.closest('.room-item');
+        const roomNameElement = roomItem.querySelector('h3');
         const currentRoomName = roomNameElement.textContent;
         roomNameElement.innerHTML = `
             <input type="text" class="room-name-input" value="${currentRoomName}" 
                    style="width: 120px; text-align: center; border: 1px solid #d1d5db; border-radius: 4px; padding: 4px 8px; font-size: 1rem; font-weight: bold;">
         `;
         
+        // 특정 객실의 테이블을 찾기
+        const roomTable = roomItem.querySelector('.room-table');
+        
         // 입실/퇴실시간 행 수정
-        const checkInOutCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(1) td:not(:first-child)');
+        const checkInOutCells = roomTable.querySelectorAll('tr:nth-child(1) td:not(:first-child)');
         checkInOutCells.forEach((cell, cellIndex) => {
             const currentTime = cell.textContent.trim();
             const [checkIn, checkOut] = currentTime.split('~');
@@ -199,8 +200,8 @@ function editRoom(roomId) {
         });
         
         // 판매/마감 행의 모든 셀을 버튼으로 변경
-        const saleStatusCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(3) td:not(:first-child)');
-        const saleStatusCells2 = document.querySelectorAll('#panel-room .room-table tr:nth-child(7) td:not(:first-child)');
+        const saleStatusCells = roomTable.querySelectorAll('tr:nth-child(3) td:not(:first-child)');
+        const saleStatusCells2 = roomTable.querySelectorAll('tr:nth-child(7) td:not(:first-child)');
         
         saleStatusCells.forEach((cell, index) => {
             const currentStatus = cell.textContent.trim();
@@ -223,7 +224,7 @@ function editRoom(roomId) {
         });
         
         // 개시/마감시간 행 수정
-        const openCloseCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(5) td:not(:first-child)');
+        const openCloseCells = roomTable.querySelectorAll('tr:nth-child(5) td:not(:first-child)');
         openCloseCells.forEach((cell, cellIndex) => {
             const currentTime = cell.textContent.trim();
             const [open, close] = currentTime.split('~');
@@ -255,7 +256,7 @@ function editRoom(roomId) {
             `;
         });
         // 이용시간 행 수정
-        const usageTimeCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(4) td:not(:first-child)');
+        const usageTimeCells = roomTable.querySelectorAll('tr:nth-child(4) td:not(:first-child)');
         usageTimeCells.forEach((cell, cellIndex) => {
             const currentTime = cell.textContent.trim();
             const hours = currentTime.replace('시간', '');
@@ -272,7 +273,7 @@ function editRoom(roomId) {
         });
 
         // 판매가(숙박) 행 수정
-        const priceCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(2) td:not(:first-child)');
+        const priceCells = roomTable.querySelectorAll('tr:nth-child(2) td:not(:first-child)');
         priceCells.forEach((cell, cellIndex) => {
             const currentPrice = cell.textContent.trim().replace(/[^\d]/g, '');
             cell.innerHTML = `
@@ -286,7 +287,7 @@ function editRoom(roomId) {
         });
 
         // 판매가(대실) 행 수정
-        const rentalPriceCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(6) td:not(:first-child)');
+        const rentalPriceCells = roomTable.querySelectorAll('tr:nth-child(6) td:not(:first-child)');
         rentalPriceCells.forEach((cell, cellIndex) => {
             const currentPrice = cell.textContent.trim().replace(/[^\d]/g, '');
             cell.innerHTML = `
@@ -338,27 +339,42 @@ window.toggleInputMode = function(dropdown, currentValue) {
         editButton.classList.remove('btn-save');
         editButton.onclick = () => editRoom(roomId);
 
-        // 수정된 데이터를 기존 UI로 복원
-        // 객실 이름 복원
-        const roomNameInput = document.querySelector('#panel-room .room-name-input');
-        const roomNameElement = document.querySelector('#panel-room .room-item h3');
-        const roomName = roomNameInput ? roomNameInput.value : roomData[currentRoom].name;
+        // 수정된 데이터를 기존 UI로 복원하고 DB에 저장
+        // 객실 이름 복원 - 특정 객실의 제목을 찾기 위해 부모 요소를 통해 접근
+        const roomItem = editButton.closest('.room-item');
+        const roomNameInput = roomItem.querySelector('.room-name-input');
+        const roomNameElement = roomItem.querySelector('h3');
+        const roomName = roomNameInput ? roomNameInput.value : (currentRoom ? roomData[currentRoom].name : '새 객실');
         roomNameElement.innerHTML = `<h3>${roomName}</h3>`;
         
         // 현재 객실 데이터 업데이트
-        roomData[currentRoom].name = roomName;
+        if (currentRoom) {
+            roomData[currentRoom].name = roomName;
+            
+            // 객실 버튼 텍스트 즉시 업데이트
+            const roomButtons = document.querySelectorAll('.room-btn');
+            const buttonIndex = Object.keys(roomData).indexOf(currentRoom);
+            if (roomButtons[buttonIndex]) {
+                roomButtons[buttonIndex].textContent = roomName;
+            }
+        }
+        
+        // 특정 객실의 테이블을 찾기
+        const roomTable = roomItem.querySelector('.room-table');
         
         // 판매/마감 상태 복원
-        const statusCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(3) td:not(:first-child)');
+        const statusCells = roomTable.querySelectorAll('tr:nth-child(3) td:not(:first-child)');
         statusCells.forEach((cell, cellIndex) => {
             const activeButton = cell.querySelector('.status-btn.active');
             const status = activeButton ? activeButton.textContent : '판매';
             cell.innerHTML = `<span>${status}</span>`;
-            roomData[currentRoom].data.status[cellIndex] = status;
+            if (currentRoom) {
+                roomData[currentRoom].data.status[cellIndex] = status;
+            }
         });
 
         // 입실/퇴실시간 복원
-        const checkInOutCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(1) td:not(:first-child)');
+        const checkInOutCells = roomTable.querySelectorAll('tr:nth-child(1) td:not(:first-child)');
         checkInOutCells.forEach((cell, cellIndex) => {
             const timeInputs = cell.querySelectorAll('.custom-dropdown .dropdown-display');
             const checkInHour = timeInputs[0] ? timeInputs[0].textContent : '15';
@@ -367,31 +383,37 @@ window.toggleInputMode = function(dropdown, currentValue) {
             const checkOutMin = timeInputs[3] ? timeInputs[3].textContent : '00';
             const timeString = `${checkInHour}:${checkInMin}~${checkOutHour}:${checkOutMin}`;
             cell.innerHTML = `<span>${timeString}</span>`;
-            roomData[currentRoom].data.checkInOut[cellIndex] = timeString;
+            if (currentRoom) {
+                roomData[currentRoom].data.checkInOut[cellIndex] = timeString;
+            }
         });
 
         // 판매가(숙박) 복원
-        const priceCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(2) td:not(:first-child)');
+        const priceCells = roomTable.querySelectorAll('tr:nth-child(2) td:not(:first-child)');
         priceCells.forEach((cell, cellIndex) => {
             const priceInput = cell.querySelector('.price-input');
             const price = priceInput ? priceInput.value : '60000';
             const priceString = `${price}원`;
             cell.innerHTML = `<span>${priceString}</span>`;
-            roomData[currentRoom].data.price[cellIndex] = priceString;
+            if (currentRoom) {
+                roomData[currentRoom].data.price[cellIndex] = priceString;
+            }
         });
 
         // 이용시간 복원
-        const usageCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(4) td:not(:first-child)');
+        const usageCells = roomTable.querySelectorAll('tr:nth-child(4) td:not(:first-child)');
         usageCells.forEach((cell, cellIndex) => {
             const usageDisplay = cell.querySelector('.dropdown-display');
             const hours = usageDisplay ? usageDisplay.textContent : '5';
             const usageString = `${hours}시간`;
             cell.innerHTML = `<span>${usageString}</span>`;
-            roomData[currentRoom].data.usageTime[cellIndex] = usageString;
+            if (currentRoom) {
+                roomData[currentRoom].data.usageTime[cellIndex] = usageString;
+            }
         });
 
         // 개시/마감시간 복원
-        const openCloseCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(5) td:not(:first-child)');
+        const openCloseCells = roomTable.querySelectorAll('tr:nth-child(5) td:not(:first-child)');
         openCloseCells.forEach((cell, cellIndex) => {
             const timeInputs = cell.querySelectorAll('.custom-dropdown .dropdown-display');
             const openHour = timeInputs[0] ? timeInputs[0].textContent : '09';
@@ -400,27 +422,38 @@ window.toggleInputMode = function(dropdown, currentValue) {
             const closeMin = timeInputs[3] ? timeInputs[3].textContent : '00';
             const timeString = `${openHour}:${openMin}~${closeHour}:${closeMin}`;
             cell.innerHTML = `<span>${timeString}</span>`;
-            roomData[currentRoom].data.openClose[cellIndex] = timeString;
+            if (currentRoom) {
+                roomData[currentRoom].data.openClose[cellIndex] = timeString;
+            }
         });
 
         // 판매가(대실) 복원
-        const rentalPriceCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(6) td:not(:first-child)');
+        const rentalPriceCells = roomTable.querySelectorAll('tr:nth-child(6) td:not(:first-child)');
         rentalPriceCells.forEach((cell, cellIndex) => {
             const priceInput = cell.querySelector('.price-input');
             const price = priceInput ? priceInput.value : '30000';
             const priceString = `${price}원`;
             cell.innerHTML = `<span>${priceString}</span>`;
-            roomData[currentRoom].data.rentalPrice[cellIndex] = priceString;
+            if (currentRoom) {
+                roomData[currentRoom].data.rentalPrice[cellIndex] = priceString;
+            }
         });
 
         // 판매/마감(대실) 복원
-        const rentalStatusCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(7) td:not(:first-child)');
+        const rentalStatusCells = roomTable.querySelectorAll('tr:nth-child(7) td:not(:first-child)');
         rentalStatusCells.forEach((cell, cellIndex) => {
             const activeButton = cell.querySelector('.status-btn.active');
             const status = activeButton ? activeButton.textContent : '판매';
             cell.innerHTML = `<span>${status}</span>`;
-            roomData[currentRoom].data.rentalStatus[cellIndex] = status;
+            if (currentRoom) {
+                roomData[currentRoom].data.rentalStatus[cellIndex] = status;
+            }
         });
+
+        // DB에 저장
+        if (currentRoom) {
+            saveRoomToDB(currentRoom);
+        }
     }
 }
 
@@ -540,60 +573,234 @@ function changeStatus(button, status) {
     button.classList.add('active');
 }
 
+// DB에 객실 저장
+function saveRoomToDB(roomId) {
+    if (!roomData[roomId]) return;
+    
+    const room = roomData[roomId];
+    const roomDataForDB = {
+        id: roomId,
+        name: room.name,
+        checkInOut: JSON.stringify(room.data.checkInOut),
+        price: JSON.stringify(room.data.price),
+        status: JSON.stringify(room.data.status),
+        usageTime: JSON.stringify(room.data.usageTime),
+        openClose: JSON.stringify(room.data.openClose),
+        rentalPrice: JSON.stringify(room.data.rentalPrice),
+        rentalStatus: JSON.stringify(room.data.rentalStatus)
+    };
+
+    fetch('/api/admin/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(roomDataForDB)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            console.log('객실 저장 성공:', roomId);
+        } else {
+            console.error('객실 저장 실패:', data.error);
+            alert('객실 저장에 실패했습니다: ' + (data.error || '알 수 없는 오류'));
+        }
+    })
+    .catch(error => {
+        console.error('객실 저장 오류:', error);
+        alert('객실 저장 중 오류가 발생했습니다.');
+    });
+}
+
 function deleteRoom(roomId) {
     if (confirm('정말로 이 객실을 삭제하시겠습니까?')) {
-        alert('객실 삭제 기능이 준비 중입니다.');
+        fetch(`/api/admin/rooms/${roomId}`, {
+            method: 'DELETE'
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                // 로컬 데이터에서 제거
+                delete roomData[roomId];
+                
+                // UI 업데이트
+                renderRoomButtons();
+                renderRoomList();
+                
+                // 현재 선택된 객실이 삭제된 객실이면 첫 번째 객실로 이동
+                if (currentRoom === roomId) {
+                    const firstRoomId = Object.keys(roomData)[0];
+                    if (firstRoomId) {
+                        switchRoom(firstRoomId);
+                    } else {
+                        // 객실이 없으면 빈 상태로
+                        currentRoom = null;
+                        document.querySelector('.room-list').innerHTML = '<p>등록된 객실이 없습니다.</p>';
+                    }
+                }
+                
+                alert('객실이 삭제되었습니다.');
+            } else {
+                alert('객실 삭제에 실패했습니다.');
+            }
+        })
+        .catch(error => {
+            console.error('객실 삭제 오류:', error);
+            alert('객실 삭제 중 오류가 발생했습니다.');
+        });
     }
 }
 
 // 객실 데이터
-const roomData = {
-    roomA: {
-        name: '객실 A',
-        data: {
-            checkInOut: ['15:00~11:00', '15:00~11:00', '15:00~11:00', '15:00~11:00', '15:00~11:00', '15:00~11:00', '15:00~11:00'],
-            price: ['80,000원', '80,000원', '80,000원', '80,000원', '80,000원', '80,000원', '80,000원'],
-            status: ['판매', '판매', '판매', '판매', '판매', '판매', '판매'],
-            usageTime: ['5시간', '6시간', '6시간', '6시간', '6시간', '6시간', '5시간'],
-            openClose: ['14:00~22:00', '14:00~22:00', '14:00~22:00', '14:00~22:00', '14:00~22:00', '14:00~22:00', '14:00~22:00'],
-            rentalPrice: ['30,000원', '30,000원', '30,000원', '30,000원', '30,000원', '30,000원', '30,000원'],
-            rentalStatus: ['판매', '판매', '판매', '판매', '판매', '판매', '판매']
-        }
-    },
-    roomB: {
-        name: '객실 B',
-        data: {
-            checkInOut: ['14:00~10:00', '14:00~10:00', '14:00~10:00', '14:00~10:00', '14:00~10:00', '14:00~10:00', '14:00~10:00'],
-            price: ['70,000원', '70,000원', '70,000원', '70,000원', '70,000원', '70,000원', '70,000원'],
-            status: ['마감', '판매', '마감', '판매', '판매', '마감', '판매'],
-            usageTime: ['4시간', '5시간', '4시간', '5시간', '5시간', '4시간', '5시간'],
-            openClose: ['13:00~21:00', '13:00~21:00', '13:00~21:00', '13:00~21:00', '13:00~21:00', '13:00~21:00', '13:00~21:00'],
-            rentalPrice: ['25,000원', '25,000원', '25,000원', '25,000원', '25,000원', '25,000원', '25,000원'],
-            rentalStatus: ['마감', '판매', '마감', '판매', '판매', '마감', '판매']
-        }
-    }
-};
+const roomData = {};
 
-let currentRoom = 'roomA';
+let currentRoom = null;
+
+// DB에서 객실 데이터 로드
+function loadRoomsFromDB() {
+    fetch('/api/admin/rooms')
+        .then(res => res.json())
+        .then(rooms => {
+            // 기존 roomData 초기화
+            Object.keys(roomData).forEach(key => delete roomData[key]);
+            
+            // DB에서 로드한 데이터로 roomData 구성
+            rooms.forEach(room => {
+                roomData[room.id] = {
+                    name: room.name,
+                    data: {
+                        checkInOut: JSON.parse(room.checkInOut || '[]'),
+                        price: JSON.parse(room.price || '[]'),
+                        status: JSON.parse(room.status || '[]'),
+                        usageTime: JSON.parse(room.usageTime || '[]'),
+                        openClose: JSON.parse(room.openClose || '[]'),
+                        rentalPrice: JSON.parse(room.rentalPrice || '[]'),
+                        rentalStatus: JSON.parse(room.rentalStatus || '[]')
+                    }
+                };
+            });
+            
+            // UI 업데이트
+            renderRoomButtons();
+            renderRoomList();
+            
+            // 첫 번째 객실이 있으면 선택
+            const firstRoomId = Object.keys(roomData)[0];
+            if (firstRoomId) {
+                switchRoom(firstRoomId);
+            } else {
+                // 객실이 없으면 빈 상태로 설정
+                currentRoom = null;
+                const roomList = document.querySelector('.room-list');
+                roomList.innerHTML = '<p>등록된 객실이 없습니다.</p>';
+            }
+        })
+        .catch(error => {
+            console.error('객실 데이터 로드 실패:', error);
+            // 오류 발생 시에도 빈 상태로 설정
+            currentRoom = null;
+            const roomList = document.querySelector('.room-list');
+            roomList.innerHTML = '<p>등록된 객실이 없습니다.</p>';
+        });
+}
+
+// 객실 버튼 렌더링
+function renderRoomButtons() {
+    const roomButtons = document.querySelector('.room-buttons');
+    roomButtons.innerHTML = '';
+    
+    const roomIds = Object.keys(roomData);
+    
+    if (roomIds.length === 0) {
+        return; // 객실이 없으면 버튼도 표시하지 않음
+    }
+    
+    roomIds.forEach(roomId => {
+        const btn = document.createElement('button');
+        btn.className = 'room-btn';
+        btn.textContent = roomData[roomId].name;
+        btn.onclick = function(e) { switchRoom(roomId); };
+        roomButtons.appendChild(btn);
+    });
+}
+
+// 객실 목록 렌더링
+function renderRoomList() {
+    const roomList = document.querySelector('.room-list');
+    roomList.innerHTML = '';
+    
+    const roomIds = Object.keys(roomData);
+    
+    if (roomIds.length === 0) {
+        roomList.innerHTML = '<p>등록된 객실이 없습니다.</p>';
+        return;
+    }
+    
+    roomIds.forEach(roomId => {
+        const room = roomData[roomId];
+        const roomItem = document.createElement('div');
+        roomItem.className = 'room-item';
+        roomItem.style.display = 'none';
+        
+        roomItem.innerHTML = `
+            <div class="room-item-header">
+                <h3>${room.name}</h3>
+                <div class="room-actions">
+                    <button class="btn btn-edit" onclick="editRoom('${roomId}')">수정</button>
+                    <button class="btn btn-delete" onclick="deleteRoom('${roomId}')">삭제</button>
+                </div>
+            </div>
+            <div class="room-table-container">
+                <table class="room-table">
+                    <thead>
+                        <tr>
+                            <th>항목/요일</th>
+                            <th>일요일</th>
+                            <th>월요일</th>
+                            <th>화요일</th>
+                            <th>수요일</th>
+                            <th>목요일</th>
+                            <th>금요일</th>
+                            <th>토요일</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>입실/퇴실시간</td>${room.data.checkInOut.map(v => `<td>${v}</td>`).join('')}</tr>
+                        <tr><td>판매가</td>${room.data.price.map(v => `<td>${v}</td>`).join('')}</tr>
+                        <tr><td>판매/마감</td>${room.data.status.map(v => `<td>${v}</td>`).join('')}</tr>
+                        <tr><td>이용시간</td>${room.data.usageTime.map(v => `<td>${v}</td>`).join('')}</tr>
+                        <tr><td>개시/마감시간</td>${room.data.openClose.map(v => `<td>${v}</td>`).join('')}</tr>
+                        <tr><td>판매가</td>${room.data.rentalPrice.map(v => `<td>${v}</td>`).join('')}</tr>
+                        <tr><td>판매/마감</td>${room.data.rentalStatus.map(v => `<td>${v}</td>`).join('')}</tr>
+                    </tbody>
+                </table>
+            </div>
+        `;
+        roomList.appendChild(roomItem);
+    });
+}
 
 // 객실 전환 함수
 function switchRoom(roomId) {
+    if (!roomData[roomId]) return;
+    
     currentRoom = roomId;
     
     // 버튼 활성화 상태 변경
     document.querySelectorAll('.room-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-    
-    // 객실 이름 변경
-    const roomNameElement = document.querySelector('#panel-room .room-item h3');
-    roomNameElement.textContent = roomData[roomId].name;
-    
-    // 테이블 데이터 업데이트
-    updateRoomTable(roomId);
+    // 버튼 찾기
+    const btns = Array.from(document.querySelectorAll('.room-btn'));
+    const idx = Object.keys(roomData).indexOf(roomId);
+    if (btns[idx]) btns[idx].classList.add('active');
+    // room-item 표시/숨김
+    const items = document.querySelectorAll('.room-item');
+    items.forEach((item, i) => {
+        item.style.display = (i === idx) ? '' : 'none';
+    });
 }
 
 // 테이블 데이터 업데이트 함수
 function updateRoomTable(roomId) {
+    if (!roomData[roomId]) return;
+    
     const data = roomData[roomId].data;
     
     // 입실/퇴실시간
