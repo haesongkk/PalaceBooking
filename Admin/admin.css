@@ -17,6 +17,13 @@ html, body {
     padding: 16px 20px;
     box-sizing: border-box;
 }
+
+.tab-navigation {
+    align-self: center;
+    margin-bottom: 16px;
+    width: 90%;
+    max-width: 1200px;
+}
 .admin-panel {
     background: #fff;
     border-radius: 18px;
@@ -95,7 +102,7 @@ th {
 .tab-navigation {
     display: flex;
     justify-content: flex-start;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
     gap: 8px;
     width: 100%;
 }
@@ -129,6 +136,322 @@ th {
 
 .admin-panel.active {
     display: flex;
+}
+
+/* 객실 관리 스타일 */
+.room-header {
+    margin-bottom: 20px;
+    text-align: right;
+}
+
+.room-list {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.room-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.room-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.room-item-header h3 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: #1e293b;
+    font-weight: 600;
+}
+
+.room-ids {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.room-ids span {
+    background: #f1f5f9;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+}
+
+.room-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-edit {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-delete {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-save {
+    background: #10b981;
+    color: white;
+}
+
+.room-table-container {
+    overflow: visible;
+    border-radius: 8px;
+    position: relative;
+}
+
+.room-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    min-width: 600px;
+    border-radius: 8px;
+    overflow: visible;
+    table-layout: fixed;
+}
+
+.room-table th,
+.room-table td {
+    border: 1px solid #e2e8f0;
+    padding: 4px 2px;
+    text-align: center;
+    height: 35px;
+    vertical-align: middle;
+    overflow: visible;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    position: relative;
+}
+
+.room-table th {
+    background: #f1f5f9;
+    font-weight: 600;
+    color: #374151;
+}
+
+.room-table td:first-child {
+    font-weight: 600;
+    background-color: #f8f9fa;
+    border-right: 2px solid #e9ecef;
+}
+
+.room-table tr:nth-child(1),
+.room-table tr:nth-child(2),
+.room-table tr:nth-child(3) {
+    background-color: #e3f2fd;
+}
+
+.room-table tr:nth-child(1) td:first-child,
+.room-table tr:nth-child(2) td:first-child,
+.room-table tr:nth-child(3) td:first-child {
+    background-color: #e3f2fd;
+}
+
+.status-buttons {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+}
+
+.status-btn {
+    padding: 4px 8px;
+    border: 1px solid #d1d5db;
+    background: #f9fafb;
+    color: #6b7280;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.status-btn:hover {
+    background: #f3f4f6;
+}
+
+.status-btn.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.time-inputs {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0px;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.time-input {
+    width: 35px;
+    padding: 1px 2px;
+    border: 1px solid #d1d5db;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    text-align: center;
+    min-width: 35px;
+    max-width: 35px;
+    height: 18px;
+    line-height: 1;
+}
+
+.time-input-hour,
+.time-input-min {
+    width: 22px;
+    padding: 0px;
+    border: 1px solid #d1d5db;
+    border-radius: 2px;
+    font-size: 0.75rem;
+    text-align: center;
+    min-width: 22px;
+    max-width: 22px;
+    height: 20px;
+    line-height: 1;
+    -webkit-appearance: none;
+    -moz-appearance: textfield;
+}
+
+.time-select-hour,
+.time-select-min {
+    width: 22px;
+    padding: 0px;
+    border: 1px solid #d1d5db;
+    border-radius: 2px;
+    font-size: 0.75rem;
+    text-align: center;
+    min-width: 22px;
+    max-width: 22px;
+    height: 20px;
+    line-height: 1;
+    background: white;
+    cursor: pointer;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+.custom-dropdown {
+    position: relative;
+    width: 22px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.dropdown-display {
+    width: 100%;
+    height: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 2px;
+    font-size: 0.75rem;
+    text-align: center;
+    line-height: 18px;
+    background: white;
+    cursor: pointer;
+}
+
+.dropdown-options {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 120px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 2px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 99999;
+}
+
+.dropdown-option {
+    padding: 4px 6px;
+    font-size: 0.75rem;
+    text-align: center;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+    background-color: white;
+}
+
+.dropdown-option:hover {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.dropdown-option.selected {
+    background-color: #e3f2fd;
+    color: #1e40af;
+}
+
+.floating-dropdown {
+    max-height: 120px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 2px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    backdrop-filter: blur(4px);
+    background-color: rgba(255, 255, 255, 0.95);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.floating-dropdown::-webkit-scrollbar {
+    display: none;
+}
+
+.time-select-hour:hover,
+.time-select-min:hover {
+    border-color: #3b82f6;
+}
+
+.time-select-hour:focus,
+.time-select-min:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.time-select-hour:hover option,
+.time-select-min:hover option {
+    background-color: #f3f4f6;
+}
+
+.time-select-hour option:hover,
+.time-select-min option:hover {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.time-input-hour::-webkit-outer-spin-button,
+.time-input-hour::-webkit-inner-spin-button,
+.time-input-min::-webkit-outer-spin-button,
+.time-input-min::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.time-separator {
+    font-size: 0.75rem;
+    color: #6b7280;
+    font-weight: 500;
+    line-height: 1;
+    margin: 0 1px;
 }
 
 
