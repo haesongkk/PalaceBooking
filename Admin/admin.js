@@ -10,14 +10,7 @@ function fetchReservations() {
         });
 }
 
-function fetchRoomCounts() {
-    fetch('/api/admin/roomCounts')
-        .then(res => res.json())
-        .then(data => {
-            const el = document.getElementById('roomCounts');
-            el.innerHTML = Object.entries(data).map(([room, cnt]) => `${room}: <span style='color:${cnt>0?'green':'red'}'>${cnt}</span>`).join(' &nbsp; ');
-        });
-}
+
 
 function setFilter(filter) {
     currentFilter = filter;
@@ -79,17 +72,34 @@ function confirmReservation(id, btn) {
 
 
 
+// 탭 전환 함수
+function switchTab(tabName) {
+    // 모든 탭 버튼에서 active 클래스 제거
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // 모든 패널에서 active 클래스 제거
+    document.querySelectorAll('.admin-panel').forEach(panel => {
+        panel.classList.remove('active');
+    });
+    
+    // 선택된 탭 버튼에 active 클래스 추가
+    document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+    
+    // 선택된 패널에 active 클래스 추가
+    document.getElementById(`panel-${tabName}`).classList.add('active');
+}
+
 // 초기화 및 이벤트 리스너
 document.addEventListener('DOMContentLoaded', function() {
     // 초기 데이터 로드
     fetchReservations();
-    fetchRoomCounts();
 
     // Socket.IO 클라이언트 연결 및 실시간 갱신
     const socket = io();
     socket.emit('admin'); // 'admin' 방에 join
     socket.on('reservation-updated', () => {
         fetchReservations();
-        fetchRoomCounts();
     });
 }); 

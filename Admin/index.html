@@ -7,8 +7,14 @@
 </head>
 <body>
     <div class="admin-3col">
-        <!-- 예약 승인 -->
-        <div class="admin-panel" id="panel-reservation">
+        <!-- 탭 네비게이션 -->
+        <div class="tab-navigation">
+            <button class="tab-btn active" onclick="switchTab('reservation')">예약 승인</button>
+            <button class="tab-btn" onclick="switchTab('room')">객실 관리</button>
+        </div>
+        
+        <!-- 예약 승인 패널 -->
+        <div class="admin-panel active" id="panel-reservation">
             <h2>예약 승인</h2>
             <div class="filter-btns">
                 <button id="filter-all" onclick="setFilter('all')">전체</button>
@@ -26,7 +32,14 @@
                 </tbody>
             </table>
         </div>
-
+        
+        <!-- 객실 관리 패널 -->
+        <div class="admin-panel" id="panel-room">
+            <h2>객실 관리</h2>
+            <div class="room-content">
+                <p>객실 관리 기능이 준비 중입니다.</p>
+            </div>
+        </div>
     </div>
     <script src="/socket.io/socket.io.js"></script>
     <script src="admin.js"></script>
