@@ -140,8 +140,35 @@ th {
 
 /* 객실 관리 스타일 */
 .room-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 20px;
-    text-align: right;
+}
+
+.room-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.room-btn {
+    padding: 8px 16px;
+    border: 1px solid #d1d5db;
+    background: #f9fafb;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.room-btn:hover {
+    background: #e5e7eb;
+}
+
+.room-btn.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
 }
 
 .room-list {

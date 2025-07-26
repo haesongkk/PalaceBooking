@@ -39,6 +39,10 @@
             <div class="room-content">
                 <!-- 객실 추가 버튼 -->
                 <div class="room-header">
+                    <div class="room-buttons">
+                        <button class="room-btn active" onclick="switchRoom('roomA')">객실 A</button>
+                        <button class="room-btn" onclick="switchRoom('roomB')">객실 B</button>
+                    </div>
                     <button class="btn" onclick="addRoom()">객실 추가</button>
                 </div>
                 
@@ -47,7 +51,7 @@
                     <!-- 테스트룸 -->
                     <div class="room-item">
                         <div class="room-item-header">
-                            <h3>객실</h3>
+                            <h3>객실 A</h3>
                             <div class="room-actions">
                                 <button class="btn btn-edit" onclick="editRoom('000000')">수정</button>
                                 <button class="btn btn-delete" onclick="deleteRoom('000000')">삭제</button>
