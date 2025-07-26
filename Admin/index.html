@@ -11,6 +11,7 @@
         <div class="tab-navigation">
             <button class="tab-btn active" onclick="switchTab('reservation')">예약 승인</button>
             <button class="tab-btn" onclick="switchTab('room')">객실 관리</button>
+            <button class="tab-btn" onclick="switchTab('closure')">마감 설정</button>
         </div>
         
         <!-- 예약 승인 패널 -->
@@ -47,6 +48,24 @@
                 
                 <!-- 객실 목록 -->
                 <div class="room-list">
+                    <!-- JS로 동적으로 추가됨 -->
+                </div>
+            </div>
+        </div>
+        
+
+        
+        <!-- 마감 설정 패널 -->
+        <div class="admin-panel" id="panel-closure">
+            <h2>날짜별 마감 설정</h2>
+            <div class="closure-content">
+                <div class="closure-header">
+                    <div class="date-selector">
+                        <input type="date" id="closure-date" class="date-input">
+                        <button class="btn" onclick="addClosure()">마감 추가</button>
+                    </div>
+                </div>
+                <div class="closure-list">
                     <!-- JS로 동적으로 추가됨 -->
                 </div>
             </div>

@@ -23,6 +23,10 @@ html, body {
     margin-bottom: 16px;
     width: 90%;
     max-width: 1200px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
 }
 .admin-panel {
     background: #fff;
@@ -96,6 +100,74 @@ th {
 .btn[style*='background:#dc3545'] { background: #dc3545 !important; }
 .confirmed { color: #22c55e; font-weight: bold; }
 .pending { color: #f59e42; font-weight: bold; }
+
+
+
+/* 마감 설정 패널 */
+.closure-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.closure-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.date-selector {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.date-input {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.closure-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.closure-item {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.closure-info {
+    flex: 1;
+}
+
+.closure-date {
+    font-weight: bold;
+    margin-bottom: 4px;
+    color: #2a2a3a;
+}
+
+.closure-rooms {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.closure-actions {
+    display: flex;
+    gap: 8px;
+}
 
 
 /* 탭 네비게이션 */
@@ -278,13 +350,17 @@ th {
 
 .room-table tr:nth-child(1),
 .room-table tr:nth-child(2),
-.room-table tr:nth-child(3) {
+.room-table tr:nth-child(3),
+.room-table tr:nth-child(4),
+.room-table tr:nth-child(5) {
     background-color: #e3f2fd;
 }
 
 .room-table tr:nth-child(1) td:first-child,
 .room-table tr:nth-child(2) td:first-child,
-.room-table tr:nth-child(3) td:first-child {
+.room-table tr:nth-child(3) td:first-child,
+.room-table tr:nth-child(4) td:first-child,
+.room-table tr:nth-child(5) td:first-child {
     background-color: #e3f2fd;
 }
 

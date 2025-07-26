@@ -91,6 +91,9 @@ function switchTab(tabName) {
     document.getElementById(`panel-${tabName}`).classList.add('active');
 }
 
+// 마감 설정 데이터
+const closureData = {};
+
 // 초기화 및 이벤트 리스너
 document.addEventListener('DOMContentLoaded', function() {
     // 초기 데이터 로드
@@ -98,6 +101,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 객실 데이터 로드
     loadRoomsFromDB();
+    
+    // 마감 설정 데이터 로드
+    loadClosuresFromDB();
 
     // Socket.IO 클라이언트 연결 및 실시간 갱신
     const socket = io();
@@ -122,10 +128,14 @@ function addRoom() {
             checkInOut: Array(7).fill('15:00~11:00'),
             price: Array(7).fill('0원'),
             status: Array(7).fill('판매'),
+            extraPerson: Array(7).fill('10000원'),
+            walkDiscount: Array(7).fill('10000원'),
             usageTime: Array(7).fill('5시간'),
             openClose: Array(7).fill('09:00~18:00'),
             rentalPrice: Array(7).fill('0원'),
-            rentalStatus: Array(7).fill('판매')
+            rentalStatus: Array(7).fill('판매'),
+            rentalExtraPerson: Array(7).fill('10000원'),
+            rentalWalkDiscount: Array(7).fill('10000원')
         }
     };
 
@@ -201,7 +211,7 @@ function editRoom(roomId) {
         
         // 판매/마감 행의 모든 셀을 버튼으로 변경
         const saleStatusCells = roomTable.querySelectorAll('tr:nth-child(3) td:not(:first-child)');
-        const saleStatusCells2 = roomTable.querySelectorAll('tr:nth-child(7) td:not(:first-child)');
+        const rentalStatusCells = roomTable.querySelectorAll('tr:nth-child(9) td:not(:first-child)');
         
         saleStatusCells.forEach((cell, index) => {
             const currentStatus = cell.textContent.trim();
@@ -213,7 +223,7 @@ function editRoom(roomId) {
             `;
         });
         
-        saleStatusCells2.forEach((cell, index) => {
+        rentalStatusCells.forEach((cell, index) => {
             const currentStatus = cell.textContent.trim();
             cell.innerHTML = `
                 <div class="status-buttons">
@@ -223,8 +233,26 @@ function editRoom(roomId) {
             `;
         });
         
+
+        // 이용시간 행 수정
+        const usageTimeCells = roomTable.querySelectorAll('tr:nth-child(6) td:not(:first-child)');
+        usageTimeCells.forEach((cell, cellIndex) => {
+            const currentTime = cell.textContent.trim();
+            const hours = currentTime.replace('시간', '');
+            
+            cell.innerHTML = `
+                <div class="time-inputs" style="justify-content:center;align-items:center;gap:2px;">
+                    <div class="custom-dropdown" id="usage-hour-${cellIndex}" onmouseenter="showDropdown(this, 'usage', 2, 12, '${hours}', 1)" onmouseleave="hideDropdown(this)" onclick="toggleInputMode(this, '${hours}')">
+                        <div class="dropdown-display">${hours}</div>
+                        <div class="dropdown-options" style="display: none;"></div>
+                    </div>
+                    <span style="font-size:0.75rem;">시간</span>
+                </div>
+            `;
+        });
+
         // 개시/마감시간 행 수정
-        const openCloseCells = roomTable.querySelectorAll('tr:nth-child(5) td:not(:first-child)');
+        const openCloseCells = roomTable.querySelectorAll('tr:nth-child(7) td:not(:first-child)');
         openCloseCells.forEach((cell, cellIndex) => {
             const currentTime = cell.textContent.trim();
             const [open, close] = currentTime.split('~');
@@ -255,22 +283,6 @@ function editRoom(roomId) {
                 </div>
             `;
         });
-        // 이용시간 행 수정
-        const usageTimeCells = roomTable.querySelectorAll('tr:nth-child(4) td:not(:first-child)');
-        usageTimeCells.forEach((cell, cellIndex) => {
-            const currentTime = cell.textContent.trim();
-            const hours = currentTime.replace('시간', '');
-            
-            cell.innerHTML = `
-                <div class="time-inputs" style="justify-content:center;align-items:center;gap:2px;">
-                    <div class="custom-dropdown" id="usage-hour-${cellIndex}" onmouseenter="showDropdown(this, 'usage', 2, 12, '${hours}', 1)" onmouseleave="hideDropdown(this)" onclick="toggleInputMode(this, '${hours}')">
-                        <div class="dropdown-display">${hours}</div>
-                        <div class="dropdown-options" style="display: none;"></div>
-                    </div>
-                    <span style="font-size:0.75rem;">시간</span>
-                </div>
-            `;
-        });
 
         // 판매가(숙박) 행 수정
         const priceCells = roomTable.querySelectorAll('tr:nth-child(2) td:not(:first-child)');
@@ -287,8 +299,64 @@ function editRoom(roomId) {
         });
 
         // 판매가(대실) 행 수정
-        const rentalPriceCells = roomTable.querySelectorAll('tr:nth-child(6) td:not(:first-child)');
+        const rentalPriceCells = roomTable.querySelectorAll('tr:nth-child(8) td:not(:first-child)');
         rentalPriceCells.forEach((cell, cellIndex) => {
+            const currentPrice = cell.textContent.trim().replace(/[^\d]/g, '');
+            cell.innerHTML = `
+                <div class="price-input-container">
+                    <input type="text" class="price-input" value="${currentPrice}" maxlength="8" 
+                           oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 8);" 
+                           style="width: 60px; text-align: center; border: 1px solid #d1d5db; border-radius: 4px; padding: 2px 4px; font-size: 0.75rem;">
+                    <span style="margin-left: 2px; font-size: 0.75rem;">원</span>
+                </div>
+            `;
+        });
+
+        // 인원추가(숙박) 행 수정
+        const extraPersonCells = roomTable.querySelectorAll('tr:nth-child(4) td:not(:first-child)');
+        extraPersonCells.forEach((cell, cellIndex) => {
+            const currentPrice = cell.textContent.trim().replace(/[^\d]/g, '');
+            cell.innerHTML = `
+                <div class="price-input-container">
+                    <input type="text" class="price-input" value="${currentPrice}" maxlength="8" 
+                           oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 8);" 
+                           style="width: 60px; text-align: center; border: 1px solid #d1d5db; border-radius: 4px; padding: 2px 4px; font-size: 0.75rem;">
+                    <span style="margin-left: 2px; font-size: 0.75rem;">원</span>
+                </div>
+            `;
+        });
+
+        // 도보할인(숙박) 행 수정
+        const walkDiscountCells = roomTable.querySelectorAll('tr:nth-child(5) td:not(:first-child)');
+        walkDiscountCells.forEach((cell, cellIndex) => {
+            const currentPrice = cell.textContent.trim().replace(/[^\d]/g, '');
+            cell.innerHTML = `
+                <div class="price-input-container">
+                    <input type="text" class="price-input" value="${currentPrice}" maxlength="8" 
+                           oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 8);" 
+                           style="width: 60px; text-align: center; border: 1px solid #d1d5db; border-radius: 4px; padding: 2px 4px; font-size: 0.75rem;">
+                    <span style="margin-left: 2px; font-size: 0.75rem;">원</span>
+                </div>
+            `;
+        });
+
+        // 인원추가(대실) 행 수정
+        const rentalExtraPersonCells = roomTable.querySelectorAll('tr:nth-child(10) td:not(:first-child)');
+        rentalExtraPersonCells.forEach((cell, cellIndex) => {
+            const currentPrice = cell.textContent.trim().replace(/[^\d]/g, '');
+            cell.innerHTML = `
+                <div class="price-input-container">
+                    <input type="text" class="price-input" value="${currentPrice}" maxlength="8" 
+                           oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 8);" 
+                           style="width: 60px; text-align: center; border: 1px solid #d1d5db; border-radius: 4px; padding: 2px 4px; font-size: 0.75rem;">
+                    <span style="margin-left: 2px; font-size: 0.75rem;">원</span>
+                </div>
+            `;
+        });
+
+        // 도보할인(대실) 행 수정
+        const rentalWalkDiscountCells = roomTable.querySelectorAll('tr:nth-child(11) td:not(:first-child)');
+        rentalWalkDiscountCells.forEach((cell, cellIndex) => {
             const currentPrice = cell.textContent.trim().replace(/[^\d]/g, '');
             cell.innerHTML = `
                 <div class="price-input-container">
@@ -401,7 +469,7 @@ window.toggleInputMode = function(dropdown, currentValue) {
         });
 
         // 이용시간 복원
-        const usageCells = roomTable.querySelectorAll('tr:nth-child(4) td:not(:first-child)');
+        const usageCells = roomTable.querySelectorAll('tr:nth-child(6) td:not(:first-child)');
         usageCells.forEach((cell, cellIndex) => {
             const usageDisplay = cell.querySelector('.dropdown-display');
             const hours = usageDisplay ? usageDisplay.textContent : '5';
@@ -413,7 +481,7 @@ window.toggleInputMode = function(dropdown, currentValue) {
         });
 
         // 개시/마감시간 복원
-        const openCloseCells = roomTable.querySelectorAll('tr:nth-child(5) td:not(:first-child)');
+        const openCloseCells = roomTable.querySelectorAll('tr:nth-child(7) td:not(:first-child)');
         openCloseCells.forEach((cell, cellIndex) => {
             const timeInputs = cell.querySelectorAll('.custom-dropdown .dropdown-display');
             const openHour = timeInputs[0] ? timeInputs[0].textContent : '09';
@@ -428,7 +496,7 @@ window.toggleInputMode = function(dropdown, currentValue) {
         });
 
         // 판매가(대실) 복원
-        const rentalPriceCells = roomTable.querySelectorAll('tr:nth-child(6) td:not(:first-child)');
+        const rentalPriceCells = roomTable.querySelectorAll('tr:nth-child(8) td:not(:first-child)');
         rentalPriceCells.forEach((cell, cellIndex) => {
             const priceInput = cell.querySelector('.price-input');
             const price = priceInput ? priceInput.value : '30000';
@@ -440,13 +508,61 @@ window.toggleInputMode = function(dropdown, currentValue) {
         });
 
         // 판매/마감(대실) 복원
-        const rentalStatusCells = roomTable.querySelectorAll('tr:nth-child(7) td:not(:first-child)');
+        const rentalStatusCells = roomTable.querySelectorAll('tr:nth-child(9) td:not(:first-child)');
         rentalStatusCells.forEach((cell, cellIndex) => {
             const activeButton = cell.querySelector('.status-btn.active');
             const status = activeButton ? activeButton.textContent : '판매';
             cell.innerHTML = `<span>${status}</span>`;
             if (currentRoom) {
                 roomData[currentRoom].data.rentalStatus[cellIndex] = status;
+            }
+        });
+
+        // 인원추가(숙박) 복원
+        const extraPersonCells = roomTable.querySelectorAll('tr:nth-child(4) td:not(:first-child)');
+        extraPersonCells.forEach((cell, cellIndex) => {
+            const priceInput = cell.querySelector('.price-input');
+            const price = priceInput ? priceInput.value : '10000';
+            const priceString = `${price}원`;
+            cell.innerHTML = `<span>${priceString}</span>`;
+            if (currentRoom) {
+                roomData[currentRoom].data.extraPerson[cellIndex] = priceString;
+            }
+        });
+
+        // 도보할인(숙박) 복원
+        const walkDiscountCells = roomTable.querySelectorAll('tr:nth-child(5) td:not(:first-child)');
+        walkDiscountCells.forEach((cell, cellIndex) => {
+            const priceInput = cell.querySelector('.price-input');
+            const price = priceInput ? priceInput.value : '10000';
+            const priceString = `${price}원`;
+            cell.innerHTML = `<span>${priceString}</span>`;
+            if (currentRoom) {
+                roomData[currentRoom].data.walkDiscount[cellIndex] = priceString;
+            }
+        });
+
+        // 인원추가(대실) 복원
+        const rentalExtraPersonCells = roomTable.querySelectorAll('tr:nth-child(10) td:not(:first-child)');
+        rentalExtraPersonCells.forEach((cell, cellIndex) => {
+            const priceInput = cell.querySelector('.price-input');
+            const price = priceInput ? priceInput.value : '10000';
+            const priceString = `${price}원`;
+            cell.innerHTML = `<span>${priceString}</span>`;
+            if (currentRoom) {
+                roomData[currentRoom].data.rentalExtraPerson[cellIndex] = priceString;
+            }
+        });
+
+        // 도보할인(대실) 복원
+        const rentalWalkDiscountCells = roomTable.querySelectorAll('tr:nth-child(11) td:not(:first-child)');
+        rentalWalkDiscountCells.forEach((cell, cellIndex) => {
+            const priceInput = cell.querySelector('.price-input');
+            const price = priceInput ? priceInput.value : '10000';
+            const priceString = `${price}원`;
+            cell.innerHTML = `<span>${priceString}</span>`;
+            if (currentRoom) {
+                roomData[currentRoom].data.rentalWalkDiscount[cellIndex] = priceString;
             }
         });
 
@@ -584,10 +700,14 @@ function saveRoomToDB(roomId) {
         checkInOut: JSON.stringify(room.data.checkInOut),
         price: JSON.stringify(room.data.price),
         status: JSON.stringify(room.data.status),
+        extraPerson: JSON.stringify(room.data.extraPerson),
+        walkDiscount: JSON.stringify(room.data.walkDiscount),
         usageTime: JSON.stringify(room.data.usageTime),
         openClose: JSON.stringify(room.data.openClose),
         rentalPrice: JSON.stringify(room.data.rentalPrice),
-        rentalStatus: JSON.stringify(room.data.rentalStatus)
+        rentalStatus: JSON.stringify(room.data.rentalStatus),
+        rentalExtraPerson: JSON.stringify(room.data.rentalExtraPerson),
+        rentalWalkDiscount: JSON.stringify(room.data.rentalWalkDiscount)
     };
 
     fetch('/api/admin/rooms', {
@@ -664,16 +784,30 @@ function loadRoomsFromDB() {
             
             // DB에서 로드한 데이터로 roomData 구성
             rooms.forEach(room => {
+                // 각 필드에 대해 안전한 파싱 및 기본값 설정
+                const parseArray = (jsonString, defaultValue) => {
+                    try {
+                        return jsonString ? JSON.parse(jsonString) : defaultValue;
+                    } catch (e) {
+                        console.warn('JSON 파싱 오류:', e);
+                        return defaultValue;
+                    }
+                };
+
                 roomData[room.id] = {
                     name: room.name,
                     data: {
-                        checkInOut: JSON.parse(room.checkInOut || '[]'),
-                        price: JSON.parse(room.price || '[]'),
-                        status: JSON.parse(room.status || '[]'),
-                        usageTime: JSON.parse(room.usageTime || '[]'),
-                        openClose: JSON.parse(room.openClose || '[]'),
-                        rentalPrice: JSON.parse(room.rentalPrice || '[]'),
-                        rentalStatus: JSON.parse(room.rentalStatus || '[]')
+                        checkInOut: parseArray(room.checkInOut, Array(7).fill('15:00~11:00')),
+                        price: parseArray(room.price, Array(7).fill('0원')),
+                        status: parseArray(room.status, Array(7).fill('판매')),
+                        extraPerson: parseArray(room.extraPerson, Array(7).fill('10000원')),
+                        walkDiscount: parseArray(room.walkDiscount, Array(7).fill('10000원')),
+                        usageTime: parseArray(room.usageTime, Array(7).fill('5시간')),
+                        openClose: parseArray(room.openClose, Array(7).fill('09:00~18:00')),
+                        rentalPrice: parseArray(room.rentalPrice, Array(7).fill('0원')),
+                        rentalStatus: parseArray(room.rentalStatus, Array(7).fill('판매')),
+                        rentalExtraPerson: parseArray(room.rentalExtraPerson, Array(7).fill('10000원')),
+                        rentalWalkDiscount: parseArray(room.rentalWalkDiscount, Array(7).fill('10000원'))
                     }
                 };
             });
@@ -766,10 +900,14 @@ function renderRoomList() {
                         <tr><td>입실/퇴실시간</td>${room.data.checkInOut.map(v => `<td>${v}</td>`).join('')}</tr>
                         <tr><td>판매가</td>${room.data.price.map(v => `<td>${v}</td>`).join('')}</tr>
                         <tr><td>판매/마감</td>${room.data.status.map(v => `<td>${v}</td>`).join('')}</tr>
+                        <tr><td>인원추가</td>${room.data.extraPerson.map(v => `<td>${v}</td>`).join('')}</tr>
+                        <tr><td>도보할인</td>${room.data.walkDiscount.map(v => `<td>${v}</td>`).join('')}</tr>
                         <tr><td>이용시간</td>${room.data.usageTime.map(v => `<td>${v}</td>`).join('')}</tr>
                         <tr><td>개시/마감시간</td>${room.data.openClose.map(v => `<td>${v}</td>`).join('')}</tr>
                         <tr><td>판매가</td>${room.data.rentalPrice.map(v => `<td>${v}</td>`).join('')}</tr>
                         <tr><td>판매/마감</td>${room.data.rentalStatus.map(v => `<td>${v}</td>`).join('')}</tr>
+                        <tr><td>인원추가(대실)</td>${room.data.rentalExtraPerson.map(v => `<td>${v}</td>`).join('')}</tr>
+                        <tr><td>도보할인(대실)</td>${room.data.rentalWalkDiscount.map(v => `<td>${v}</td>`).join('')}</tr>
                     </tbody>
                 </table>
             </div>
@@ -843,5 +981,147 @@ function updateRoomTable(roomId) {
     const rentalStatusCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(7) td:not(:first-child)');
     rentalStatusCells.forEach((cell, index) => {
         cell.textContent = data.rentalStatus[index];
+    });
+}
+
+
+
+// 마감 설정 관련 함수들
+function addClosure() {
+    const dateInput = document.getElementById('closure-date');
+    const selectedDate = dateInput.value;
+    
+    if (!selectedDate) {
+        alert('날짜를 선택해주세요.');
+        return;
+    }
+    
+    const closureId = `closure_${selectedDate.replace(/-/g, '')}`;
+    
+    // 객실 목록에서 선택
+    const roomOptions = Object.keys(roomData).map(roomId => roomData[roomId].name);
+    const selectedRooms = prompt('마감할 객실을 선택하세요 (쉼표로 구분):', roomOptions.join(', '));
+    
+    if (!selectedRooms) return;
+    
+    const rooms = selectedRooms.split(',').map(room => room.trim()).filter(room => room);
+    
+    closureData[closureId] = {
+        date: selectedDate,
+        rooms: rooms
+    };
+    
+    renderClosureList();
+    saveClosureToDB(closureId);
+    dateInput.value = '';
+}
+
+function renderClosureList() {
+    const closureList = document.querySelector('.closure-list');
+    closureList.innerHTML = '';
+    
+    Object.keys(closureData).forEach(closureId => {
+        const closure = closureData[closureId];
+        const closureItem = document.createElement('div');
+        closureItem.className = 'closure-item';
+        closureItem.innerHTML = `
+            <div class="closure-info">
+                <div class="closure-date">${closure.date}</div>
+                <div class="closure-rooms">마감 객실: ${closure.rooms.join(', ')}</div>
+            </div>
+            <div class="closure-actions">
+                <button class="btn" onclick="editClosure('${closureId}')">수정</button>
+                <button class="btn" style="background: #dc3545;" onclick="deleteClosure('${closureId}')">삭제</button>
+            </div>
+        `;
+        closureList.appendChild(closureItem);
+    });
+}
+
+function editClosure(closureId) {
+    const closure = closureData[closureId];
+    if (!closure) return;
+    
+    const selectedRooms = prompt('마감할 객실을 선택하세요 (쉼표로 구분):', closure.rooms.join(', '));
+    if (!selectedRooms) return;
+    
+    const rooms = selectedRooms.split(',').map(room => room.trim()).filter(room => room);
+    
+    closureData[closureId] = {
+        date: closure.date,
+        rooms: rooms
+    };
+    
+    renderClosureList();
+    saveClosureToDB(closureId);
+}
+
+function deleteClosure(closureId) {
+    if (confirm('정말로 이 마감 설정을 삭제하시겠습니까?')) {
+        delete closureData[closureId];
+        renderClosureList();
+        
+        fetch(`/api/admin/closures/${closureId}`, {
+            method: 'DELETE'
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                console.log('마감 설정 삭제 성공:', closureId);
+            } else {
+                console.error('마감 설정 삭제 실패:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('마감 설정 삭제 오류:', error);
+        });
+    }
+}
+
+function loadClosuresFromDB() {
+    fetch('/api/admin/closures')
+        .then(res => res.json())
+        .then(closures => {
+            Object.keys(closureData).forEach(key => delete closureData[key]);
+            
+            closures.forEach(closure => {
+                closureData[closure.id] = {
+                    date: closure.date,
+                    rooms: JSON.parse(closure.rooms || '[]')
+                };
+            });
+            
+            renderClosureList();
+        })
+        .catch(error => {
+            console.error('마감 설정 데이터 로드 실패:', error);
+        });
+}
+
+function saveClosureToDB(closureId) {
+    if (!closureData[closureId]) return;
+    
+    const closure = closureData[closureId];
+    const closureDataForDB = {
+        id: closureId,
+        date: closure.date,
+        rooms: JSON.stringify(closure.rooms)
+    };
+
+    fetch('/api/admin/closures', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(closureDataForDB)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            console.log('마감 설정 저장 성공:', closureId);
+        } else {
+            console.error('마감 설정 저장 실패:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('마감 설정 저장 오류:', error);
     });
 }
