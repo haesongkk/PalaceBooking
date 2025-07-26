@@ -99,12 +99,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // 초기 데이터 로드
     fetchReservations();
     
-    // 객실 데이터 로드
-    loadRoomsFromDB();
+    // 객실 데이터 로드 후 달력 초기화
+    loadRoomsFromDB().then(() => {
+        initCalendar();
+    });
     
-    // 마감 설정 데이터 로드
-    loadClosuresFromDB();
-
     // Socket.IO 클라이언트 연결 및 실시간 갱신
     const socket = io();
     socket.emit('admin'); // 'admin' 방에 join
@@ -776,7 +775,7 @@ let currentRoom = null;
 
 // DB에서 객실 데이터 로드
 function loadRoomsFromDB() {
-    fetch('/api/admin/rooms')
+    return fetch('/api/admin/rooms')
         .then(res => res.json())
         .then(rooms => {
             // 기존 roomData 초기화
@@ -1079,7 +1078,7 @@ function deleteClosure(closureId) {
 }
 
 function loadClosuresFromDB() {
-    fetch('/api/admin/closures')
+    return fetch('/api/admin/closures')
         .then(res => res.json())
         .then(closures => {
             Object.keys(closureData).forEach(key => delete closureData[key]);
@@ -1091,7 +1090,10 @@ function loadClosuresFromDB() {
                 };
             });
             
-            renderClosureList();
+            // 달력이 이미 렌더링된 경우 업데이트
+            if (document.getElementById('calendar-days')) {
+                renderCalendar();
+            }
         })
         .catch(error => {
             console.error('마감 설정 데이터 로드 실패:', error);
@@ -1124,4 +1126,194 @@ function saveClosureToDB(closureId) {
     .catch(error => {
         console.error('마감 설정 저장 오류:', error);
     });
+}
+
+// 달력 관련 변수들
+let currentDate = new Date();
+let selectedDate = null;
+
+// 달력 초기화
+function initCalendar() {
+    renderCalendar();
+    loadClosuresFromDB();
+}
+
+// 달력 렌더링
+function renderCalendar() {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    
+    // 월 표시 업데이트
+    document.getElementById('current-month').textContent = `${year}년 ${month + 1}월`;
+    
+    // 달력 날짜 생성
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
+    
+    const calendarDays = document.getElementById('calendar-days');
+    calendarDays.innerHTML = '';
+    
+    for (let i = 0; i < 42; i++) {
+        const date = new Date(startDate);
+        date.setDate(startDate.getDate() + i);
+        
+        const dayElement = document.createElement('div');
+        dayElement.className = 'calendar-day';
+        dayElement.textContent = date.getDate();
+        
+        // 다른 월의 날짜인지 확인
+        if (date.getMonth() !== month) {
+            dayElement.classList.add('other-month');
+        }
+        
+        // 마감 설정이 있는 날짜인지 확인
+        const dateString = formatDate(date);
+        if (closureData[`closure_${dateString.replace(/-/g, '')}`]) {
+            dayElement.classList.add('has-closure');
+        }
+        
+        // 선택된 날짜인지 확인
+        if (selectedDate && formatDate(date) === selectedDate) {
+            dayElement.classList.add('selected');
+        }
+        
+        // 클릭 이벤트
+        dayElement.onclick = () => selectDate(date);
+        
+        calendarDays.appendChild(dayElement);
+    }
+}
+
+// 날짜 선택
+function selectDate(date) {
+    selectedDate = formatDate(date);
+    
+    // 선택 상태 업데이트
+    document.querySelectorAll('.calendar-day').forEach(day => {
+        day.classList.remove('selected');
+    });
+    event.target.classList.add('selected');
+    
+    // 상세 정보 표시
+    showDateDetail(date);
+}
+
+// 날짜 상세 정보 표시
+function showDateDetail(date) {
+    const dateString = formatDate(date);
+    const closureId = `closure_${dateString.replace(/-/g, '')}`;
+    const closure = closureData[closureId];
+    
+    document.getElementById('selected-date-title').textContent = `${dateString} 마감 설정`;
+    
+    const detailContent = document.getElementById('date-detail-content');
+    
+    // 모든 객실의 마감 상태를 표시
+    const roomStatusHTML = Object.keys(roomData).map(roomId => {
+        const roomName = roomData[roomId].name;
+        const isClosed = closure && closure.rooms.includes(roomName);
+        
+        return `
+            <div class="room-status-item">
+                <span class="room-name">${roomName}</span>
+                <button class="btn ${isClosed ? 'btn-closed' : 'btn-open'}" 
+                        onclick="toggleRoomClosure('${dateString}', '${roomName}', ${isClosed})">
+                    ${isClosed ? '마감됨' : '마감하기'}
+                </button>
+            </div>
+        `;
+    }).join('');
+    
+    detailContent.innerHTML = `
+        <div class="room-status-list">
+            ${roomStatusHTML}
+        </div>
+    `;
+}
+
+// 특정 날짜에 마감 설정 추가
+function addClosureForDate(dateString) {
+    const checkboxes = document.querySelectorAll('.room-checkboxes input:checked');
+    const selectedRooms = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (selectedRooms.length === 0) {
+        alert('마감할 객실을 선택해주세요.');
+        return;
+    }
+    
+    const closureId = `closure_${dateString.replace(/-/g, '')}`;
+    
+    closureData[closureId] = {
+        date: dateString,
+        rooms: selectedRooms
+    };
+    
+    renderCalendar();
+    saveClosureToDB(closureId);
+    showDateDetail(new Date(dateString));
+}
+
+// 이전 월
+function previousMonth() {
+    currentDate.setMonth(currentDate.getMonth() - 1);
+    renderCalendar();
+}
+
+// 다음 월
+function nextMonth() {
+    currentDate.setMonth(currentDate.getMonth() + 1);
+    renderCalendar();
+}
+
+// 날짜 포맷팅 (YYYY-MM-DD)
+function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// 객실별 마감 상태 토글
+function toggleRoomClosure(dateString, roomName, isCurrentlyClosed) {
+    const closureId = `closure_${dateString.replace(/-/g, '')}`;
+    
+    if (!closureData[closureId]) {
+        // 해당 날짜에 마감 설정이 없으면 새로 생성
+        closureData[closureId] = {
+            date: dateString,
+            rooms: []
+        };
+    }
+    
+    if (isCurrentlyClosed) {
+        // 마감 해제
+        closureData[closureId].rooms = closureData[closureId].rooms.filter(room => room !== roomName);
+    } else {
+        // 마감 설정
+        if (!closureData[closureId].rooms.includes(roomName)) {
+            closureData[closureId].rooms.push(roomName);
+        }
+    }
+    
+    // 마감된 객실이 없으면 해당 날짜의 마감 설정 삭제
+    if (closureData[closureId].rooms.length === 0) {
+        delete closureData[closureId];
+        // DB에서도 삭제
+        fetch(`/api/admin/closures/${closureId}`, {
+            method: 'DELETE'
+        }).catch(error => {
+            console.error('마감 설정 삭제 오류:', error);
+        });
+    } else {
+        // DB에 저장
+        saveClosureToDB(closureId);
+    }
+    
+    // 달력 업데이트
+    renderCalendar();
+    
+    // 상세 정보 다시 표시
+    showDateDetail(new Date(dateString));
 }

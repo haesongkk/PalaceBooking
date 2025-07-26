@@ -6,6 +6,7 @@ const path = require("path");
 const Database = require("better-sqlite3");
 const db = new Database("data.db");
 const roomDb = new Database("room.db");
+const closureDb = new Database("closure.db");
 
 const http = require("http");
 const { Server: SocketIOServer } = require("socket.io");
@@ -414,7 +415,7 @@ try { roomDb.prepare('ALTER TABLE rooms ADD COLUMN rentalWalkDiscount TEXT').run
 
 
 // 마감 설정 테이블 생성
-roomDb.prepare(`
+closureDb.prepare(`
   CREATE TABLE IF NOT EXISTS closures (
     id TEXT PRIMARY KEY,
     date TEXT,
@@ -489,7 +490,7 @@ app.delete('/api/admin/rooms/:id', (req, res) => {
 // 모든 마감 설정 조회
 app.get('/api/admin/closures', (req, res) => {
     try {
-        const rows = roomDb.prepare('SELECT * FROM closures ORDER BY date ASC').all();
+        const rows = closureDb.prepare('SELECT * FROM closures ORDER BY date ASC').all();
         res.json(rows);
     } catch (error) {
         console.error('마감 설정 조회 오류:', error);
@@ -507,18 +508,18 @@ app.post('/api/admin/closures', (req, res) => {
         }
 
         // 기존 마감 설정 확인
-        const existingClosure = roomDb.prepare('SELECT id FROM closures WHERE id = ?').get(id);
+        const existingClosure = closureDb.prepare('SELECT id FROM closures WHERE id = ?').get(id);
         
         if (existingClosure) {
             // 기존 마감 설정 수정
-            roomDb.prepare(`
+            closureDb.prepare(`
                 UPDATE closures 
                 SET date = ?, rooms = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             `).run(date, rooms, id);
         } else {
             // 새 마감 설정 생성
-            roomDb.prepare(`
+            closureDb.prepare(`
                 INSERT INTO closures (id, date, rooms)
                 VALUES (?, ?, ?)
             `).run(id, date, rooms);
@@ -535,7 +536,7 @@ app.post('/api/admin/closures', (req, res) => {
 app.delete('/api/admin/closures/:id', (req, res) => {
     try {
         const { id } = req.params;
-        const info = roomDb.prepare('DELETE FROM closures WHERE id = ?').run(id);
+        const info = closureDb.prepare('DELETE FROM closures WHERE id = ?').run(id);
         res.json({ success: info.changes > 0 });
     } catch (error) {
         console.error('마감 설정 삭제 오류:', error);
