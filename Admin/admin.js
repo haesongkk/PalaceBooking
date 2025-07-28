@@ -2,11 +2,13 @@ let allReservations = [];
 let currentFilter = 'pending';
 
 function fetchReservations() {
-    fetch('/api/admin/reservations')
-        .then(res => res.json())
+    adminAPI.getAllReservations()
         .then(data => {
             allReservations = data;
             renderTable();
+        })
+        .catch(error => {
+            console.error('예약 목록 조회 실패:', error);
         });
 }
 
@@ -46,26 +48,21 @@ function renderTable() {
 function confirmReservation(id, btn) {
     if (!confirm('이 예약을 확정하시겠습니까?')) return;
     btn.disabled = true;
-    fetch('/api/admin/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            alert('예약이 확정되었습니다!');
-            fetchReservations();
-            fetchRoomCounts();
-        } else {
-            alert('오류: ' + (data.error || '확정 실패'));
+    adminAPI.confirmReservation(id)
+        .then(data => {
+            if (data.success) {
+                alert('예약이 확정되었습니다!');
+                fetchReservations();
+                fetchRoomCounts();
+            } else {
+                alert('오류: ' + (data.error || '확정 실패'));
+                btn.disabled = false;
+            }
+        })
+        .catch(error => {
+            adminAPI.handleError(error, '예약 확정');
             btn.disabled = false;
-        }
-    })
-    .catch(() => {
-        alert('서버 오류');
-        btn.disabled = false;
-    });
+        });
 }
 
 
@@ -107,9 +104,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Socket.IO 클라이언트 연결 및 실시간 갱신
-    const socket = io();
-    socket.emit('admin'); // 'admin' 방에 join
-    socket.on('reservation-updated', () => {
+    adminAPI.connectSocket();
+    adminAPI.onSocketEvent('reservation-updated', () => {
         fetchReservations();
     });
 }); 
@@ -628,62 +624,52 @@ function saveRoomToDB(roomId) {
         rentalStatus: JSON.stringify(room.data.rentalStatus)
     };
 
-    fetch('/api/admin/rooms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(roomDataForDB)
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            console.log('객실 저장 성공:', roomId);
-        } else {
-            console.error('객실 저장 실패:', data.error);
-            alert('객실 저장에 실패했습니다: ' + (data.error || '알 수 없는 오류'));
-        }
-    })
-    .catch(error => {
-        console.error('객실 저장 오류:', error);
-        alert('객실 저장 중 오류가 발생했습니다.');
-    });
+    adminAPI.saveRoom(roomDataForDB)
+        .then(data => {
+            if (data.success) {
+                console.log('객실 저장 성공:', roomId);
+            } else {
+                console.error('객실 저장 실패:', data.error);
+                alert('객실 저장에 실패했습니다: ' + (data.error || '알 수 없는 오류'));
+            }
+        })
+        .catch(error => {
+            adminAPI.handleError(error, '객실 저장');
+        });
 }
 
 function deleteRoom(roomId) {
     if (confirm('정말로 이 객실을 삭제하시겠습니까?')) {
-        fetch(`/api/admin/rooms/${roomId}`, {
-            method: 'DELETE'
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                // 로컬 데이터에서 제거
-                delete roomData[roomId];
-                
-                // UI 업데이트
-                renderRoomButtons();
-                renderRoomList();
-                
-                // 현재 선택된 객실이 삭제된 객실이면 첫 번째 객실로 이동
-                if (currentRoom === roomId) {
-                    const firstRoomId = Object.keys(roomData)[0];
-                    if (firstRoomId) {
-                        switchRoom(firstRoomId);
-                    } else {
-                        // 객실이 없으면 빈 상태로
-                        currentRoom = null;
-                        document.querySelector('.room-list').innerHTML = '<p>등록된 객실이 없습니다.</p>';
+        adminAPI.deleteRoom(roomId)
+            .then(data => {
+                if (data.success) {
+                    // 로컬 데이터에서 제거
+                    delete roomData[roomId];
+                    
+                    // UI 업데이트
+                    renderRoomButtons();
+                    renderRoomList();
+                    
+                    // 현재 선택된 객실이 삭제된 객실이면 첫 번째 객실로 이동
+                    if (currentRoom === roomId) {
+                        const firstRoomId = Object.keys(roomData)[0];
+                        if (firstRoomId) {
+                            switchRoom(firstRoomId);
+                        } else {
+                            // 객실이 없으면 빈 상태로
+                            currentRoom = null;
+                            document.querySelector('.room-list').innerHTML = '<p>등록된 객실이 없습니다.</p>';
+                        }
                     }
+                    
+                    alert('객실이 삭제되었습니다.');
+                } else {
+                    alert('객실 삭제에 실패했습니다.');
                 }
-                
-                alert('객실이 삭제되었습니다.');
-            } else {
-                alert('객실 삭제에 실패했습니다.');
-            }
-        })
-        .catch(error => {
-            console.error('객실 삭제 오류:', error);
-            alert('객실 삭제 중 오류가 발생했습니다.');
-        });
+            })
+            .catch(error => {
+                adminAPI.handleError(error, '객실 삭제');
+            });
     }
 }
 
@@ -695,8 +681,7 @@ let currentRoomType = 'daily'; // 'daily' 또는 'overnight'
 
 // DB에서 객실 데이터 로드
 function loadRoomsFromDB() {
-    return fetch('/api/admin/rooms')
-        .then(res => res.json())
+    return adminAPI.getAllRooms()
         .then(rooms => {
             // 기존 roomData 초기화
             Object.keys(roomData).forEach(key => delete roomData[key]);
@@ -1022,8 +1007,7 @@ function deleteClosure(closureId) {
 }
 
 function loadClosuresFromDB() {
-    return fetch('/api/admin/closures')
-        .then(res => res.json())
+    return adminAPI.getAllClosures()
         .then(closures => {
             Object.keys(closureData).forEach(key => delete closureData[key]);
             
@@ -1054,22 +1038,17 @@ function saveClosureToDB(closureId) {
         rooms: JSON.stringify(closure.rooms)
     };
 
-    fetch('/api/admin/closures', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(closureDataForDB)
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            console.log('마감 설정 저장 성공:', closureId);
-        } else {
-            console.error('마감 설정 저장 실패:', data.error);
-        }
-    })
-    .catch(error => {
-        console.error('마감 설정 저장 오류:', error);
-    });
+    adminAPI.saveClosure(closureDataForDB)
+        .then(data => {
+            if (data.success) {
+                console.log('마감 설정 저장 성공:', closureId);
+            } else {
+                console.error('마감 설정 저장 실패:', data.error);
+            }
+        })
+        .catch(error => {
+            adminAPI.handleError(error, '마감 설정 저장');
+        });
 }
 
 // 달력 관련 변수들
@@ -2142,10 +2121,8 @@ function toggleRoomClosure(dateString, roomName, isCurrentlyClosed) {
     if (closureData[closureId].rooms.length === 0) {
         delete closureData[closureId];
         // DB에서도 삭제
-        fetch(`/api/admin/closures/${closureId}`, {
-            method: 'DELETE'
-        }).catch(error => {
-            console.error('마감 설정 삭제 오류:', error);
+        adminAPI.deleteClosure(closureId).catch(error => {
+            adminAPI.handleError(error, '마감 설정 삭제');
         });
     } else {
         // DB에 저장

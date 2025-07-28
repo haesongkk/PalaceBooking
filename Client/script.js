@@ -13,10 +13,8 @@ let logBuffer = [];
 let userNick = null; // ex: "몽글몽글한 젤리(1234)"
 
 function sendLogToServer(log) {
-    fetch("/api/log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(log)
+    palaceAPI.saveLog(log).catch(error => {
+        console.error('로그 저장 실패:', error);
     });
 }
 
@@ -165,9 +163,8 @@ function phoneHandler(input)
     // 전화번호 전송 → 닉네임 + 최근 예약 확인
     userphone = input;
     // 소켓 연결
-    connectSocket(userphone);
-    fetch(`/recentReserve?phone=${encodeURIComponent(userphone)}`)
-        .then(res => res.json())
+    palaceAPI.connectSocket(userphone);
+    palaceAPI.getRecentReservation(userphone)
         .then(data => {
 			console.log("데이터 조회 결과:", data);
 
@@ -279,8 +276,7 @@ async function showQuickMenuWith(labels = []) {
 
     // 3. 동적 특가상품 버튼 (기존 방식)
     try {
-        const res = await fetch('/api/admin/specials');
-        const specials = await res.json();
+        const specials = await palaceAPI.getSpecialProducts();
         specials.forEach(special => {
             const btn = document.createElement("button");
             btn.className = "bot-option special";
@@ -389,8 +385,7 @@ async function showRoomButtons() {
                 let d0 = new Date(rangeStart), d1 = new Date(rangeEnd);
                 for (let dt = new Date(d0); dt < d1; dt.setDate(dt.getDate() + 1)) {
                     const dateStr = formatDateYMD(dt);
-                    const res = await fetch(`/api/admin/roomStock?date=${dateStr}`);
-                    const data = await res.json();
+                    const data = await palaceAPI.getRoomStock(dateStr);
                     console.log(`[재고조회][숙박] ${dateStr}`, data);
                     rooms.forEach(room => {
                         const found = data.find(r => r.room_type.trim() === room.trim());
@@ -401,8 +396,7 @@ async function showRoomButtons() {
                 console.log('[stockMap][숙박]', stockMap);
             } else {
                 const dateStr = formatDateYMD(rangeStart);
-                const res = await fetch(`/api/admin/roomStock?date=${dateStr}`);
-                const data = await res.json();
+                const data = await palaceAPI.getRoomStock(dateStr);
                 console.log(`[재고조회][하루] ${dateStr}`, data);
                 rooms.forEach(room => {
                     const found = data.find(r => r.room_type.trim() === room.trim());
@@ -567,8 +561,7 @@ function showReservationList() {
     const container = document.createElement("div");
     container.className = "message bot";
 
-    fetch(`/reservationList?phone=${encodeURIComponent(userphone)}`)
-        .then(res => res.json())
+    palaceAPI.getReservationList(userphone)
         .then(data => {
             console.log("[예약내역] 서버 응답:", data);
             let html = `<div class=\"room-list\">`;
@@ -599,12 +592,7 @@ function showReservationList() {
 }
 
 function cancelReservation(id) {
-    fetch("/api/cancel", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: id })
-    })
-    .then(res => res.json())
+    palaceAPI.cancelReservation(id)
     .then(data => {
         if (data.success) {
             appendMessage(`🗑️ 예약이 취소되었습니다.`);
@@ -834,12 +822,7 @@ function processPayment(paymentMethod) {
         startDate: rangeStart?.toISOString().split('T')[0],
         endDate: rangeEnd?.toISOString().split('T')[0] || null
     };
-    fetch("/api/reserve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-    })
-    .then(res => res.json())
+    palaceAPI.createReservation(payload)
     .then(data => {
         if (data.success) {
             appendMessage('✅ 예약이 완료되었습니다! 예약 확정 대기 중입니다.', 'bot');
@@ -1019,21 +1002,13 @@ if (typeof io === 'undefined') {
     document.head.appendChild(script);
 }
 
-let socket = null;
-function connectSocket(phone) {
-    if (typeof io === 'undefined') {
-        setTimeout(() => connectSocket(phone), 200);
-        return;
-    }
-    socket = io();
-    socket.emit('join', phone);
-    socket.on('reservation-confirmed', (data) => {
-        // setTimeout으로 확정 메시지가 항상 뒤에 오도록
-        setTimeout(() => {
-            appendMessage('🎉 예약이 확정되었습니다! 관리자 승인 완료.', 'bot');
-        }, 100);
-    });
-}
+// Socket.IO 이벤트 리스너 설정
+palaceAPI.onSocketEvent('reservation-confirmed', (data) => {
+    // setTimeout으로 확정 메시지가 항상 뒤에 오도록
+    setTimeout(() => {
+        appendMessage('🎉 예약이 확정되었습니다! 관리자 승인 완료.', 'bot');
+    }, 100);
+});
 
 // 특가상품별 예약 플로우 핸들러
 function handleMidnightSpecial() {
