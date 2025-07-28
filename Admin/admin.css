@@ -35,7 +35,7 @@ html, body {
     padding: 32px;
     width: 90%;
     max-width: 1200px;
-    flex: 1;
+    height: 80vh;
     display: flex;
     flex-direction: column;
     transition: box-shadow 0.2s;
@@ -92,6 +92,29 @@ th {
     font-weight: 500;
     cursor: pointer;
     transition: background 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.btn-add-room {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 20px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #10b981;
+    border: 2px solid #10b981;
+    transition: all 0.2s;
+}
+
+.btn-add-room:hover {
+    background: #059669;
+    border-color: #059669;
+    transform: scale(1.05);
 }
 .btn[disabled] {
     background: #bdbdbd;
@@ -103,12 +126,222 @@ th {
 
 
 
+/* 판매 캘린더 패널 */
+.sales-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.floating-room-type-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.sales-calendar-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: scroll;
+}
+
+.sales-room-type-header {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.sales-room-type-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.sales-room-type-btn {
+    padding: 8px 16px;
+    border: 2px solid #d1d5db;
+    background: #fff;
+    color: #6b7280;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.sales-room-type-btn:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+.sales-room-type-btn.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+}
+
+.calendar-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+}
+
+.calendar-controls h3 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: #374151;
+    min-width: 120px;
+    text-align: center;
+}
+
+.sales-calendar-grid {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.sales-calendar-days {
+    display: grid;
+    grid-template-columns: 40px repeat(7, 1fr);
+    gap: 4px;
+    align-items: start;
+}
+
+.sales-calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+    font-weight: 500;
+    position: relative;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    min-height: 40px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.sales-calendar-day.has-data {
+    aspect-ratio: auto;
+    height: auto;
+    min-height: 60px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 6px;
+    cursor: default;
+    box-sizing: border-box;
+}
+
+
+
+.date-number {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: #374151;
+    margin-bottom: 4px;
+    text-align: center;
+    width: 100%;
+    flex-shrink: 0;
+}
+
+.room-data-box {
+    width: 100%;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    color: #374151;
+}
+
+.room-data-item {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: 3px 4px;
+    margin-bottom: 2px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.room-data-item:last-child {
+    margin-bottom: 0;
+}
+
+.room-status {
+    display: inline-block;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    font-weight: 600;
+    margin-right: 3px;
+}
+
+.room-status.sale {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.room-status.closed {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.room-status.soldout {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.room-name {
+    font-weight: 600;
+    margin-bottom: 1px;
+}
+
+.room-details {
+    font-size: 0.6rem;
+    color: #6b7280;
+}
+
+.room-price {
+    font-weight: 600;
+    color: #059669;
+}
+
+.sales-calendar-day:hover {
+    background: #e3f2fd;
+    border-color: #3b82f6;
+}
+
+.sales-calendar-day.selected {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.sales-calendar-day.other-month {
+    color: #d1d5db;
+    background: #f9fafb;
+}
+
+
+
 /* 마감 설정 패널 */
 .closure-content {
     flex: 1;
     display: flex;
     flex-direction: column;
     gap: 16px;
+    overflow-y: auto;
+    padding-right: 8px;
 }
 
 .calendar-container {
@@ -161,9 +394,12 @@ th {
 
 .calendar-weekdays {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: 40px repeat(7, 1fr);
     gap: 1px;
     margin-bottom: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .calendar-weekdays div {
@@ -173,6 +409,54 @@ th {
     color: #6b7280;
     background: #f9fafb;
     border-radius: 6px;
+}
+
+.weekday-header {
+    background: #e5e7eb !important;
+    color: #374151 !important;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.weekday-header input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.weekday-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.weekday-cell input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.weekday-cell span {
+    font-weight: 600;
+    color: #6b7280;
+}
+
+.date-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.checkbox-column {
+    background: #f9fafb !important;
+    border: 1px solid #e5e7eb !important;
+    cursor: default !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
 .calendar-days {
@@ -448,17 +732,61 @@ th {
     display: flex;
 }
 
-/* 객실 관리 스타일 */
-.room-header {
+/* 요금표 관리 스타일 */
+.room-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.room-type-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
 }
 
+.room-type-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.room-type-btn {
+    padding: 10px 20px;
+    border: 1px solid #d1d5db;
+    background: #f9fafb;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.room-type-btn:hover {
+    background: #e5e7eb;
+}
+
+.room-type-btn.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.room-header {
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
 .room-buttons {
     display: flex;
     gap: 10px;
+    flex-wrap: wrap;
+    max-width: 100%;
 }
 
 .room-btn {
@@ -469,6 +797,12 @@ th {
     cursor: pointer;
     font-size: 0.875rem;
     transition: all 0.2s;
+    min-width: 80px;
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
 }
 
 .room-btn:hover {
@@ -586,19 +920,31 @@ th {
     border-right: 2px solid #e9ecef;
 }
 
-.room-table tr:nth-child(1),
-.room-table tr:nth-child(2),
-.room-table tr:nth-child(3),
-.room-table tr:nth-child(4),
-.room-table tr:nth-child(5) {
+/* 대실 테이블 스타일 */
+.room-table.daily tr:nth-child(1),
+.room-table.daily tr:nth-child(2),
+.room-table.daily tr:nth-child(3),
+.room-table.daily tr:nth-child(4) {
     background-color: #e3f2fd;
 }
 
-.room-table tr:nth-child(1) td:first-child,
-.room-table tr:nth-child(2) td:first-child,
-.room-table tr:nth-child(3) td:first-child,
-.room-table tr:nth-child(4) td:first-child,
-.room-table tr:nth-child(5) td:first-child {
+.room-table.daily tr:nth-child(1) td:first-child,
+.room-table.daily tr:nth-child(2) td:first-child,
+.room-table.daily tr:nth-child(3) td:first-child,
+.room-table.daily tr:nth-child(4) td:first-child {
+    background-color: #e3f2fd;
+}
+
+/* 숙박 테이블 스타일 */
+.room-table.overnight tr:nth-child(1),
+.room-table.overnight tr:nth-child(2),
+.room-table.overnight tr:nth-child(3) {
+    background-color: #e3f2fd;
+}
+
+.room-table.overnight tr:nth-child(1) td:first-child,
+.room-table.overnight tr:nth-child(2) td:first-child,
+.room-table.overnight tr:nth-child(3) td:first-child {
     background-color: #e3f2fd;
 }
 
@@ -795,6 +1141,384 @@ th {
     margin: 0 1px;
 }
 
+/* 선택된 날짜 플로팅 UI */
+.floating-selection-ui {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 12px 20px;
+}
 
+.floating-selection-ui span {
+    font-size: 0.9rem;
+    color: #374151;
+    font-weight: 500;
+    white-space: nowrap;
+}
 
- 
+.btn-cancel {
+    flex: 1;
+    padding: 10px;
+    background: #6b7280;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.btn-cancel:hover {
+    background: #4b5563;
+}
+
+.btn-sales {
+    flex: 1;
+    padding: 10px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.btn-sales:hover {
+    background: #2563eb;
+}
+
+/* 판매 설정 모달 */
+.sales-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    max-width: 90%;
+    max-height: 90%;
+    overflow: hidden;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #374151;
+    font-weight: 600;
+}
+
+.btn-close-modal {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.btn-close-modal:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.modal-body {
+    padding: 25px;
+    overflow: auto;
+}
+
+/* 판매 설정 폼 */
+.sales-settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    min-width: 800px;
+}
+
+.settings-header {
+    text-align: center;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.settings-header h4 {
+    margin: 0 0 10px 0;
+    font-size: 1.25rem;
+    color: #374151;
+    font-weight: 600;
+}
+
+.settings-header p {
+    margin: 0;
+    font-size: 1rem;
+    color: #6b7280;
+}
+
+.settings-form {
+    flex: 1;
+}
+
+.form-table {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.form-header {
+    display: grid;
+    grid-template-columns: 200px 120px 150px 1fr;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.form-header > div {
+    padding: 15px 20px;
+    font-weight: 600;
+    color: #374151;
+    font-size: 0.9rem;
+    border-right: 1px solid #e5e7eb;
+}
+
+.form-header > div:last-child {
+    border-right: none;
+}
+
+/* 대실 모드일 때 마지막 헤더 셀을 두 개로 나누기 */
+.form-header .split-header {
+    display: grid;
+    grid-template-columns: 1fr 100px;
+    gap: 10px;
+    padding: 0;
+    border-right: none;
+}
+
+.form-header .split-header > div {
+    text-align: center;
+    padding: 15px 10px;
+    border-right: 1px solid #e5e7eb;
+    background: #f1f5f9;
+    border-radius: 4px;
+    font-weight: 600;
+    color: #374151;
+    font-size: 0.9rem;
+}
+
+.form-header .split-header > div:last-child {
+    border-right: none;
+}
+
+.form-rows {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 200px 120px 150px 1fr;
+    border-bottom: 1px solid #e5e7eb;
+    align-items: center;
+}
+
+.form-row:last-child {
+    border-bottom: none;
+}
+
+.form-row > div {
+    padding: 15px 20px;
+    border-right: 1px solid #e5e7eb;
+}
+
+.form-row > div:last-child {
+    border-right: none;
+}
+
+.form-row > div:nth-child(3) {
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 대실 모드일 때 마지막 셀을 두 개로 나누기 */
+.form-row .split-cell {
+    display: grid;
+    grid-template-columns: 1fr 100px;
+    gap: 10px;
+    padding: 0;
+    border-right: none;
+}
+
+.form-row .split-cell > div {
+    padding: 15px 10px;
+    border-right: 1px solid #e5e7eb;
+    background: #fafbfc;
+    border-radius: 4px;
+}
+
+.form-row .split-cell > div:last-child {
+    border-right: none;
+}
+
+.room-name {
+    font-weight: 500;
+    color: #374151;
+}
+
+.status-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: white;
+}
+
+.status-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.price-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: white;
+}
+
+.price-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.price-input-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.price-input {
+    width: 80px;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: white;
+}
+
+.price-unit {
+    color: #374151;
+    font-size: 0.9rem;
+    font-weight: 500;
+    background-color: yellow; /* 디버깅용 */
+}
+
+.details-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: white;
+}
+
+.details-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.usage-time-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: white;
+}
+
+.usage-time-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.settings-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.settings-actions .btn-cancel {
+    background: #6b7280;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 12px 24px;
+    transition: background-color 0.2s;
+    width: 80px;
+    text-align: center;
+}
+
+.settings-actions .btn-cancel:hover {
+    background: #4b5563;
+}
+
+.settings-actions .btn-save {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 12px 24px;
+    width: 80px;
+    text-align: center;
+}
+
+.settings-actions .btn-save:hover {
+    background: #2563eb;
+}
