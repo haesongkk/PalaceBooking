@@ -215,7 +215,6 @@ th {
 }
 
 .sales-calendar-day {
-    aspect-ratio: 1;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -226,7 +225,8 @@ th {
     position: relative;
     background: #f9fafb;
     border: 1px solid #e5e7eb;
-    min-height: 40px;
+    min-height: 28px;
+    height: 28px;
     width: 100%;
     box-sizing: border-box;
 }
@@ -330,6 +330,17 @@ th {
 .sales-calendar-day.other-month {
     color: #d1d5db;
     background: #f9fafb;
+}
+
+/* 과거 날짜 셀 스타일 */
+.sales-calendar-day.past-date {
+    min-height: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+    color: #d1d5db;
+    background-color: #f9fafb;
+    pointer-events: none;
+    cursor: not-allowed;
 }
 
 

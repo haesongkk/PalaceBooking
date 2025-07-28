@@ -1087,12 +1087,13 @@ function initCalendar() {
     loadClosuresFromDB();
     renderSalesCalendar();
     
-    // 판매 캘린더 초기화 - 숙박 버튼 활성화
+    // 판매 캘린더 초기화 - 숙박 버튼 활성화 및 월 이동 버튼 상태 업데이트
     setTimeout(() => {
         const overnightBtn = document.querySelector('#panel-sales [onclick="switchSalesRoomType(\'overnight\')"]');
         if (overnightBtn) {
             overnightBtn.classList.add('active');
         }
+        updateMonthNavigationButtons();
     }, 100);
 }
 
@@ -1244,9 +1245,16 @@ function renderSalesCalendar() {
     // 월 표시 업데이트
     document.getElementById('sales-current-month').textContent = `${year}년 ${month + 1}월`;
     
+    // 월 이동 버튼 상태 업데이트
+    updateMonthNavigationButtons();
+    
     // 달력 날짜 생성
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
+    
+    // 오늘 날짜 (과거 날짜 체크용)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
     // 달력의 시작일 계산 (일요일부터 시작)
     const startDate = new Date(firstDay);
@@ -1284,29 +1292,40 @@ function renderSalesCalendar() {
             } else {
                 // 현재 월의 날짜인 경우에만 셀 생성
                 if (currentDate.getMonth() === month) {
-                    // 날짜 표시
+                    // 과거 날짜인지 확인
+                    const isPastDate = currentDate < today;
+                    
+                    // 날짜 표시 (과거든 미래든 숫자는 표시)
                     dayElement.textContent = currentDate.getDate();
                     
-                    // 객실 데이터 표시
-                    const roomDataContent = generateRoomDataForDate(currentDate);
-                    if (roomDataContent) {
-                        dayElement.classList.add('has-data');
-                        dayElement.innerHTML = `
-                            <div class="date-number">${currentDate.getDate()}</div>
-                            <div class="room-data-box">
-                                ${roomDataContent}
-                            </div>
-                        `;
+                    if (isPastDate) {
+                        // 과거 날짜는 회색으로 표시하고 클릭 불가, 높이도 줄임
+                        dayElement.classList.add('past-date');
+                    } else {
+                        // 미래 날짜는 정상 표시
+                        dayElement.classList.remove('past-date');
+                        
+                        // 객실 데이터 표시
+                        const roomDataContent = generateRoomDataForDate(currentDate);
+                        if (roomDataContent) {
+                            dayElement.classList.add('has-data');
+                            dayElement.innerHTML = `
+                                <div class="date-number">${currentDate.getDate()}</div>
+                                <div class="room-data-box">
+                                    ${roomDataContent}
+                                </div>
+                            `;
+                        }
+                        
+                        // 선택된 날짜인지 확인
+                        if (salesSelectedDates.includes(formatDate(currentDate))) {
+                            dayElement.classList.add('selected');
+                        }
+                        
+                        // 클릭 이벤트 - 현재 날짜의 복사본을 전달
+                        const clickDate = new Date(currentDate);
+                        dayElement.onclick = () => selectSalesDate(clickDate);
                     }
-                    
-                    // 선택된 날짜인지 확인
-                    if (salesSelectedDates.includes(formatDate(currentDate))) {
-                        dayElement.classList.add('selected');
-                    }
-                    
-                    // 클릭 이벤트 - 현재 날짜의 복사본을 전달
-                    const clickDate = new Date(currentDate);
-                    dayElement.onclick = () => selectSalesDate(clickDate);
                 } else {
                     // 다른 월의 날짜는 빈 셀로
                     dayElement.style.visibility = 'hidden';
@@ -1326,6 +1345,15 @@ function renderSalesCalendar() {
 // 판매 캘린더 날짜 선택
 function selectSalesDate(date) {
     const dateString = formatDate(date);
+    
+    // 과거 날짜는 선택하지 않음
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (date < today) {
+        console.log('과거 날짜는 선택할 수 없습니다.');
+        return;
+    }
     
     // 해당 날짜의 셀을 찾기 (월과 일을 모두 고려)
     const dateElements = document.querySelectorAll('.sales-calendar-day');
@@ -1728,14 +1756,64 @@ function closeSalesModal() {
 
 // 판매 캘린더 이전 월
 function previousSalesMonth() {
-    salesCurrentDate.setMonth(salesCurrentDate.getMonth() - 1);
+    const currentYear = salesCurrentDate.getFullYear();
+    const currentMonth = salesCurrentDate.getMonth();
+    
+    // 이전 월 계산
+    const previousMonth = new Date(currentYear, currentMonth - 1, 1);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // 이전 월이 오늘의 월보다 이전이면 이동하지 않음 (같은 월은 허용)
+    const todayMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    if (previousMonth < todayMonth) {
+        console.log('과거 월로는 이동할 수 없습니다.');
+        return;
+    }
+    
+    salesCurrentDate.setMonth(currentMonth - 1);
     renderSalesCalendar();
+    updateMonthNavigationButtons();
+}
+
+// 월 이동 버튼 상태 업데이트
+function updateMonthNavigationButtons() {
+    const prevButton = document.querySelector('#panel-sales .calendar-controls button:first-child');
+    const nextButton = document.querySelector('#panel-sales .calendar-controls button:last-child');
+    
+    const currentYear = salesCurrentDate.getFullYear();
+    const currentMonth = salesCurrentDate.getMonth();
+    
+    // 이전 월 계산
+    const previousMonth = new Date(currentYear, currentMonth - 1, 1);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    // 이전 월 버튼 상태 설정
+    if (previousMonth < todayMonth) {
+        // 과거 월로 이동 불가능
+        prevButton.style.backgroundColor = '#9ca3af';
+        prevButton.style.cursor = 'not-allowed';
+        prevButton.title = '과거 월로는 이동할 수 없습니다';
+    } else {
+        // 정상 상태
+        prevButton.style.backgroundColor = '#3b82f6';
+        prevButton.style.cursor = 'pointer';
+        prevButton.title = '이전 월';
+    }
+    
+    // 다음 월 버튼은 항상 활성화
+    nextButton.style.backgroundColor = '#3b82f6';
+    nextButton.style.cursor = 'pointer';
+    nextButton.title = '다음 월';
 }
 
 // 판매 캘린더 다음 월
 function nextSalesMonth() {
     salesCurrentDate.setMonth(salesCurrentDate.getMonth() + 1);
     renderSalesCalendar();
+    updateMonthNavigationButtons();
 }
 
 // 판매 캘린더 대실/숙박 전환 함수
@@ -1754,36 +1832,74 @@ function switchSalesRoomType(type) {
 
 // 전체 날짜 선택/해제
 function toggleAllDates(checkbox) {
-    // 좌측 체크박스들 체크/해제
-    const dateCheckboxes = document.querySelectorAll('.date-checkbox');
-    dateCheckboxes.forEach(cb => {
-        cb.checked = checkbox.checked;
-    });
-    
-    // 요일 체크박스들도 체크/해제
-    const weekdayCheckboxes = document.querySelectorAll('.weekday-cell input[type="checkbox"]');
-    weekdayCheckboxes.forEach(cb => {
-        cb.checked = checkbox.checked;
-    });
-    
     if (checkbox.checked) {
-        // 모든 날짜 선택
+        // 선택할 수 있는 날짜가 있는지 먼저 확인
         const allDateElements = document.querySelectorAll('.sales-calendar-day:not(.checkbox-column)');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        let hasSelectableDates = false;
         allDateElements.forEach(element => {
             if (element.style.visibility !== 'hidden') {
-                element.classList.add('selected');
                 const dateString = element.querySelector('.date-number')?.textContent;
                 if (dateString) {
                     const currentDate = new Date(salesCurrentDate.getFullYear(), salesCurrentDate.getMonth(), parseInt(dateString));
-                    const formattedDate = formatDate(currentDate);
-                    if (!salesSelectedDates.includes(formattedDate)) {
-                        salesSelectedDates.push(formattedDate);
+                    if (currentDate >= today) {
+                        hasSelectableDates = true;
+                    }
+                }
+            }
+        });
+        
+        // 선택할 수 있는 날짜가 없으면 체크박스를 체크하지 않음
+        if (!hasSelectableDates) {
+            checkbox.checked = false;
+            console.log('선택할 수 있는 날짜가 없습니다.');
+            return;
+        }
+        
+        // 좌측 체크박스들 체크
+        const dateCheckboxes = document.querySelectorAll('.date-checkbox');
+        dateCheckboxes.forEach(cb => {
+            cb.checked = true;
+        });
+        
+        // 요일 체크박스들도 체크
+        const weekdayCheckboxes = document.querySelectorAll('.weekday-cell input[type="checkbox"]');
+        weekdayCheckboxes.forEach(cb => {
+            cb.checked = true;
+        });
+        
+        // 모든 날짜 선택 (과거 날짜 제외)
+        allDateElements.forEach(element => {
+            if (element.style.visibility !== 'hidden') {
+                const dateString = element.querySelector('.date-number')?.textContent;
+                if (dateString) {
+                    const currentDate = new Date(salesCurrentDate.getFullYear(), salesCurrentDate.getMonth(), parseInt(dateString));
+                    
+                    // 과거 날짜는 선택하지 않음
+                    if (currentDate >= today) {
+                        element.classList.add('selected');
+                        const formattedDate = formatDate(currentDate);
+                        if (!salesSelectedDates.includes(formattedDate)) {
+                            salesSelectedDates.push(formattedDate);
+                        }
                     }
                 }
             }
         });
     } else {
         // 모든 날짜 선택 해제
+        const dateCheckboxes = document.querySelectorAll('.date-checkbox');
+        dateCheckboxes.forEach(cb => {
+            cb.checked = false;
+        });
+        
+        const weekdayCheckboxes = document.querySelectorAll('.weekday-cell input[type="checkbox"]');
+        weekdayCheckboxes.forEach(cb => {
+            cb.checked = false;
+        });
+        
         document.querySelectorAll('.sales-calendar-day').forEach(element => {
             element.classList.remove('selected');
         });
@@ -1806,13 +1922,35 @@ function toggleDateSelection(checkbox) {
     weekStart.setDate(date.getDate() - date.getDay()); // 해당 주의 일요일로 설정
     
     if (checkbox.checked) {
-        // 해당 행(주)의 모든 날짜 선택
+        // 해당 주에 선택할 수 있는 날짜가 있는지 먼저 확인
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        let hasSelectableDates = false;
         for (let i = 0; i < 7; i++) {
             const weekDate = new Date(weekStart);
             weekDate.setDate(weekStart.getDate() + i);
             
-            // 현재 월의 날짜인 경우에만 선택
-            if (weekDate.getMonth() === salesCurrentDate.getMonth()) {
+            if (weekDate.getMonth() === salesCurrentDate.getMonth() && weekDate >= today) {
+                hasSelectableDates = true;
+                break;
+            }
+        }
+        
+        // 선택할 수 있는 날짜가 없으면 체크박스를 체크하지 않음
+        if (!hasSelectableDates) {
+            checkbox.checked = false;
+            console.log('해당 주에 선택할 수 있는 날짜가 없습니다.');
+            return;
+        }
+        
+        // 해당 행(주)의 모든 날짜 선택 (과거 날짜 제외)
+        for (let i = 0; i < 7; i++) {
+            const weekDate = new Date(weekStart);
+            weekDate.setDate(weekStart.getDate() + i);
+            
+            // 현재 월의 날짜이고 과거가 아닌 경우에만 선택
+            if (weekDate.getMonth() === salesCurrentDate.getMonth() && weekDate >= today) {
                 const formattedDate = formatDate(weekDate);
                 if (!salesSelectedDates.includes(formattedDate)) {
                     salesSelectedDates.push(formattedDate);
@@ -1913,10 +2051,30 @@ function toggleWeekday(weekday, checkbox) {
     const currentYear = salesCurrentDate.getFullYear();
     
     if (checkbox.checked) {
-        // 해당 요일의 모든 날짜 선택
+        // 해당 요일에 선택할 수 있는 날짜가 있는지 먼저 확인
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        let hasSelectableDates = false;
         for (let day = 1; day <= 31; day++) {
             const checkDate = new Date(currentYear, currentMonth, day);
-            if (checkDate.getMonth() === currentMonth && checkDate.getDay() === targetDayOfWeek) {
+            if (checkDate.getMonth() === currentMonth && checkDate.getDay() === targetDayOfWeek && checkDate >= today) {
+                hasSelectableDates = true;
+                break;
+            }
+        }
+        
+        // 선택할 수 있는 날짜가 없으면 체크박스를 체크하지 않음
+        if (!hasSelectableDates) {
+            checkbox.checked = false;
+            console.log('해당 요일에 선택할 수 있는 날짜가 없습니다.');
+            return;
+        }
+        
+        // 해당 요일의 모든 날짜 선택 (과거 날짜 제외)
+        for (let day = 1; day <= 31; day++) {
+            const checkDate = new Date(currentYear, currentMonth, day);
+            if (checkDate.getMonth() === currentMonth && checkDate.getDay() === targetDayOfWeek && checkDate >= today) {
                 const formattedDate = formatDate(checkDate);
                 if (!salesSelectedDates.includes(formattedDate)) {
                     salesSelectedDates.push(formattedDate);
