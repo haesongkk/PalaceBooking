@@ -26,6 +26,12 @@ function appendMessage(text, sender = "bot", type = "text") {
     msg.className = "message " + sender;
     msg.textContent = text;
     chatBox.appendChild(msg); // 메시지를 맨 아래에 추가
+    
+    // 봇 메시지인 경우 이전 봇 메시지들 비활성화
+    if (sender === "bot") {
+        disablePreviousBotMessages();
+    }
+    
     // 메시지 추가 후 스크롤 아래로 이동
     const chatWindow = document.querySelector('.chat-window');
     if (chatWindow) {
@@ -46,6 +52,21 @@ function appendMessage(text, sender = "bot", type = "text") {
     }
 }
 
+function disablePreviousBotMessages() {
+    const botMessages = document.querySelectorAll('.message.bot');
+    if (botMessages.length > 1) {
+        // 마지막 봇 메시지를 제외한 모든 봇 메시지 비활성화
+        for (let i = 0; i < botMessages.length - 1; i++) {
+            const msg = botMessages[i];
+            msg.querySelectorAll('button').forEach(btn => {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+            });
+        }
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
 	console.log("엔터 처리?");
 	
@@ -58,7 +79,9 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 const text = input.innerText.trim();
                 if (text) {
-                    handleUserInput(text);
+                    if (typeof curHandler === 'function') {
+                        handleUserInput(text);
+                    }
                     input.innerHTML = "";
                 }
             }
@@ -73,17 +96,49 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 const text = input.innerText.trim();
                 if (text) {
-                    handleUserInput(text);
+                    if (typeof curHandler === 'function') {
+                        handleUserInput(text);
+                    }
                     input.innerHTML = "";
                 }
             }
         };
+    }
+
+    // 자동 스크롤 MutationObserver
+    const chatWindow = document.querySelector('.chat-window');
+    if (chatWindow) {
+        const observer = new MutationObserver(() => {
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        });
+        observer.observe(chatWindow, { childList: true, subtree: true });
     }
 });
 
 window.onload = () => {
     appendMessage("안녕하세요. 예약을 도와드릴게요.");
     appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    
     curHandler = phoneHandler;
 };
 
@@ -205,7 +260,7 @@ function phoneHandler(input)
             if (inputBox) inputBox.innerHTML = "";
 
             // curHandler를 예약 관련 handler로 변경
-            curHandler = defaultHandler;
+            curHandler = null; // 전화번호 입력 후에는 반복 안내 방지
 
             // 닉네임 할당 후 로그 전송
             onNicknameAssigned(username, userphone);
@@ -825,7 +880,7 @@ function processPayment(paymentMethod) {
     palaceAPI.createReservation(payload)
     .then(data => {
         if (data.success) {
-            appendMessage('✅ 예약이 완료되었습니다! 예약 확정 대기 중입니다.', 'bot');
+            appendMessage('✅ 예약이 접수되었습니다! 예약 확정 대기 중입니다.', 'bot');
             // 필요하다면 예약 내역 새로고침 함수 호출
             // showReservationList();
         } else {
@@ -934,6 +989,8 @@ async function renderCalendar(selectedStart = null, selectedEnd = null) {
         d.setDate(startDate.getDate() + i);
         days.push(d);
     }
+    const today = new Date();
+    today.setHours(0,0,0,0);
     for (let i = 0; i < days.length; i++) {
         const currentDate = days[i];
         let classes = "calendar-cell";
@@ -941,17 +998,19 @@ async function renderCalendar(selectedStart = null, selectedEnd = null) {
         const isStart = selectedStart && currentDate.toDateString() === selectedStart.toDateString();
         const isEnd = selectedEnd && currentDate.toDateString() === selectedEnd.toDateString();
         const isInRange = selectedStart && selectedEnd && currentDate > selectedStart && currentDate < selectedEnd;
-        const isToday = currentDate.toDateString() === new Date().toDateString();
+        const isToday = currentDate.toDateString() === today.toDateString();
+        const isPast = currentDate < today;
         if (isToday) classes += " today";
         if (!isInMonth) classes += " inactive";
         if (isStart || isEnd) classes += " selected";
         else if (isInRange) classes += " range";
+        if (isPast) classes += " inactive";
         // 날짜 포맷을 항상 두 자리로 맞춤
         const y = currentDate.getFullYear();
         const m = String(currentDate.getMonth() + 1).padStart(2, '0');
         const d = String(currentDate.getDate()).padStart(2, '0');
         html += `
-            <button class="${classes}" onclick="selectDate('${y}-${m}-${d}')">
+            <button class="${classes}" ${isPast ? 'disabled' : ''} onclick="selectDate('${y}-${m}-${d}')">
                 ${currentDate.getDate()}
             </button>
         `;

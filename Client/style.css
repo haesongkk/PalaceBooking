@@ -21,7 +21,7 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  /*overflow: auto;*/
   background: var(--color-bg, #0b0b24);
 }
 
@@ -34,60 +34,64 @@ body {
 }
 
 .app {
-  width: 100vw;
-  max-width: 430px;
-  height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  height: 100vh;
+  max-width: 430px;
+  width: 100vw;
+  margin: 0 auto;
   background: var(--color-panel, #1a1a2e);
   border-radius: 16px;
+  overflow: hidden;
+}
+
+.chat-header,
+.chat-footer {
+  flex-shrink: 0;
 }
 
 .chat-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 16px;
-    background: #22223b;
-    color: var(--color-white);
-    font-size: 16px;
-    font-weight: bold;
-    border-bottom: 1px solid #333;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #22223b;
+  color: var(--color-white);
+  font-size: 16px;
+  font-weight: bold;
+  border-bottom: 1px solid #333;
 }
-
-    .chat-header button {
-        background: none;
-        border: none;
-        color: var(--color-white);
-        font-size: 20px;
-        cursor: pointer;
-    }
-
+.chat-header button {
+  background: none;
+  border: none;
+  color: var(--color-white);
+  font-size: 20px;
+  cursor: pointer;
+}
 .chat-title {
-    flex: 1;
-    text-align: center;
-    font-size: 16px;
+  flex: 1;
+  text-align: center;
+  font-size: 16px;
 }
 
 .chat-window {
-  flex: 1 1 auto;
-  min-height: 0;
-  height: auto;
-  flex-shrink: 1;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 16px;
-  /* 스크롤바 숨김 */
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE, Edge */
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  gap: 2px;
+  padding: 10px;
 }
+/*
 .chat-window::-webkit-scrollbar {
-  display: none; /* Chrome, Safari */
+    width: 8px; 
+    background: #22223b; 
 }
+.chat-window::-webkit-scrollbar-thumb {
+  background: #ffd600;
+  border-radius: 4px;
+}*/
 
 .message {
   display: inline-block;
@@ -448,9 +452,13 @@ body {
         background: gray;
     }
 
-.input-area, .bot-option, .circle-btn, .quick-menu-bar, .chat-window, .submit-btn {
+.input-area, .bot-option, .circle-btn, .quick-menu-bar, .submit-btn {
     user-select: none;
     -webkit-user-select: none;
     -ms-user-select: none;
     touch-action: manipulation;
+}
+
+.message + .message {
+  margin-top: 12px;
 }
