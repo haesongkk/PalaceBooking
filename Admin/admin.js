@@ -14,6 +14,8 @@ function fetchReservations() {
 
 
 
+
+
 function setFilter(filter) {
     currentFilter = filter;
     document.querySelectorAll('.filter-btns button').forEach(btn => btn.classList.remove('active'));
@@ -27,7 +29,7 @@ function renderTable() {
     if (currentFilter === 'pending') data = data.filter(r => !r.confirmed);
     else if (currentFilter === 'confirmed') data = data.filter(r => r.confirmed);
     if (!data.length) {
-        tbody.innerHTML = '<tr><td colspan="7">예약이 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6">예약이 없습니다.</td></tr>';
         return;
     }
     tbody.innerHTML = data.map(r => `
@@ -37,9 +39,9 @@ function renderTable() {
             <td>${r.phone || '-'}</td>
             <td>${r.room || '-'}</td>
             <td>${r.start_date || ''} ~ ${r.end_date || ''}</td>
-            <td>${r.confirmed ? '<span class="confirmed">확정</span>' : '<span class="pending">대기</span>'}</td>
             <td>
-                <button class="btn" ${r.confirmed ? 'disabled' : ''} onclick="confirmReservation(${r.id}, this)">확정</button>
+                <button class="btn btn-confirm" ${r.confirmed ? 'disabled' : ''} onclick="confirmReservation(${r.id}, this)">확정</button>
+                <button class="btn btn-cancel" ${r.confirmed ? 'disabled' : ''} onclick="cancelReservation(${r.id}, this)">취소</button>
             </td>
         </tr>
     `).join('');
@@ -53,7 +55,6 @@ function confirmReservation(id, btn) {
             if (data.success) {
                 alert('예약이 확정되었습니다!');
                 fetchReservations();
-                fetchRoomCounts();
             } else {
                 alert('오류: ' + (data.error || '확정 실패'));
                 btn.disabled = false;
@@ -61,6 +62,25 @@ function confirmReservation(id, btn) {
         })
         .catch(error => {
             adminAPI.handleError(error, '예약 확정');
+            btn.disabled = false;
+        });
+}
+
+function cancelReservation(id, btn) {
+    if (!confirm('이 예약을 취소하시겠습니까?')) return;
+    btn.disabled = true;
+    adminAPI.cancelReservation(id)
+        .then(data => {
+            if (data.success) {
+                alert('예약이 취소되었습니다!');
+                fetchReservations();
+            } else {
+                alert('오류: ' + (data.error || '취소 실패'));
+                btn.disabled = false;
+            }
+        })
+        .catch(error => {
+            adminAPI.handleError(error, '예약 취소');
             btn.disabled = false;
         });
 }

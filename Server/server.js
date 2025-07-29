@@ -61,7 +61,7 @@ app.get("/success", (req, res) => {
         </head>
         <body>
             <div class="success">✅ 결제가 성공했습니다!</div>
-            <p>예약이 완료되었습니다.</p>
+            <p>예약이 접수되었습니다. 관리자 승인 후 확정됩니다.</p>
             <button class="btn" onclick="if(window.opener){window.opener.postMessage('payment-success','*');window.close();}else{window.location.href='/';}">메인으로 돌아가기</button>
         </body>
         </html>
@@ -104,13 +104,8 @@ app.post("/api/reserve", (req, res) => {
     `);
     const info = stmt.run(username, phone, room, startDate, endDate);
 
-    // [AUTO_CONFIRM_TEST] 테스트용: 예약 생성 시 자동 확정 처리
-    db.prepare('UPDATE reservations SET confirmed = 1 WHERE id = ?').run(info.lastInsertRowid);
     // 관리자에게 실시간 알림
     if (io) io.to("admin").emit("reservation-updated");
-    // 해당 예약자에게 실시간 확정 알림
-    const row = db.prepare('SELECT phone FROM reservations WHERE id = ?').get(info.lastInsertRowid);
-    if (row && row.phone) io.to(`user_${row.phone}`).emit("reservation-confirmed", { id: info.lastInsertRowid });
 
     res.json({ success: true, id: info.lastInsertRowid });
 });
@@ -121,6 +116,10 @@ app.post("/api/cancel", (req, res) => {
         return res.status(400).json({ error: "예약 ID가 필요합니다." });
     }
 
+    // 예약자 전화번호 조회 (삭제 전에)
+    const row = db.prepare('SELECT phone FROM reservations WHERE id = ?').get(id);
+    const phone = row ? row.phone : null;
+
     // 완전 삭제로 변경
     const stmt = db.prepare(`
         DELETE FROM reservations
@@ -129,6 +128,10 @@ app.post("/api/cancel", (req, res) => {
     const info = stmt.run(id);
 
     if (info.changes > 0) {
+        // 관리자에게 실시간 알림
+        if (io) io.to("admin").emit("reservation-updated");
+        // 해당 예약자에게 실시간 취소 알림
+        if (phone) io.to(`user_${phone}`).emit("reservation-cancelled", { id });
         res.json({ success: true });
     } else {
         res.status(404).json({ error: "예약을 찾을 수 없습니다." });
@@ -161,13 +164,8 @@ app.post("/api/payment", (req, res) => {
     `);
     const info = stmt.run(username, phone, room, startDate, endDate);
 
-    // [AUTO_CONFIRM_TEST] 테스트용: 예약 생성 시 자동 확정 처리
-    db.prepare('UPDATE reservations SET confirmed = 1 WHERE id = ?').run(info.lastInsertRowid);
     // 관리자에게 실시간 알림
     if (io) io.to("admin").emit("reservation-updated");
-    // 해당 예약자에게 실시간 확정 알림
-    const row = db.prepare('SELECT phone FROM reservations WHERE id = ?').get(info.lastInsertRowid);
-    if (row && row.phone) io.to(`user_${row.phone}`).emit("reservation-confirmed", { id: info.lastInsertRowid });
 
     // 결제 정보 응답
     res.json({

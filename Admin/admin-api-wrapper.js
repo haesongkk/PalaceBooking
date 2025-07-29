@@ -68,6 +68,30 @@ class PalaceBookingAdminAPI {
         }
     }
 
+    /**
+     * 예약 취소
+     * @param {number} reservationId - 예약 ID
+     * @returns {Promise<Object>} 취소 결과
+     */
+    async cancelReservation(reservationId) {
+        try {
+            const response = await fetch(`${this.baseURL}/api/cancel`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: reservationId })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('예약 취소 실패:', error);
+            throw error;
+        }
+    }
+
     // ===== 특가 상품 관리 API =====
 
     /**

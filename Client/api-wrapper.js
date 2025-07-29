@@ -21,6 +21,11 @@ class PalaceBookingAPI {
         this.socket = io();
         this.socket.emit('join', phone);
         
+        // 연결 완료 후 콜백 실행
+        this.socket.on('connect', () => {
+            console.log('Socket.IO 연결 완료');
+        });
+        
         return this.socket;
     }
 

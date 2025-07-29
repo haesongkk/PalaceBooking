@@ -124,7 +124,7 @@ window.onload = () => {
 
 window.addEventListener('message', function(event) {
     if(event.data === 'payment-success') {
-        appendMessage('✅ 결제가 완료되었습니다! 예약 확정 대기 중입니다.', 'bot');
+        appendMessage('✅ 결제가 완료되었습니다! 예약이 접수되었습니다. 관리자 승인 후 확정됩니다.', 'bot');
         // 필요하다면 예약 내역 새로고침 함수 호출
         // showReservationList();
     } else if(event.data === 'payment-fail') {
@@ -199,6 +199,8 @@ function phoneHandler(input)
     userphone = input;
     // 소켓 연결
     palaceAPI.connectSocket(userphone);
+    // Socket 이벤트 리스너 설정
+    setupSocketEventListeners();
     palaceAPI.getRecentReservation(userphone)
         .then(data => {
 			console.log("데이터 조회 결과:", data);
@@ -1160,13 +1162,22 @@ if (typeof io === 'undefined') {
     document.head.appendChild(script);
 }
 
-// Socket.IO 이벤트 리스너 설정
-palaceAPI.onSocketEvent('reservation-confirmed', (data) => {
-    // setTimeout으로 확정 메시지가 항상 뒤에 오도록
-    setTimeout(() => {
-        appendMessage('🎉 예약이 확정되었습니다! 관리자 승인 완료.', 'bot');
-    }, 100);
-});
+// Socket.IO 이벤트 리스너 설정 함수
+function setupSocketEventListeners() {
+    palaceAPI.onSocketEvent('reservation-confirmed', (data) => {
+        // 관리자 승인 후 예약 확정 알림
+        setTimeout(() => {
+            appendMessage('🎉 예약이 확정되었습니다! 관리자 승인 완료.', 'bot');
+        }, 100);
+    });
+
+    palaceAPI.onSocketEvent('reservation-cancelled', (data) => {
+        // 관리자 취소 후 예약 취소 알림
+        setTimeout(() => {
+            appendMessage('❌ 예약이 취소되었습니다. 관리자에 의해 취소 처리되었습니다.', 'bot');
+        }, 100);
+    });
+}
 
 
 
