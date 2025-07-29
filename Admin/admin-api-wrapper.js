@@ -195,7 +195,7 @@ class PalaceBookingAdminAPI {
      * @param {string} roomData.checkInOut - 입실/퇴실 시간 (JSON)
      * @param {string} roomData.price - 가격 (JSON)
      * @param {string} roomData.status - 상태 (JSON)
-     * @param {string} roomData.usageTime - 이용시간 (JSON)
+     * @param {string} roomData.usageTime - 이용시간 (JSON, 정수 배열)
      * @param {string} roomData.openClose - 개시/마감 시간 (JSON)
      * @param {string} roomData.rentalPrice - 대실 가격 (JSON)
      * @param {string} roomData.rentalStatus - 대실 상태 (JSON)
@@ -457,6 +457,34 @@ class PalaceBookingAdminAPI {
             return await response.json();
         } catch (error) {
             console.error('날짜별 요금 삭제 실패:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 스마트 저장 - 기본값과 다를 때만 저장
+     * @param {Object} data - 저장 데이터
+     * @param {string} data.date - 날짜
+     * @param {string} data.room_type - 객실 타입
+     * @param {Object} data.rooms_data - 객실별 데이터
+     * @param {Object} data.default_values - 기본값 데이터
+     * @returns {Promise<Object>} 저장 결과
+     */
+    async smartSaveDailyPrices(data) {
+        try {
+            const response = await fetch(`${this.baseURL}/api/admin/daily-prices/smart-save`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('스마트 저장 실패:', error);
             throw error;
         }
     }

@@ -92,6 +92,20 @@ function switchTab(tabName) {
         console.log('판매 캘린더 탭 클릭 - 데이터 로드 시작');
         initCalendar();
     }
+    
+    // 요금표 관리 탭을 클릭한 경우 숙박 모드로 기본 설정
+    if (tabName === 'rooms') {
+        // 숙박 버튼 활성화
+        document.querySelectorAll('.room-type-btn').forEach(btn => btn.classList.remove('active'));
+        const overnightBtn = document.querySelector('[onclick="switchRoomType(\'overnight\')"]');
+        if (overnightBtn) {
+            overnightBtn.classList.add('active');
+        }
+        currentRoomType = 'overnight';
+        
+        // 객실 목록 다시 렌더링
+        renderRoomList();
+    }
 }
 
 // 마감 설정 데이터
@@ -104,8 +118,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 객실 데이터 로드
     loadRoomsFromDB().then(() => {
-        // 대실/숙박 버튼 초기화
-        switchRoomType('daily');
+        // 대실/숙박 버튼 초기화 (숙박 모드로 기본 설정)
+        switchRoomType('overnight');
     });
     
     // Socket.IO 클라이언트 연결 및 실시간 갱신
@@ -150,7 +164,7 @@ function addRoom() {
             checkInOut: Array(7).fill([16, 13]),
             price: Array(7).fill(50000),
             status: Array(7).fill(1),
-            usageTime: Array(7).fill('5시간'),
+                            usageTime: Array(7).fill(5),
             openClose: Array(7).fill([14, 22]),
             rentalPrice: Array(7).fill(30000),
             rentalStatus: Array(7).fill(1)
@@ -466,7 +480,7 @@ function updateSalesDataFromDropdown(dropdown) {
                 const usageString = `${hours}시간`;
                 cell.innerHTML = `<span>${usageString}</span>`;
                 if (roomId) {
-                    roomData[roomId].data.usageTime[cellIndex] = usageString;
+                    roomData[roomId].data.usageTime[cellIndex] = parseInt(hours);
                 }
             });
         }
@@ -776,7 +790,7 @@ function loadRoomsFromDB() {
                         checkInOut: formatTimeArray(checkInOutData),
                         price: parseArray(room.price, Array(7).fill(50000)),
                         status: parseArray(room.status, Array(7).fill(1)).map(v => typeof v === 'string' ? (v === '판매' ? 1 : 0) : v),
-                        usageTime: parseArray(room.usageTime, Array(7).fill('5시간')),
+                        usageTime: parseArray(room.usageTime, Array(7).fill(5)).map(v => typeof v === 'string' ? parseInt(v.replace('시간', '')) || 5 : v),
                         openClose: formatTimeArray(openCloseData),
                         rentalPrice: parseArray(room.rentalPrice, Array(7).fill(30000)),
                         rentalStatus: parseArray(room.rentalStatus, Array(7).fill(1)).map(v => typeof v === 'string' ? (v === '판매' ? 1 : 0) : v)
@@ -869,7 +883,7 @@ function renderRoomList() {
                         }
                         return `<td>${v}</td>`;
                     }).join('')}</tr>
-                    <tr><td>이용시간</td>${room.data.usageTime.map(v => `<td>${v}</td>`).join('')}</tr>
+                    <tr><td>이용시간</td>${room.data.usageTime.map(v => `<td>${v}시간</td>`).join('')}</tr>
                 </tbody>
             `;
         } else {
@@ -1048,7 +1062,7 @@ function updateRoomTable(roomId) {
         const usageCells = roomTable.querySelectorAll('tr:nth-child(4) td:not(:first-child)');
         console.log('이용시간 셀 개수:', usageCells.length);
         usageCells.forEach((cell, index) => {
-            cell.textContent = data.usageTime[index];
+            cell.textContent = data.usageTime[index] + '시간';
         });
     } else {
         console.log('숙박 모드 테이블 업데이트 시작');
@@ -1428,6 +1442,53 @@ async function openSalesSettings() {
     // 폼 생성 (비동기 함수이므로 await 사용)
     await generateSalesForm();
     
+    // DOM이 업데이트된 후 초기값을 저장 (변경 전 값)
+    setTimeout(() => {
+        const initialValues = {};
+        const roomIds = Object.keys(roomData);
+        
+        roomIds.forEach(roomId => {
+            const priceInput = document.querySelector(`.price-input[data-room-id="${roomId}"]`);
+            const statusBtn = document.querySelector(`[onclick="changeSalesStatus('${roomId}', '판매')"]`);
+            
+            // 초기 상태 (판매 버튼이 active면 1, 아니면 0)
+            const initialStatus = statusBtn.classList.contains('active') ? 1 : 0;
+            
+            // 초기 가격
+            const initialPrice = parseInt(priceInput.value);
+            
+            // 초기 시간 정보
+            let initialDetails, initialUsageTime;
+            
+            if (salesCurrentRoomType === 'daily') {
+                const openHour = parseInt(document.querySelector(`#sales-open-hour-${roomId} .dropdown-display`)?.textContent || '14');
+                const closeHour = parseInt(document.querySelector(`#sales-close-hour-${roomId} .dropdown-display`)?.textContent || '22');
+                const usageHours = document.querySelector(`#sales-usage-hour-${roomId} .dropdown-display`)?.textContent || '5';
+                
+                initialDetails = [openHour, closeHour];
+                initialUsageTime = `${usageHours}시간`;
+            } else {
+                const checkInHour = parseInt(document.querySelector(`#sales-checkin-hour-${roomId} .dropdown-display`)?.textContent || '16');
+                const checkOutHour = parseInt(document.querySelector(`#sales-checkout-hour-${roomId} .dropdown-display`)?.textContent || '13');
+                
+                initialDetails = [checkInHour, checkOutHour];
+                initialUsageTime = '';
+            }
+            
+            initialValues[roomId] = {
+                status: initialStatus,
+                price: initialPrice,
+                details: initialDetails,
+                usage_time: initialUsageTime
+            };
+            
+            console.log(`[모달 열릴 때 초기값 저장] ${roomId}:`, initialValues[roomId]);
+        });
+        
+        // 전역 변수에 초기값 저장
+        window.salesInitialValues = initialValues;
+    }, 0);
+    
     console.log('판매 설정 모달이 열렸습니다.');
 }
 
@@ -1441,23 +1502,27 @@ async function generateSalesForm() {
         return;
     }
     
-    // 선택된 날짜들의 기존 요금 정보 불러오기
+    // 선택된 날짜들의 기존 요금 정보 불러오기 (캘린더와 동일한 로직 사용)
     let existingPrices = {};
     if (salesSelectedDates.length > 0 && lastSelectedDate) {
-        try {
-            // 마지막으로 선택된 날짜의 요금 정보를 기준으로 사용
-            const prices = await adminAPI.getDailyPrices(lastSelectedDate, salesCurrentRoomType);
-            
-            // room_id를 키로 하는 객체로 변환
-            prices.forEach(price => {
-                existingPrices[price.room_id] = price;
-            });
-            
-            console.log('마지막으로 선택된 날짜의 기존 요금 정보 로드:', lastSelectedDate, existingPrices);
-        } catch (error) {
-            console.error('기존 요금 정보 로드 실패:', error);
-            // 에러가 발생해도 기본값으로 계속 진행
+            // 캘린더와 동일하게 dailyPricesCache에서 데이터 가져오기
+    const roomIds = Object.keys(roomData);
+    roomIds.forEach(roomId => {
+        const dailyPriceKey = `${lastSelectedDate}_${roomId}_${salesCurrentRoomType}`;
+        const dailyPrice = dailyPricesCache[dailyPriceKey];
+        
+        if (dailyPrice) {
+            existingPrices[roomId] = dailyPrice;
         }
+        
+        console.log(`[generateSalesForm] 캐시 확인 ${roomId}:`, {
+            dailyPriceKey: dailyPriceKey,
+            dailyPrice: dailyPrice ? '있음' : '없음',
+            cacheData: dailyPrice
+        });
+    });
+    
+    console.log('캘린더 캐시에서 기존 요금 정보 로드:', lastSelectedDate, existingPrices);
     }
     
     const formHTML = roomIds.map(roomId => {
@@ -1470,19 +1535,56 @@ async function generateSalesForm() {
         const lastDate = lastSelectedDate ? new Date(lastSelectedDate) : new Date(salesSelectedDates[salesSelectedDates.length - 1]);
         const dayOfWeek = lastDate.getDay(); // 0: 일요일, 1: 월요일, ...
         
-        const currentStatus = existingPrice ? 
-            (typeof existingPrice.status === 'number' ? existingPrice.status : (existingPrice.status === '판매' ? 1 : 0)) : 
-            (salesCurrentRoomType === 'daily' ? 
-                (room.data.rentalStatus[dayOfWeek] || 1) : 
-                (room.data.status[dayOfWeek] || 1));
-        const currentPrice = existingPrice ? existingPrice.price.toString() : (salesCurrentRoomType === 'daily' ? 
-            (room.data.rentalPrice[dayOfWeek] || 30000).toString() : 
-            (room.data.price[dayOfWeek] || 50000).toString());
-        const currentDetails = existingPrice ? existingPrice.details : (salesCurrentRoomType === 'daily' ? 
-            (room.data.openClose[dayOfWeek] || '14:00~22:00') : 
-            (room.data.checkInOut[dayOfWeek] || '16:00~13:00'));
-        const currentUsageTime = existingPrice ? existingPrice.usage_time : (salesCurrentRoomType === 'daily' ? 
-            (room.data.usageTime[dayOfWeek] || '5시간') : '');
+        // 캘린더에서 사용하는 값과 동일하게 계산
+        let currentStatus, currentPrice, currentDetails, currentUsageTime;
+        
+        if (existingPrice) {
+            // 캘린더와 동일한 로직: daily_prices 데이터 사용
+            // status를 숫자로 정규화 (0: 마감, 1: 판매)
+            if (typeof existingPrice.status === 'number') {
+                currentStatus = existingPrice.status;
+            } else if (typeof existingPrice.status === 'string') {
+                currentStatus = existingPrice.status === '판매' ? 1 : 0;
+            } else {
+                currentStatus = 1; // 기본값
+            }
+            currentPrice = existingPrice.price !== undefined ? existingPrice.price : 0;
+            currentDetails = existingPrice.details || '';
+            currentUsageTime = existingPrice.usage_time !== undefined ? existingPrice.usage_time : '';
+        } else {
+            // 캘린더와 동일한 로직: rooms 기본값 사용
+            if (salesCurrentRoomType === 'daily') {
+                const actualStatus = room.data.rentalStatus[dayOfWeek];
+                currentStatus = actualStatus !== undefined ? actualStatus : 1;
+                const rentalPriceValue = room.data.rentalPrice[dayOfWeek] !== undefined ? room.data.rentalPrice[dayOfWeek] : 30000;
+                currentPrice = rentalPriceValue;
+                const timeTuple = room.data.openClose[dayOfWeek] || [14, 22];
+                currentDetails = Array.isArray(timeTuple) ? timeTuple : timeTuple;
+                const usageTimeValue = room.data.usageTime[dayOfWeek] !== undefined ? room.data.usageTime[dayOfWeek] : 5;
+                currentUsageTime = usageTimeValue;
+            } else {
+                const actualStatus = room.data.status[dayOfWeek];
+                currentStatus = actualStatus !== undefined ? actualStatus : 1;
+                const priceValue = room.data.price[dayOfWeek] !== undefined ? room.data.price[dayOfWeek] : 50000;
+                currentPrice = priceValue;
+                const timeTuple = room.data.checkInOut[dayOfWeek] || [16, 13];
+                currentDetails = Array.isArray(timeTuple) ? timeTuple : timeTuple;
+                currentUsageTime = '';
+            }
+        }
+        
+        // 로그 출력 - 캘린더와 비교용
+        console.log(`[모달 열릴 때] ${roomId} ${salesCurrentRoomType}:`, {
+            existingPrice: existingPrice ? '있음' : '없음',
+            dayOfWeek: dayOfWeek,
+            currentStatus: currentStatus,
+            currentPrice: currentPrice,
+            currentDetails: currentDetails,
+            currentUsageTime: currentUsageTime,
+            roomDataStatus: salesCurrentRoomType === 'daily' ? room.data.rentalStatus[dayOfWeek] : room.data.status[dayOfWeek],
+            roomDataPrice: salesCurrentRoomType === 'daily' ? room.data.rentalPrice[dayOfWeek] : room.data.price[dayOfWeek],
+            roomDataTime: salesCurrentRoomType === 'daily' ? room.data.openClose[dayOfWeek] : room.data.checkInOut[dayOfWeek]
+        });
         
         if (salesCurrentRoomType === 'daily') {
             // 정수 튜플 배열에서 시간 추출
@@ -1497,7 +1599,7 @@ async function generateSalesForm() {
                 openHour = '14';
                 closeHour = '22';
             }
-            const usageHours = currentUsageTime.replace('시간', '');
+            const usageHours = typeof currentUsageTime === 'string' ? currentUsageTime.replace('시간', '') : currentUsageTime.toString();
             
             return `
                 <div class="form-row">
@@ -1663,7 +1765,6 @@ function saveSalesSettings() {
 async function saveSalesSettingsAsync() {
     const formData = {};
     const roomIds = Object.keys(roomData);
-    const modifiedRooms = new Set(); // 수정된 객실들을 추적
     
     // 폼 데이터 수집 (임시 데이터 우선, 없으면 현재 값 사용)
     roomIds.forEach(roomId => {
@@ -1690,99 +1791,83 @@ async function saveSalesSettingsAsync() {
             details = [checkInHour, checkOutHour];
         }
         
-        const currentData = {
-            status: tempData.status !== undefined ? tempData.status : 1,
+        // 현재 활성화된 버튼에서 상태 가져오기
+        const statusBtn = document.querySelector(`[onclick="changeSalesStatus('${roomId}', '판매')"]`);
+        const currentStatus = statusBtn.classList.contains('active') ? 1 : 0;
+        
+        formData[roomId] = {
+            status: tempData.status !== undefined ? tempData.status : currentStatus,
             price: tempData.price || parseInt(priceInput.value),
             details: details,
-            usageTime: usageTime
+            usage_time: usageTime
         };
-        
-        // 기존 데이터와 비교하여 수정사항 확인
-        const room = roomData[roomId];
-        // 마지막으로 선택된 날짜의 요일을 기준으로 비교
-        const lastDate = lastSelectedDate ? new Date(lastSelectedDate) : new Date(salesSelectedDates[salesSelectedDates.length - 1]);
-        const dayOfWeek = lastDate.getDay(); // 0: 일요일, 1: 월요일, ...
-        
-        let isModified = false;
-        if (salesCurrentRoomType === 'daily') {
-            const originalStatus = room.data.rentalStatus[dayOfWeek] || 1;
-            const originalPrice = (room.data.rentalPrice[dayOfWeek] || 30000).toString();
-            const originalDetails = room.data.openClose[dayOfWeek] || '14:00~22:00';
-            const originalUsageTime = room.data.usageTime[dayOfWeek] || '5시간';
-            
-            if (currentData.status !== originalStatus ||
-                currentData.price.toString() !== originalPrice ||
-                currentData.details !== originalDetails ||
-                currentData.usageTime !== originalUsageTime) {
-                isModified = true;
-            }
-        } else {
-            const originalStatus = room.data.status[dayOfWeek] || 1;
-            const originalPrice = (room.data.price[dayOfWeek] || 50000).toString();
-            const originalDetails = room.data.checkInOut[dayOfWeek] || '16:00~13:00';
-            
-            if (currentData.status !== originalStatus ||
-                currentData.price.toString() !== originalPrice ||
-                currentData.details !== originalDetails) {
-                isModified = true;
-            }
-        }
-        
-        if (isModified) {
-            modifiedRooms.add(roomId);
-        }
-        
-        formData[roomId] = currentData;
     });
     
-    // 새로운 날짜별 요금 테이블에 저장 (날짜별로 모든 객실 정보를 한 항목에 저장)
-    const dateGroups = {};
+    // 모달 열릴 때 저장해둔 초기값 사용
+    const initialValues = window.salesInitialValues || {};
     
-    // 선택된 날짜들에 대해 데이터 수집
-    salesSelectedDates.forEach(dateString => {
-        const date = new Date(dateString);
-        const dayOfWeek = date.getDay(); // 0: 일요일, 1: 월요일, ...
+
+    
+    // 변경사항이 있으면 저장
+    try {
+        let changedRooms;
         
-        // 해당 날짜의 모든 객실 데이터 수집
-        const roomsData = {};
-        roomIds.forEach(roomId => {
-            const room = roomData[roomId];
-            const data = formData[roomId];
+        // 여러 날짜가 선택된 경우 변경사항 체크 건너뛰기
+        if (salesSelectedDates.length > 1) {
+            changedRooms = roomIds; // 모든 객실을 변경된 것으로 처리
+        } else {
+            // 단일 날짜인 경우에만 변경사항 체크
+            changedRooms = roomIds.filter(roomId => {
+                const formDataItem = formData[roomId];
+                const initialItem = initialValues[roomId];
+                
+                const statusDiff = formDataItem.status !== initialItem.status;
+                const priceDiff = formDataItem.price !== initialItem.price;
+                const detailsDiff = JSON.stringify(formDataItem.details) !== JSON.stringify(initialItem.details);
+                const usageTimeDiff = formDataItem.usage_time !== initialItem.usage_time;
+                
+                return statusDiff || priceDiff || detailsDiff || usageTimeDiff;
+            });
             
-            // 새로운 날짜별 요금 테이블용 데이터 추가
-            roomsData[roomId] = {
-                price: data.price,
-                status: data.status,
-                details: data.details,
-                usage_time: data.usageTime
-            };
+            if (changedRooms.length === 0) {
+                alert('수정사항이 없습니다.');
+                closeSalesModal();
+                return;
+            }
+        }
+        
+        // 모든 선택된 날짜에 변경사항이 있는 객실만 저장
+        const allSavePromises = [];
+        
+        salesSelectedDates.forEach(date => {
+            changedRooms.forEach(roomId => {
+                const roomData = formData[roomId];
+                allSavePromises.push(
+                    adminAPI.saveDailyPrice({
+                        date: date,
+                        room_id: roomId,
+                        room_type: salesCurrentRoomType,
+                        price: roomData.price,
+                        status: roomData.status,
+                        details: roomData.details,
+                        usage_time: roomData.usage_time
+                    })
+                );
+            });
         });
         
-        dateGroups[dateString] = {
-            date: dateString,
-            room_type: salesCurrentRoomType,
-            rooms_data: roomsData
-        };
-    });
-    
-    console.log(`수정된 객실 수: ${modifiedRooms.size}개 (${Array.from(modifiedRooms).join(', ')})`);
-    console.log(`저장할 날짜 수: ${Object.keys(dateGroups).length}개`);
-    
-    // 수정사항이 없는 경우 저장하지 않음
-    if (modifiedRooms.size === 0) {
-        console.log('수정사항이 없어 저장을 건너뜁니다.');
-        alert('수정사항이 없습니다.');
-        closeSalesModal();
-        return;
-    }
-    
-    // 새로운 API를 사용하여 날짜별 요금 저장
-    try {
-        await adminAPI.saveDailyPricesBulkNew(dateGroups);
-        console.log('날짜별 요금이 성공적으로 저장되었습니다.');
+        const results = await Promise.all(allSavePromises);
+        const successCount = results.filter(result => result.success).length;
+        const totalExpected = salesSelectedDates.length * changedRooms.length;
+        
+        if (successCount === totalExpected) {
+            alert(`판매 설정이 저장되었습니다. (${salesSelectedDates.length}개 날짜, ${changedRooms.length}개 객실)`);
+        } else {
+            alert(`저장 중 오류가 발생했습니다. (${successCount}/${totalExpected} 성공)`);
+        }
     } catch (error) {
-        console.error('날짜별 요금 저장 실패:', error);
-        adminAPI.handleError(error, '날짜별 요금 저장');
+        console.error('저장 실패:', error);
+        adminAPI.handleError(error, '판매 설정 저장');
         return;
     }
     
@@ -1792,8 +1877,7 @@ async function saveSalesSettingsAsync() {
     // 모달 닫기
     closeSalesModal();
     
-    console.log('판매 설정이 저장되었습니다.');
-    alert(`수정된 ${modifiedRooms.size}개 객실의 판매 설정이 저장되었습니다.`);
+
 }
 
 // 판매 설정 모달 닫기
@@ -1802,6 +1886,7 @@ function closeSalesModal() {
     
     // 임시 데이터 초기화
     window.salesTempData = {};
+    window.salesInitialValues = {};
     
     console.log('판매 설정 모달이 닫혔습니다.');
 }
@@ -2092,21 +2177,57 @@ function generateRoomDataForDate(date) {
                 status: dailyPrice.status,
                 statusType: typeof dailyPrice.status,
                 price: dailyPrice.price,
-                details: dailyPrice.details
+                details: dailyPrice.details,
+                usage_time: dailyPrice.usage_time
             } : 'null',
             roomDataStatus: salesCurrentRoomType === 'daily' ? 
                 room.data.rentalStatus[dayOfWeek] : 
-                room.data.status[dayOfWeek]
+                room.data.status[dayOfWeek],
+            roomDataPrice: salesCurrentRoomType === 'daily' ? 
+                room.data.rentalPrice[dayOfWeek] : 
+                room.data.price[dayOfWeek],
+            roomDataTime: salesCurrentRoomType === 'daily' ? 
+                room.data.openClose[dayOfWeek] : 
+                room.data.checkInOut[dayOfWeek],
+            roomDataUsageTime: salesCurrentRoomType === 'daily' ? 
+                room.data.usageTime[dayOfWeek] : 
+                'N/A'
         });
         
         if (dailyPrice) {
             // daily_prices 테이블에 데이터가 있으면 사용
             status = getStatusText(dailyPrice.status);
-            price = (dailyPrice.price || 0) + '원';
-            time = dailyPrice.details || '';
-            usageTime = dailyPrice.usage_time || '';
+            const dailyPriceValue = dailyPrice.price !== undefined ? dailyPrice.price : 0;
+            price = dailyPriceValue + '원';
             
-            console.log(`[generateRoomDataForDate] daily_prices 사용: status=${dailyPrice.status} → ${status}`);
+            // details를 시간 형식으로 변환
+            let timeDisplay = '';
+            if (dailyPrice.details) {
+                try {
+                    // JSON 문자열인 경우 파싱
+                    const details = typeof dailyPrice.details === 'string' ? 
+                        JSON.parse(dailyPrice.details) : dailyPrice.details;
+                    
+                    if (Array.isArray(details) && details.length >= 2) {
+                        timeDisplay = `${details[0]}시~${details[1]}시`;
+                    } else {
+                        timeDisplay = dailyPrice.details;
+                    }
+                } catch (error) {
+                    timeDisplay = dailyPrice.details;
+                }
+            }
+            time = timeDisplay;
+            
+            const dailyUsageTime = dailyPrice.usage_time !== undefined ? dailyPrice.usage_time : '';
+            usageTime = dailyUsageTime;
+            
+            console.log(`[generateRoomDataForDate] daily_prices 사용:`, {
+                status: `${dailyPrice.status} → ${status}`,
+                price: `${dailyPrice.price} → ${price}`,
+                time: `${dailyPrice.details} → ${time}`,
+                usageTime: `${dailyPrice.usage_time} → ${usageTime}`
+            });
         } else {
             // 없으면 기존 rooms 테이블의 기본값 사용
             if (salesCurrentRoomType === 'daily') {
@@ -2114,22 +2235,32 @@ function generateRoomDataForDate(date) {
                 const finalStatus = actualStatus !== undefined ? actualStatus : 1;
                 console.log(`[generateRoomDataForDate] 대실 모드: dayOfWeek=${dayOfWeek}, actualStatus=${actualStatus}, finalStatus=${finalStatus}`);
                 status = getStatusText(finalStatus);
-                price = (room.data.rentalPrice[dayOfWeek] || 30000) + '원';
+                const rentalPriceValue = room.data.rentalPrice[dayOfWeek] !== undefined ? room.data.rentalPrice[dayOfWeek] : 30000;
+                price = rentalPriceValue + '원';
                 const timeTuple = room.data.openClose[dayOfWeek] || [14, 22];
                 time = Array.isArray(timeTuple) ? `${timeTuple[0]}시~${timeTuple[1]}시` : timeTuple;
-                usageTime = room.data.usageTime[dayOfWeek] || '5시간';
+                const usageTimeValue = room.data.usageTime[dayOfWeek] !== undefined ? room.data.usageTime[dayOfWeek] : 5;
+                usageTime = usageTimeValue + '시간';
             } else {
                 const actualStatus = room.data.status[dayOfWeek];
                 const finalStatus = actualStatus !== undefined ? actualStatus : 1;
                 console.log(`[generateRoomDataForDate] 숙박 모드: dayOfWeek=${dayOfWeek}, actualStatus=${actualStatus}, finalStatus=${finalStatus}`);
                 status = getStatusText(finalStatus);
-                price = (room.data.price[dayOfWeek] || 50000) + '원';
+                const priceValue = room.data.price[dayOfWeek] !== undefined ? room.data.price[dayOfWeek] : 50000;
+                price = priceValue + '원';
                 const timeTuple = room.data.checkInOut[dayOfWeek] || [16, 13];
                 time = Array.isArray(timeTuple) ? `${timeTuple[0]}시~${timeTuple[1]}시` : timeTuple;
                 usageTime = '';
             }
             
-            console.log(`[generateRoomDataForDate] rooms 기본값 사용: status=${salesCurrentRoomType === 'daily' ? room.data.rentalStatus[dayOfWeek] : room.data.status[dayOfWeek]} → ${status}`);
+            console.log(`[generateRoomDataForDate] rooms 기본값 사용:`, {
+                mode: salesCurrentRoomType,
+                dayOfWeek: dayOfWeek,
+                status: `${salesCurrentRoomType === 'daily' ? room.data.rentalStatus[dayOfWeek] : room.data.status[dayOfWeek]} → ${status}`,
+                price: `${salesCurrentRoomType === 'daily' ? room.data.rentalPrice[dayOfWeek] : room.data.price[dayOfWeek]} → ${price}`,
+                time: `${salesCurrentRoomType === 'daily' ? room.data.openClose[dayOfWeek] : room.data.checkInOut[dayOfWeek]} → ${time}`,
+                usageTime: salesCurrentRoomType === 'daily' ? `${room.data.usageTime[dayOfWeek]} → ${usageTime}` : 'N/A'
+            });
         }
         
         // 상태에 따른 클래스 결정
