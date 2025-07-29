@@ -472,7 +472,7 @@ try {
         }
         
         if (!room.status) {
-            updateData.status = JSON.stringify(Array(7).fill('판매'));
+            updateData.status = JSON.stringify(Array(7).fill(1));
             needsUpdate = true;
         }
         
@@ -487,7 +487,7 @@ try {
         }
         
         if (!room.rentalStatus) {
-            updateData.rentalStatus = JSON.stringify(Array(7).fill('판매'));
+            updateData.rentalStatus = JSON.stringify(Array(7).fill(1));
             needsUpdate = true;
         }
         
@@ -499,6 +499,59 @@ try {
             
             roomDb.prepare(`UPDATE rooms SET ${setClause} WHERE id = ?`).run(...values);
             console.log(`객실 ${room.id} 데이터 마이그레이션 완료`);
+        }
+    });
+} catch (e) {
+    console.error('데이터 마이그레이션 오류:', e);
+}
+
+// status와 rentalStatus를 문자열에서 boolean으로 마이그레이션
+try {
+    const rooms = roomDb.prepare('SELECT * FROM rooms').all();
+    rooms.forEach(room => {
+        let needsUpdate = false;
+        let updateData = {};
+        
+        // status 필드 마이그레이션
+        if (room.status) {
+            try {
+                const statusArray = JSON.parse(room.status);
+                if (Array.isArray(statusArray) && statusArray.some(item => typeof item === 'string')) {
+                    const newStatusArray = statusArray.map(item => item === '판매' ? 1 : 0);
+                    updateData.status = JSON.stringify(newStatusArray);
+                    needsUpdate = true;
+                }
+            } catch (e) {
+                // JSON 파싱 실패 시 기본값으로 설정
+                updateData.status = JSON.stringify(Array(7).fill(1));
+                needsUpdate = true;
+            }
+        }
+        
+        // rentalStatus 필드 마이그레이션
+        if (room.rentalStatus) {
+            try {
+                const rentalStatusArray = JSON.parse(room.rentalStatus);
+                if (Array.isArray(rentalStatusArray) && rentalStatusArray.some(item => typeof item === 'string')) {
+                    const newRentalStatusArray = rentalStatusArray.map(item => item === '판매' ? 1 : 0);
+                    updateData.rentalStatus = JSON.stringify(newRentalStatusArray);
+                    needsUpdate = true;
+                }
+            } catch (e) {
+                // JSON 파싱 실패 시 기본값으로 설정
+                updateData.rentalStatus = JSON.stringify(Array(7).fill(1));
+                needsUpdate = true;
+            }
+        }
+        
+        // 업데이트가 필요한 경우 실행
+        if (needsUpdate) {
+            const setClause = Object.keys(updateData).map(key => `${key} = ?`).join(', ');
+            const values = Object.values(updateData);
+            values.push(room.id);
+            
+            roomDb.prepare(`UPDATE rooms SET ${setClause} WHERE id = ?`).run(...values);
+            console.log(`객실 ${room.id} status/rentalStatus 마이그레이션 완료`);
         }
     });
 } catch (e) {
@@ -588,6 +641,35 @@ try {
     console.error('시간 데이터 마이그레이션 오류:', e);
 }
 
+// daily_prices 테이블의 status를 문자열에서 boolean으로 마이그레이션
+try {
+    const dailyPrices = roomDb.prepare('SELECT * FROM daily_prices').all();
+    dailyPrices.forEach(row => {
+        try {
+            const roomsData = JSON.parse(row.rooms_data);
+            let needsUpdate = false;
+            
+            Object.keys(roomsData).forEach(roomId => {
+                const roomData = roomsData[roomId];
+                if (typeof roomData.status === 'string') {
+                    roomData.status = roomData.status === '판매' ? 1 : 0;
+                    needsUpdate = true;
+                }
+            });
+            
+            if (needsUpdate) {
+                const updatedRoomsData = JSON.stringify(roomsData);
+                roomDb.prepare('UPDATE daily_prices SET rooms_data = ? WHERE id = ?').run(updatedRoomsData, row.id);
+                console.log(`daily_prices ${row.id} status 마이그레이션 완료`);
+            }
+        } catch (e) {
+            console.error(`daily_prices ${row.id} 마이그레이션 오류:`, e);
+        }
+    });
+} catch (e) {
+    console.error('daily_prices 마이그레이션 오류:', e);
+}
+
 // 날짜별 요금 테이블 생성 (날짜별로 모든 객실 정보를 한 항목에 저장)
 roomDb.prepare(`
   CREATE TABLE IF NOT EXISTS daily_prices (
@@ -660,7 +742,7 @@ try {
                 
                 dateGroups[key].rooms_data[row.room_id] = {
                     price: row.price,
-                    status: row.status || '판매',
+                    status: row.status === 1 ? '판매' : '마감',
                     details: row.details,
                     usage_time: row.usage_time
                 };
@@ -878,7 +960,7 @@ app.post('/api/admin/daily-prices/bulk', (req, res) => {
             
             dateGroups[key].rooms_data[room_id] = {
                 price,
-                status: status || '판매',
+                status: status,
                 details,
                 usage_time
             };

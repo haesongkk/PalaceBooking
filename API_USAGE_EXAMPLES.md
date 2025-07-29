@@ -248,11 +248,11 @@ const roomData = {
     name: "객실 A",
     checkInOut: JSON.stringify(Array(7).fill("16:00~13:00")),
     price: JSON.stringify(Array(7).fill("50000원")),
-    status: JSON.stringify(Array(7).fill("판매")),
+    status: JSON.stringify(Array(7).fill(1)),
     usageTime: JSON.stringify(Array(7).fill("5시간")),
     openClose: JSON.stringify(Array(7).fill("14:00~22:00")),
     rentalPrice: JSON.stringify(Array(7).fill("30000원")),
-    rentalStatus: JSON.stringify(Array(7).fill("판매"))
+    rentalStatus: JSON.stringify(Array(7).fill(1))
 };
 
 try {

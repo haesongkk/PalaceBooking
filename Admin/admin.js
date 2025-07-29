@@ -149,11 +149,11 @@ function addRoom() {
         data: {
             checkInOut: Array(7).fill([16, 13]),
             price: Array(7).fill(50000),
-            status: Array(7).fill('판매'),
+            status: Array(7).fill(1),
             usageTime: Array(7).fill('5시간'),
             openClose: Array(7).fill([14, 22]),
             rentalPrice: Array(7).fill(30000),
-            rentalStatus: Array(7).fill('판매')
+            rentalStatus: Array(7).fill(1)
         }
     };
     
@@ -270,11 +270,16 @@ function editRoom(roomId) {
         const statusCells = roomTable.querySelectorAll('tr:nth-child(1) td:not(:first-child)');
         
         statusCells.forEach((cell, index) => {
-            const currentStatus = cell.textContent.trim();
+            const actualStatus = currentRoomType === 'daily' ? 
+                roomData[roomId].data.rentalStatus[index] : 
+                roomData[roomId].data.status[index];
+            const currentStatus = actualStatus !== undefined ? actualStatus : 1;
+            console.log(`[editRoom] ${currentRoomType} 모드, index=${index}, actualStatus=${actualStatus}, currentStatus=${currentStatus}`);
+            const statusText = getStatusText(currentStatus);
             cell.innerHTML = `
                 <div class="status-buttons">
-                    <button class="status-btn ${currentStatus === '판매' ? 'active' : ''}" onclick="changeStatus(this, '판매')">판매</button>
-                    <button class="status-btn ${currentStatus === '마감' ? 'active' : ''}" onclick="changeStatus(this, '마감')">마감</button>
+                    <button class="status-btn ${currentStatus === 1 ? 'active' : ''}" onclick="changeStatus(this, 1)">판매</button>
+                    <button class="status-btn ${currentStatus === 0 ? 'active' : ''}" onclick="changeStatus(this, 0)">마감</button>
                 </div>
             `;
         });
@@ -409,8 +414,9 @@ function updateSalesDataFromDropdown(dropdown) {
         const statusCells = roomTable.querySelectorAll('tr:nth-child(1) td:not(:first-child)');
         statusCells.forEach((cell, cellIndex) => {
             const activeButton = cell.querySelector('.status-btn.active');
-            const status = activeButton ? activeButton.textContent : '판매';
-            cell.innerHTML = `<span>${status}</span>`;
+            const status = activeButton ? (activeButton.textContent === '판매' ? 1 : 0) : 1;
+            const statusText = getStatusText(status);
+            cell.innerHTML = `<span>${statusText}</span>`;
             if (roomId) {
                 if (currentRoomType === 'daily') {
                     roomData[roomId].data.rentalStatus[cellIndex] = status;
@@ -622,6 +628,16 @@ function changeStatus(button, status) {
     
     // 클릭된 버튼에 active 클래스 추가
     button.classList.add('active');
+    
+    // 현재 편집 중인 객실의 데이터 업데이트
+    if (currentRoom) {
+        const cellIndex = Array.from(button.closest('td').parentElement.children).indexOf(button.closest('td')) - 1;
+        if (currentRoomType === 'daily') {
+            roomData[currentRoom].data.rentalStatus[cellIndex] = status;
+        } else {
+            roomData[currentRoom].data.status[cellIndex] = status;
+        }
+    }
 }
 
 // DB에 객실 저장
@@ -759,11 +775,11 @@ function loadRoomsFromDB() {
                     data: {
                         checkInOut: formatTimeArray(checkInOutData),
                         price: parseArray(room.price, Array(7).fill(50000)),
-                        status: parseArray(room.status, Array(7).fill('판매')),
+                        status: parseArray(room.status, Array(7).fill(1)).map(v => typeof v === 'string' ? (v === '판매' ? 1 : 0) : v),
                         usageTime: parseArray(room.usageTime, Array(7).fill('5시간')),
                         openClose: formatTimeArray(openCloseData),
                         rentalPrice: parseArray(room.rentalPrice, Array(7).fill(30000)),
-                        rentalStatus: parseArray(room.rentalStatus, Array(7).fill('판매'))
+                        rentalStatus: parseArray(room.rentalStatus, Array(7).fill(1)).map(v => typeof v === 'string' ? (v === '판매' ? 1 : 0) : v)
                     }
                 };
             });
@@ -812,6 +828,14 @@ function renderRoomButtons() {
     });
 }
 
+// status 값을 문자열로 변환하는 함수
+function getStatusText(status) {
+    console.log(`[getStatusText] 입력값: ${status} (${typeof status}), 값 비교: status === 1 = ${status === 1}, status == 1 = ${status == 1}`);
+    const result = status === 1 ? '판매' : '마감';
+    console.log(`[getStatusText] 결과: ${result}`);
+    return result;
+}
+
 // 객실 목록 렌더링
 function renderRoomList() {
     const roomList = document.querySelector('.room-list');
@@ -837,7 +861,7 @@ function renderRoomList() {
             // 대실 테이블
             tableContent = `
                 <tbody>
-                    <tr><td>판매/마감</td>${room.data.rentalStatus.map(v => `<td>${v}</td>`).join('')}</tr>
+                    <tr><td>판매/마감</td>${room.data.rentalStatus.map(v => `<td>${getStatusText(v)}</td>`).join('')}</tr>
                     <tr><td>판매가</td>${room.data.rentalPrice.map(v => `<td>${v}원</td>`).join('')}</tr>
                     <tr><td>개시/마감 시각</td>${room.data.openClose.map(v => {
                         if (Array.isArray(v) && v.length === 2) {
@@ -852,7 +876,7 @@ function renderRoomList() {
             // 숙박 테이블
             tableContent = `
                 <tbody>
-                    <tr><td>판매/마감</td>${room.data.status.map(v => `<td>${v}</td>`).join('')}</tr>
+                    <tr><td>판매/마감</td>${room.data.status.map(v => `<td>${getStatusText(v)}</td>`).join('')}</tr>
                     <tr><td>판매가</td>${room.data.price.map(v => `<td>${v}원</td>`).join('')}</tr>
                     <tr><td>입실/퇴실 시각</td>${room.data.checkInOut.map(v => {
                         if (Array.isArray(v) && v.length === 2) {
@@ -1001,7 +1025,7 @@ function updateRoomTable(roomId) {
         const rentalStatusCells = roomTable.querySelectorAll('tr:nth-child(1) td:not(:first-child)');
         console.log('판매/마감 셀 개수:', rentalStatusCells.length);
         rentalStatusCells.forEach((cell, index) => {
-            cell.textContent = data.rentalStatus[index];
+            cell.textContent = getStatusText(data.rentalStatus[index]);
         });
         
         const rentalPriceCells = roomTable.querySelectorAll('tr:nth-child(2) td:not(:first-child)');
@@ -1044,7 +1068,7 @@ function updateRoomTable(roomId) {
         const statusCells = roomTable.querySelectorAll('tr:nth-child(1) td:not(:first-child)');
         console.log('판매/마감 셀 개수:', statusCells.length);
         statusCells.forEach((cell, index) => {
-            cell.textContent = data.status[index];
+            cell.textContent = getStatusText(data.status[index]);
         });
         
         const priceCells = roomTable.querySelectorAll('tr:nth-child(2) td:not(:first-child)');
@@ -1107,6 +1131,12 @@ async function loadDailyPricesForMonth(year, month) {
                 prices.forEach(price => {
                     const cacheKey = `${dateString}_${price.room_id}_${price.room_type}`;
                     dailyPricesCache[cacheKey] = price;
+                    console.log(`[loadDailyPricesForMonth] 캐시 저장: ${cacheKey}`, {
+                        status: price.status,
+                        statusType: typeof price.status,
+                        price: price.price,
+                        details: price.details
+                    });
                 });
             } catch (error) {
                 console.error(`${dateString} 요금 데이터 로드 실패:`, error);
@@ -1435,17 +1465,24 @@ async function generateSalesForm() {
         
         // 기존 요금 정보가 있으면 사용, 없으면 기본값 사용
         const existingPrice = existingPrices[roomId];
-        const currentStatus = existingPrice ? existingPrice.status : (salesCurrentRoomType === 'daily' ? 
-            (room.data.rentalStatus[0] || '판매') : 
-            (room.data.status[0] || '판매'));
+        
+        // 선택된 날짜의 요일을 기준으로 기본값 결정
+        const lastDate = lastSelectedDate ? new Date(lastSelectedDate) : new Date(salesSelectedDates[salesSelectedDates.length - 1]);
+        const dayOfWeek = lastDate.getDay(); // 0: 일요일, 1: 월요일, ...
+        
+        const currentStatus = existingPrice ? 
+            (typeof existingPrice.status === 'number' ? existingPrice.status : (existingPrice.status === '판매' ? 1 : 0)) : 
+            (salesCurrentRoomType === 'daily' ? 
+                (room.data.rentalStatus[dayOfWeek] || 1) : 
+                (room.data.status[dayOfWeek] || 1));
         const currentPrice = existingPrice ? existingPrice.price.toString() : (salesCurrentRoomType === 'daily' ? 
-            (room.data.rentalPrice[0] || 30000).toString() : 
-            (room.data.price[0] || 50000).toString());
+            (room.data.rentalPrice[dayOfWeek] || 30000).toString() : 
+            (room.data.price[dayOfWeek] || 50000).toString());
         const currentDetails = existingPrice ? existingPrice.details : (salesCurrentRoomType === 'daily' ? 
-            (room.data.openClose[0] || '14:00~22:00') : 
-            (room.data.checkInOut[0] || '16:00~13:00'));
+            (room.data.openClose[dayOfWeek] || '14:00~22:00') : 
+            (room.data.checkInOut[dayOfWeek] || '16:00~13:00'));
         const currentUsageTime = existingPrice ? existingPrice.usage_time : (salesCurrentRoomType === 'daily' ? 
-            (room.data.usageTime[0] || '5시간') : '');
+            (room.data.usageTime[dayOfWeek] || '5시간') : '');
         
         if (salesCurrentRoomType === 'daily') {
             // 정수 튜플 배열에서 시간 추출
@@ -1467,8 +1504,8 @@ async function generateSalesForm() {
                     <div class="room-name">${room.name}</div>
                     <div>
                         <div class="status-buttons">
-                            <button class="status-btn ${currentStatus === '판매' ? 'active' : ''}" onclick="changeSalesStatus('${roomId}', '판매')">판매</button>
-                            <button class="status-btn ${currentStatus === '마감' ? 'active' : ''}" onclick="changeSalesStatus('${roomId}', '마감')">마감</button>
+                            <button class="status-btn ${currentStatus === 1 ? 'active' : ''}" onclick="changeSalesStatus('${roomId}', '판매')">판매</button>
+                            <button class="status-btn ${currentStatus === 0 ? 'active' : ''}" onclick="changeSalesStatus('${roomId}', '마감')">마감</button>
                         </div>
                     </div>
                     <div>
@@ -1523,8 +1560,8 @@ async function generateSalesForm() {
                     <div class="room-name">${room.name}</div>
                     <div>
                         <div class="status-buttons">
-                            <button class="status-btn ${currentStatus === '판매' ? 'active' : ''}" onclick="changeSalesStatus('${roomId}', '판매')">판매</button>
-                            <button class="status-btn ${currentStatus === '마감' ? 'active' : ''}" onclick="changeSalesStatus('${roomId}', '마감')">마감</button>
+                            <button class="status-btn ${currentStatus === 1 ? 'active' : ''}" onclick="changeSalesStatus('${roomId}', '판매')">판매</button>
+                            <button class="status-btn ${currentStatus === 0 ? 'active' : ''}" onclick="changeSalesStatus('${roomId}', '마감')">마감</button>
                         </div>
                     </div>
                     <div>
@@ -1561,10 +1598,10 @@ function changeSalesStatus(roomId, status) {
     buttons.forEach(btn => btn.classList.remove('active'));
     event.target.classList.add('active');
     
-    // 임시 데이터 저장
+    // 임시 데이터 저장 (문자열을 boolean으로 변환)
     if (!window.salesTempData) window.salesTempData = {};
     if (!window.salesTempData[roomId]) window.salesTempData[roomId] = {};
-    window.salesTempData[roomId].status = status;
+    window.salesTempData[roomId].status = status === '판매' ? 1 : 0;
 }
 
 // 판매 설정 가격 변경
@@ -1654,7 +1691,7 @@ async function saveSalesSettingsAsync() {
         }
         
         const currentData = {
-            status: tempData.status || '판매',
+            status: tempData.status !== undefined ? tempData.status : 1,
             price: tempData.price || parseInt(priceInput.value),
             details: details,
             usageTime: usageTime
@@ -1668,7 +1705,7 @@ async function saveSalesSettingsAsync() {
         
         let isModified = false;
         if (salesCurrentRoomType === 'daily') {
-            const originalStatus = room.data.rentalStatus[dayOfWeek] || '판매';
+            const originalStatus = room.data.rentalStatus[dayOfWeek] || 1;
             const originalPrice = (room.data.rentalPrice[dayOfWeek] || 30000).toString();
             const originalDetails = room.data.openClose[dayOfWeek] || '14:00~22:00';
             const originalUsageTime = room.data.usageTime[dayOfWeek] || '5시간';
@@ -1680,7 +1717,7 @@ async function saveSalesSettingsAsync() {
                 isModified = true;
             }
         } else {
-            const originalStatus = room.data.status[dayOfWeek] || '판매';
+            const originalStatus = room.data.status[dayOfWeek] || 1;
             const originalPrice = (room.data.price[dayOfWeek] || 50000).toString();
             const originalDetails = room.data.checkInOut[dayOfWeek] || '16:00~13:00';
             
@@ -2049,27 +2086,50 @@ function generateRoomDataForDate(date) {
         const dailyPriceKey = `${dateString}_${roomId}_${salesCurrentRoomType}`;
         const dailyPrice = dailyPricesCache[dailyPriceKey];
         
+        console.log(`[generateRoomDataForDate] ${dateString} ${roomId} ${salesCurrentRoomType}:`, {
+            dailyPriceKey,
+            dailyPrice: dailyPrice ? {
+                status: dailyPrice.status,
+                statusType: typeof dailyPrice.status,
+                price: dailyPrice.price,
+                details: dailyPrice.details
+            } : 'null',
+            roomDataStatus: salesCurrentRoomType === 'daily' ? 
+                room.data.rentalStatus[dayOfWeek] : 
+                room.data.status[dayOfWeek]
+        });
+        
         if (dailyPrice) {
             // daily_prices 테이블에 데이터가 있으면 사용
-            status = dailyPrice.status || '판매';
+            status = getStatusText(dailyPrice.status);
             price = (dailyPrice.price || 0) + '원';
             time = dailyPrice.details || '';
             usageTime = dailyPrice.usage_time || '';
+            
+            console.log(`[generateRoomDataForDate] daily_prices 사용: status=${dailyPrice.status} → ${status}`);
         } else {
             // 없으면 기존 rooms 테이블의 기본값 사용
             if (salesCurrentRoomType === 'daily') {
-                status = room.data.rentalStatus[dayOfWeek] || '판매';
+                const actualStatus = room.data.rentalStatus[dayOfWeek];
+                const finalStatus = actualStatus !== undefined ? actualStatus : 1;
+                console.log(`[generateRoomDataForDate] 대실 모드: dayOfWeek=${dayOfWeek}, actualStatus=${actualStatus}, finalStatus=${finalStatus}`);
+                status = getStatusText(finalStatus);
                 price = (room.data.rentalPrice[dayOfWeek] || 30000) + '원';
                 const timeTuple = room.data.openClose[dayOfWeek] || [14, 22];
                 time = Array.isArray(timeTuple) ? `${timeTuple[0]}시~${timeTuple[1]}시` : timeTuple;
                 usageTime = room.data.usageTime[dayOfWeek] || '5시간';
             } else {
-                status = room.data.status[dayOfWeek] || '판매';
+                const actualStatus = room.data.status[dayOfWeek];
+                const finalStatus = actualStatus !== undefined ? actualStatus : 1;
+                console.log(`[generateRoomDataForDate] 숙박 모드: dayOfWeek=${dayOfWeek}, actualStatus=${actualStatus}, finalStatus=${finalStatus}`);
+                status = getStatusText(finalStatus);
                 price = (room.data.price[dayOfWeek] || 50000) + '원';
                 const timeTuple = room.data.checkInOut[dayOfWeek] || [16, 13];
                 time = Array.isArray(timeTuple) ? `${timeTuple[0]}시~${timeTuple[1]}시` : timeTuple;
                 usageTime = '';
             }
+            
+            console.log(`[generateRoomDataForDate] rooms 기본값 사용: status=${salesCurrentRoomType === 'daily' ? room.data.rentalStatus[dayOfWeek] : room.data.status[dayOfWeek]} → ${status}`);
         }
         
         // 상태에 따른 클래스 결정

@@ -349,7 +349,7 @@ class PalaceBookingAdminAPI {
      * @param {string} priceData.room_id - 객실 ID
      * @param {string} priceData.room_type - 객실 타입 ('daily' 또는 'overnight')
      * @param {number} priceData.price - 가격
-     * @param {string} priceData.status - 상태 (기본값: '판매')
+     * @param {number} priceData.status - 상태 (1: 판매, 0: 마감)
      * @param {string} priceData.details - 시간 정보
      * @param {string} priceData.usage_time - 이용시간 (대실용)
      * @returns {Promise<Object>} 저장 결과
