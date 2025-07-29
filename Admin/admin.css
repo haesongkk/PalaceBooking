@@ -79,21 +79,84 @@ th, td {
     text-align: center;
     white-space: nowrap;
 }
+
+/* 작업 컬럼 - 다른 셀들과 동일한 스타일 적용 */
+th:last-child, td:last-child {
+    /* 다른 셀들과 동일한 패딩과 정렬 사용 */
+}
 th {
     background: #f3f6fa;
     color: #222;
 }
 .btn {
-    padding: 6px 16px;
+    padding: 4px 8px;
     border: none;
-    border-radius: 6px;
+    border-radius: 4px;
     background: #3b82f6;
     color: #fff;
     font-weight: 500;
     cursor: pointer;
     transition: background 0.2s;
     white-space: nowrap;
-    flex-shrink: 0;
+    font-size: 0.8rem;
+    margin: 1px;
+    min-height: 24px;
+    min-width: 50px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-confirm, .btn-cancel {
+    padding: 4px 8px;
+    border: none;
+    border-radius: 4px;
+    color: #fff;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    margin: 1px;
+    height: 36px;
+    width: 50px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-confirm {
+    background: #3b82f6 !important;
+}
+
+.btn-confirm:hover {
+    background: #2563eb !important;
+}
+
+.btn-cancel {
+    background: #dc3545 !important;
+}
+
+.btn-cancel:hover {
+    background: #c82333 !important;
+}
+
+.action-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: 2px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    width: 100%;
+}
+
+.action-buttons .btn {
+    flex: 1;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    min-width: 0;
+    margin: 0;
 }
 
 .btn-add-room {
@@ -117,8 +180,9 @@ th {
     transform: scale(1.05);
 }
 .btn[disabled] {
-    background: #bdbdbd;
+    background: #bdbdbd !important;
     cursor: not-allowed;
+    opacity: 0.6;
 }
 .btn[style*='background:#dc3545'] { background: #dc3545 !important; }
 .confirmed { color: #22c55e; font-weight: bold; }
@@ -345,15 +409,7 @@ th {
 
 
 
-/* 마감 설정 패널 */
-.closure-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    overflow-y: auto;
-    padding-right: 8px;
-}
+
 
 .calendar-container {
     display: flex;
@@ -501,18 +557,7 @@ th {
     color: #d1d5db;
 }
 
-.calendar-day.has-closure {
-    background: #fef3c7;
-    color: #92400e;
-}
 
-.calendar-day.has-closure::after {
-    content: '●';
-    position: absolute;
-    bottom: 4px;
-    right: 4px;
-    font-size: 0.6rem;
-}
 
 .date-detail-section {
     flex: 1;
@@ -546,64 +591,7 @@ th {
     margin-top: 60px;
 }
 
-.closure-item {
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
 
-.closure-info {
-    flex: 1;
-}
-
-.closure-date {
-    font-weight: bold;
-    margin-bottom: 4px;
-    color: #2a2a3a;
-}
-
-.closure-rooms {
-    font-size: 0.9rem;
-    color: #666;
-}
-
-.closure-actions {
-    display: flex;
-    gap: 8px;
-}
-
-/* 마감 설정 폼 스타일 */
-.existing-closure,
-.new-closure {
-    padding: 16px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    margin-bottom: 16px;
-}
-
-.existing-closure h4,
-.new-closure h4 {
-    margin: 0 0 12px 0;
-    color: #374151;
-    font-size: 1.1rem;
-}
-
-.closure-form {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
 
 .form-group label {
     font-weight: 600;

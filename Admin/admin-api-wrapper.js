@@ -68,6 +68,30 @@ class PalaceBookingAdminAPI {
         }
     }
 
+    /**
+     * 예약 취소
+     * @param {number} reservationId - 예약 ID
+     * @returns {Promise<Object>} 취소 결과
+     */
+    async cancelReservation(reservationId) {
+        try {
+            const response = await fetch(`${this.baseURL}/api/cancel`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: reservationId })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('예약 취소 실패:', error);
+            throw error;
+        }
+    }
+
     // ===== 특가 상품 관리 API =====
 
     /**
@@ -195,7 +219,7 @@ class PalaceBookingAdminAPI {
      * @param {string} roomData.checkInOut - 입실/퇴실 시간 (JSON)
      * @param {string} roomData.price - 가격 (JSON)
      * @param {string} roomData.status - 상태 (JSON)
-     * @param {string} roomData.usageTime - 이용시간 (JSON)
+     * @param {string} roomData.usageTime - 이용시간 (JSON, 정수 배열)
      * @param {string} roomData.openClose - 개시/마감 시간 (JSON)
      * @param {string} roomData.rentalPrice - 대실 가격 (JSON)
      * @param {string} roomData.rentalStatus - 대실 상태 (JSON)
@@ -244,73 +268,7 @@ class PalaceBookingAdminAPI {
 
     // ===== 마감 설정 관리 API =====
 
-    /**
-     * 모든 마감 설정 조회
-     * @returns {Promise<Array>} 마감 설정 목록
-     */
-    async getAllClosures() {
-        try {
-            const response = await fetch(`${this.baseURL}/api/admin/closures`);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('마감 설정 조회 실패:', error);
-            throw error;
-        }
-    }
 
-    /**
-     * 마감 설정 저장/수정 (upsert)
-     * @param {Object} closureData - 마감 설정 데이터
-     * @param {string} closureData.id - 마감 설정 ID
-     * @param {string} closureData.date - 날짜
-     * @param {string} closureData.rooms - 마감 객실 (JSON)
-     * @returns {Promise<Object>} 저장 결과
-     */
-    async saveClosure(closureData) {
-        try {
-            const response = await fetch(`${this.baseURL}/api/admin/closures`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(closureData)
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('마감 설정 저장 실패:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * 마감 설정 삭제
-     * @param {string} closureId - 마감 설정 ID
-     * @returns {Promise<Object>} 삭제 결과
-     */
-    async deleteClosure(closureId) {
-        try {
-            const response = await fetch(`${this.baseURL}/api/admin/closures/${closureId}`, {
-                method: 'DELETE'
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('마감 설정 삭제 실패:', error);
-            throw error;
-        }
-    }
 
     // ===== 객실 재고 관리 API =====
 
@@ -376,6 +334,181 @@ class PalaceBookingAdminAPI {
             return await response.json();
         } catch (error) {
             console.error('재고 수정 실패:', error);
+            throw error;
+        }
+    }
+
+    // ===== 날짜별 요금 관리 API =====
+
+    /**
+     * 특정 날짜의 모든 객실 요금 조회
+     * @param {string} date - 날짜 (YYYY-MM-DD)
+     * @param {string} room_type - 객실 타입 ('daily' 또는 'overnight', 선택사항)
+     * @returns {Promise<Array>} 요금 목록
+     */
+    async getDailyPrices(date, room_type = null) {
+        try {
+            let url = `${this.baseURL}/api/admin/daily-prices?date=${date}`;
+            if (room_type) {
+                url += `&room_type=${room_type}`;
+            }
+            
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('날짜별 요금 조회 실패:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 날짜별 요금 저장/수정
+     * @param {Object} priceData - 요금 데이터
+     * @param {string} priceData.date - 날짜
+     * @param {string} priceData.room_id - 객실 ID
+     * @param {string} priceData.room_type - 객실 타입 ('daily' 또는 'overnight')
+     * @param {number} priceData.price - 가격
+     * @param {number} priceData.status - 상태 (1: 판매, 0: 마감)
+     * @param {string} priceData.details - 시간 정보
+     * @param {string} priceData.usage_time - 이용시간 (대실용)
+     * @returns {Promise<Object>} 저장 결과
+     */
+    async saveDailyPrice(priceData) {
+        try {
+            const response = await fetch(`${this.baseURL}/api/admin/daily-prices`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(priceData)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('날짜별 요금 저장 실패:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 여러 날짜의 요금 일괄 저장
+     * @param {Array} prices - 요금 데이터 배열
+     * @returns {Promise<Object>} 저장 결과
+     */
+    async saveDailyPricesBulk(prices) {
+        try {
+            const response = await fetch(`${this.baseURL}/api/admin/daily-prices/bulk`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prices })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('날짜별 요금 일괄 저장 실패:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 여러 날짜의 요금 일괄 저장 (새로운 구조 - 날짜별로 모든 객실 정보를 한 항목에 저장)
+     * @param {Object} dateGroups - 날짜별 그룹화된 데이터
+     * @returns {Promise<Object>} 저장 결과
+     */
+    async saveDailyPricesBulkNew(dateGroups) {
+        try {
+            // 기존 API와 호환성을 위해 prices 배열 형태로 변환
+            const prices = [];
+            Object.values(dateGroups).forEach(({ date, room_type, rooms_data }) => {
+                Object.keys(rooms_data).forEach(room_id => {
+                    const roomData = rooms_data[room_id];
+                    prices.push({
+                        date,
+                        room_id,
+                        room_type,
+                        price: roomData.price,
+                        status: roomData.status,
+                        details: roomData.details,
+                        usage_time: roomData.usage_time
+                    });
+                });
+            });
+
+            const response = await fetch(`${this.baseURL}/api/admin/daily-prices/bulk`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prices })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('날짜별 요금 일괄 저장 실패:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 날짜별 요금 삭제
+     * @param {string} date - 날짜
+     * @param {string} room_type - 객실 타입
+     * @returns {Promise<Object>} 삭제 결과
+     */
+    async deleteDailyPrice(date, room_type) {
+        try {
+            const response = await fetch(`${this.baseURL}/api/admin/daily-prices/${date}/${room_type}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('날짜별 요금 삭제 실패:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 스마트 저장 - 기본값과 다를 때만 저장
+     * @param {Object} data - 저장 데이터
+     * @param {string} data.date - 날짜
+     * @param {string} data.room_type - 객실 타입
+     * @param {Object} data.rooms_data - 객실별 데이터
+     * @param {Object} data.default_values - 기본값 데이터
+     * @returns {Promise<Object>} 저장 결과
+     */
+    async smartSaveDailyPrices(data) {
+        try {
+            const response = await fetch(`${this.baseURL}/api/admin/daily-prices/smart-save`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('스마트 저장 실패:', error);
             throw error;
         }
     }

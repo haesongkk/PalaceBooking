@@ -118,33 +118,13 @@ document.addEventListener("DOMContentLoaded", () => {
 window.onload = () => {
     appendMessage("안녕하세요. 예약을 도와드릴게요.");
     appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
     
     curHandler = phoneHandler;
 };
 
 window.addEventListener('message', function(event) {
     if(event.data === 'payment-success') {
-        appendMessage('✅ 결제가 완료되었습니다! 예약 확정 대기 중입니다.', 'bot');
+        appendMessage('✅ 결제가 완료되었습니다! 예약이 접수되었습니다. 관리자 승인 후 확정됩니다.', 'bot');
         // 필요하다면 예약 내역 새로고침 함수 호출
         // showReservationList();
     } else if(event.data === 'payment-fail') {
@@ -219,6 +199,8 @@ function phoneHandler(input)
     userphone = input;
     // 소켓 연결
     palaceAPI.connectSocket(userphone);
+    // Socket 이벤트 리스너 설정
+    setupSocketEventListeners();
     palaceAPI.getRecentReservation(userphone)
         .then(data => {
 			console.log("데이터 조회 결과:", data);
@@ -248,7 +230,7 @@ function phoneHandler(input)
             // 통일된 메뉴 (고객 타입 구분 없음)
             const menuOptions = [
                 "📅 날짜로 예약",
-                "🛏️ 상품으로 예약", 
+                "🛏️ 상품으로 예약"
             ];
 
             updateHeaderNickname(username, userphone);
@@ -295,86 +277,30 @@ async function showQuickMenuWith(labels = []) {
         const btn = document.createElement("button");
         btn.className = "bot-option";
         btn.textContent = label;
-        btn.onclick = () => sendQuick(label);
+        btn.onclick = () => sendQuick(label).catch(console.error);
         container.appendChild(btn);
     });
 
-    // 2. 고정 특가상품 버튼
-    const now = new Date();
-    const hour = now.getHours();
-    // 심야 반짝 할인: 20~22시만 노출
-    if (hour >= 20 && hour < 22) {
-        const btn = document.createElement("button");
-        btn.className = "bot-option special";
-        btn.textContent = `🌙✨ 심야 반짝 할인 (30,000원)`;
-        btn.onclick = () => handleMidnightSpecial();
-        container.appendChild(btn);
-    }
-    // DAY USE
-    const btnDayUse = document.createElement("button");
-    btnDayUse.className = "bot-option special";
-    btnDayUse.textContent = `🌞 DAY USE (30,000원)`;
-    btnDayUse.onclick = () => handleDayUseSpecial();
-    container.appendChild(btnDayUse);
-    // 도보 특가
-    const btnWalk = document.createElement("button");
-    btnWalk.className = "bot-option special";
-    btnWalk.textContent = `🚶 도보 특가 (25,000원)`;
-    btnWalk.onclick = () => handleWalkSpecial();
-    container.appendChild(btnWalk);
-    // 2PC
-    const btn2PC = document.createElement("button");
-    btn2PC.className = "bot-option special";
-    btn2PC.textContent = `🖥️ 2PC (30,000원)`;
-    btn2PC.onclick = () => handle2PCSpecial();
-    container.appendChild(btn2PC);
 
-    // 3. 동적 특가상품 버튼 (기존 방식)
-    try {
-        const specials = await palaceAPI.getSpecialProducts();
-        specials.forEach(special => {
-            const btn = document.createElement("button");
-            btn.className = "bot-option special";
-            btn.textContent = `⭐ ${special.name} (${special.price.toLocaleString()}원)`;
-            btn.onclick = () => handleSpecialProduct(special);
-            container.appendChild(btn);
-        });
-    } catch (e) {
-        // ignore
-    }
+
+
 
     // 4. 예약 내역 확인 버튼
     const btn = document.createElement("button");
     btn.className = "bot-option";
     btn.textContent = "📄 예약 내역 확인";
-    btn.onclick = () => sendQuick("📄 예약 내역 확인");
+    btn.onclick = () => sendQuick("📄 예약 내역 확인").catch(console.error);
     container.appendChild(btn);
 
     document.getElementById("chat").appendChild(container);
 }
 
-function handleSpecialProduct(special) {
-    // 특가상품 버튼 클릭 시 예약 플로우 진입
-    selectedProduct = special.roomType;
-    selectedRoom = special.roomType;
-    console.log('[handleSpecialProduct] 특가상품 객실 선택됨:', selectedRoom);
-    appendMessage(`특가상품 선택: ${special.name} (${special.price.toLocaleString()}원)`, "user");
-    appendMessage("이용하실 날짜를 선택해주세요.");
-    calendarEnabled = true;
-    const cal = document.createElement("div");
-    cal.className = "message bot";
-    cal.id = "calendarBox";
-    renderCalendar().then(html => {
-        cal.innerHTML = html;
-    });
-    document.getElementById("chat").appendChild(cal);
-    selectedMode = "product-first";
-}
+
 
 let reserveStartDate;
 let reserveEndDate;
 let reserveRoomType;
-function sendQuick(label) {
+async function sendQuick(label) {
     appendMessage(label, "user");
 
     if (label.includes("날짜로 예약")) {
@@ -394,7 +320,7 @@ function sendQuick(label) {
         // 상품 먼저 선택
         selectedMode = "product-first";
         appendMessage("이용하실 상품을 선택해주세요.");
-        showProductList();
+        await showProductList();
     }
     else if (label.includes("예약 내역")) {
         appendMessage("📄 현재 예약 내역입니다:");
@@ -413,68 +339,56 @@ async function showRoomButtons() {
     const container = document.createElement("div");
     container.className = "message bot";
 
-    const rooms = [
-        "🖥️ 2PC (60,000원)",
-        "🎥 멀티플렉스 (50,000원)",
-        "🎤 노래방 (60,000원)",
-        "🛏️ 스탠다드 (45,000원)",
-        "🛌 트윈 (50,000원)"
-    ];
-
-    // 날짜를 YYYY-MM-DD 포맷으로 맞추는 함수
-    function formatDateYMD(date) {
-        if (typeof date === 'string') date = new Date(date);
-        const y = date.getFullYear();
-        const m = (date.getMonth() + 1).toString().padStart(2, '0');
-        const d = date.getDate().toString().padStart(2, '0');
-        return `${y}-${m}-${d}`;
+    // 서버에서 객실 목록 가져오기
+    let rooms = [];
+    try {
+        const roomData = await palaceAPI.getRooms();
+        rooms = roomData.map(room => room.name);
+        console.log('[객실목록] 서버에서 가져온 객실:', rooms);
+    } catch (error) {
+        console.error('[객실목록] 서버 조회 실패, 기본 객실 사용:', error);
+        // 서버 조회 실패 시 기본 객실 목록 사용
+        rooms = [
+            "🖥️ 2PC",
+            "🎥 멀티플렉스",
+            "🎤 노래방",
+            "🛏️ 스탠다드",
+            "🛌 트윈"
+        ];
     }
 
-    // 날짜가 선택되어 있으면 해당 날짜의 객실별 예약 수 조회
+
+
+    // 날짜가 선택되어 있으면 해당 날짜의 객실별 판매/마감 상태 조회
     let stockMap = {};
     if (rangeStart) {
         try {
-            if (rangeEnd) {
-                let okRooms = {};
-                for (const room of rooms) okRooms[room] = true;
-                let d0 = new Date(rangeStart), d1 = new Date(rangeEnd);
-                for (let dt = new Date(d0); dt < d1; dt.setDate(dt.getDate() + 1)) {
-                    const dateStr = formatDateYMD(dt);
-                    const data = await palaceAPI.getRoomStock(dateStr);
-                    console.log(`[재고조회][숙박] ${dateStr}`, data);
-                    rooms.forEach(room => {
-                        const found = data.find(r => r.room_type.trim() === room.trim());
-                        if (found && !(found.reserved < found.total)) okRooms[room] = false;
-                    });
-                }
-                stockMap = okRooms;
-                console.log('[stockMap][숙박]', stockMap);
-            } else {
-                const dateStr = formatDateYMD(rangeStart);
-                const data = await palaceAPI.getRoomStock(dateStr);
-                console.log(`[재고조회][하루] ${dateStr}`, data);
-                rooms.forEach(room => {
-                    const found = data.find(r => r.room_type.trim() === room.trim());
-                    stockMap[room] = found ? found.reserved < found.total : false;
-                });
-                console.log('[stockMap][하루]', stockMap);
+            // 새로운 판매/마감 상태 확인 함수 사용
+            for (const room of rooms) {
+                const isAvailable = await checkRoomAvailability(rangeStart, rangeEnd, room);
+                stockMap[room] = isAvailable;
             }
-        } catch (e) {console.log('[재고조회][에러]', e);}
+            console.log('[stockMap]', stockMap);
+        } catch (e) {
+            console.log('[판매상태조회][에러]', e);
+            // 오류 시 모든 객실을 예약 가능한 것으로 처리
+            rooms.forEach(room => stockMap[room] = true);
+        }
     }
 
     rooms.forEach(room => {
         const btn = document.createElement("button");
         btn.className = "bot-option";
         btn.textContent = room;
-        // 예약 수가 총 객실 수보다 적을 때만 활성화
+        // 판매/마감 상태에 따라 버튼 활성화/비활성화
         if (rangeStart && stockMap[room] === false) {
             btn.disabled = true;
             btn.style.background = "#ccc";
             btn.style.color = "#888";
-            btn.title = "예약 불가";
+            btn.title = "마감";
         }
         btn.onclick = () => {
-            // 예약 불가 객실은 절대 선택 불가
+            // 마감된 객실은 절대 선택 불가
             if (btn.disabled || (rangeStart && stockMap[room] === false)) return;
             selectedRoom = room;
 
@@ -726,25 +640,35 @@ function showPaymentOptions() {
 }
 
 
-function showProductList() {
+async function showProductList() {
     const chatBox = document.getElementById("chat");
     const container = document.createElement("div");
     container.className = "message bot";
 
-    const products = [
-        "🖥️ 2PC (60,000원)",
-        "🎥 멀티플렉스 (50,000원)",
-        "🎤 노래방 (60,000원)",
-        "🛏️ 스탠다드 (45,000원)",
-        "🛌 트윈 (50,000원)"
-    ];
+    // 서버에서 객실 목록 가져오기
+    let products = [];
+    try {
+        const roomData = await palaceAPI.getRooms();
+        products = roomData.map(room => room.name);
+        console.log('[상품목록] 서버에서 가져온 상품:', products);
+    } catch (error) {
+        console.error('[상품목록] 서버 조회 실패, 기본 상품 사용:', error);
+        // 서버 조회 실패 시 기본 상품 목록 사용
+        products = [
+            "🖥️ 2PC",
+            "🎥 멀티플렉스",
+            "🎤 노래방",
+            "🛏️ 스탠다드",
+            "🛌 트윈"
+        ];
+    }
 
     products.forEach(p => {
         const btn = document.createElement("button");
         btn.className = "bot-option";
         btn.textContent = p;
         btn.onclick = () => {
-            // 입력창에 캡슐 표시만 하고, 실제 선택은 전송 버튼에서 처리
+            // 상품 선택
             selectedProduct = p;
             selectedRoom = p;
             const input = document.getElementById("customInput");
@@ -756,6 +680,14 @@ function showProductList() {
             capsule.className = "capsule capsule-room";
             capsule.textContent = p;
             input.appendChild(capsule);
+            
+            // 상품 선택 후 달력 다시 렌더링 (마감된 날짜 비활성화)
+            const cal = document.getElementById("calendarBox");
+            if (cal) {
+                renderCalendar(rangeStart, rangeEnd).then(html => {
+                    cal.innerHTML = html;
+                });
+            }
         };
         container.appendChild(btn);
     });
@@ -774,7 +706,7 @@ function handleBackspace(event) {
     }
 }
 
-function submitSelectedDate() {
+async function submitSelectedDate() {
     // 입력창의 내용 가져오기
     const input = document.getElementById("customInput");
     const inputText = input.innerText.trim();
@@ -792,7 +724,7 @@ function submitSelectedDate() {
 
     // 날짜와 룸이 모두 선택되었는지 확인
     if (rangeStart && selectedRoom) {
-        showPaymentButton();
+        await showPaymentButton();
     } else if (rangeStart && !selectedRoom) {
         appendMessage("객실을 선택해주세요.");
         showRoomButtons();
@@ -813,20 +745,149 @@ function submitSelectedDate() {
     }
 }
 
-function showPaymentButton() {
+
+
+// 날짜를 YYYY-MM-DD 포맷으로 변환하는 함수
+function formatDateYMD(date) {
+    if (typeof date === 'string') date = new Date(date);
+    const y = date.getFullYear();
+    const m = (date.getMonth() + 1).toString().padStart(2, '0');
+    const d = date.getDate().toString().padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+// 요일을 숫자로 반환하는 함수 (0: 일요일, 1: 월요일, ..., 6: 토요일)
+function getDayOfWeek(date) {
+    if (typeof date === 'string') date = new Date(date);
+    return date.getDay();
+}
+
+// 선택한 날짜 범위에서 객실 판매/마감 상태 확인
+async function checkRoomAvailability(startDate, endDate, roomName) {
+    console.log('[재고확인] 시작:', { startDate, endDate, roomName });
+    try {
+        if (endDate) {
+            // 숙박 예약 (이틀 이상) - 모든 날짜가 판매 상태여야 함
+            console.log('[재고확인] 숙박 예약 확인');
+            let isAvailable = true;
+            for (let dt = new Date(startDate); dt < new Date(endDate); dt.setDate(dt.getDate() + 1)) {
+                const dateStr = formatDateYMD(dt);
+                console.log('[재고확인] 날짜 확인:', dateStr);
+                const stockData = await palaceAPI.getRoomStock(dateStr);
+                console.log('[재고확인] 판매 상태 데이터:', stockData);
+                const roomStock = stockData.find(r => r.room_type.trim() === roomName.trim());
+                console.log('[재고확인] 해당 객실 판매 상태:', roomStock);
+                
+                if (!roomStock || !roomStock.available) {
+                    console.log('[재고확인] 마감 발견:', { roomName, dateStr, roomStock });
+                    isAvailable = false;
+                    break;
+                }
+            }
+            console.log('[재고확인] 최종 결과:', isAvailable);
+            return isAvailable;
+        } else {
+            // 대실 예약 (하루) - 해당 날짜가 판매 상태여야 함
+            console.log('[재고확인] 대실 예약 확인');
+            const dateStr = formatDateYMD(startDate);
+            console.log('[재고확인] 날짜 확인:', dateStr);
+            const stockData = await palaceAPI.getRoomStock(dateStr);
+            console.log('[재고확인] 판매 상태 데이터:', stockData);
+            const roomStock = stockData.find(r => r.room_type.trim() === roomName.trim());
+            console.log('[재고확인] 해당 객실 판매 상태:', roomStock);
+            
+            const result = roomStock && roomStock.available;
+            console.log('[재고확인] 최종 결과:', result);
+            return result;
+        }
+    } catch (error) {
+        console.error('[재고확인] 오류:', error);
+        return true; // 오류 시 예약 가능한 것으로 처리
+    }
+}
+
+// 객실 가격 조회 (daily_price 우선, 없으면 rooms 테이블에서 요일별 가격)
+async function getRoomPrice(startDate, endDate, roomName) {
+    console.log('[가격조회] 시작:', { startDate, endDate, roomName });
+    try {
+        const isOvernight = endDate && new Date(endDate) > new Date(startDate);
+        const roomType = isOvernight ? 'overnight' : 'daily';
+        console.log('[가격조회] 예약 타입:', { isOvernight, roomType });
+        
+        // 1. daily_prices 테이블에서 우선 조회
+        const startDateStr = formatDateYMD(startDate);
+        console.log('[가격조회] daily_prices 조회:', { date: startDateStr, roomType });
+        const dailyPrices = await palaceAPI.getDailyPrices(startDateStr, roomType);
+        console.log('[가격조회] daily_prices 결과:', dailyPrices);
+        const roomDailyPrice = dailyPrices.find(p => 
+            p.room_id === roomName || 
+            p.room_type === roomName ||
+            p.room_id === roomName.replace('객실 ', 'room').toLowerCase() || // 객실 A -> roomA 매칭
+            p.room_id === roomName.replace('객실 ', 'room') || // 객실 A -> roomA 매칭 (대소문자 유지)
+            p.room_id === roomName.replace('객실 ', 'room').toUpperCase() // 객실 A -> ROOMA 매칭
+        );
+        console.log('[가격조회] 해당 객실 daily_price:', roomDailyPrice);
+        
+        if (roomDailyPrice && roomDailyPrice.status === 1) {
+            console.log('[가격조회] daily_prices 사용:', roomDailyPrice);
+            return roomDailyPrice.price;
+        }
+        
+        // 2. daily_prices에 없으면 rooms 테이블에서 요일별 가격 조회
+        console.log('[가격조회] rooms 테이블 조회:', roomName);
+        const roomInfo = await palaceAPI.getRoomInfo(roomName);
+        console.log('[가격조회] roomInfo 결과:', roomInfo);
+        if (roomInfo) {
+            const dayOfWeek = getDayOfWeek(startDate);
+            console.log('[가격조회] 요일:', dayOfWeek);
+            let priceArray;
+            
+            if (isOvernight) {
+                // 숙박 가격
+                priceArray = JSON.parse(roomInfo.rentalPrice || '[]');
+                console.log('[가격조회] 숙박 가격 배열:', priceArray);
+            } else {
+                // 대실 가격
+                priceArray = JSON.parse(roomInfo.price || '[]');
+                console.log('[가격조회] 대실 가격 배열:', priceArray);
+            }
+            
+            if (priceArray && priceArray[dayOfWeek] !== undefined) {
+                console.log('[가격조회] rooms 테이블 사용:', { roomName, dayOfWeek, price: priceArray[dayOfWeek] });
+                return priceArray[dayOfWeek];
+            }
+        }
+        
+        // 3. 기본 가격 (fallback)
+        const defaultPrices = {
+            "🖥️ 2PC": isOvernight ? 50000 : 60000,
+            "🎥 멀티플렉스": isOvernight ? 40000 : 50000,
+            "🎤 노래방": isOvernight ? 50000 : 60000,
+            "🛏️ 스탠다드": isOvernight ? 35000 : 45000,
+            "🛌 트윈": isOvernight ? 40000 : 50000
+        };
+        
+        const defaultPrice = defaultPrices[roomName] || 50000;
+        console.log('[가격조회] 기본 가격 사용:', { roomName, price: defaultPrice });
+        return defaultPrice;
+        
+    } catch (error) {
+        console.error('[가격조회] 오류:', error);
+        return 50000; // 오류 시 기본 가격
+    }
+}
+
+async function showPaymentButton() {
     const chatBox = document.getElementById("chat");
     const container = document.createElement("div");
     container.className = "message bot";
 
-    // 결제 금액 계산 (서버와 동일하게)
-    const roomPrices = {
-        "🖥️ 2PC (60,000원)": 60000,
-        "🎥 멀티플렉스 (50,000원)": 50000,
-        "🎤 노래방 (60,000원)": 60000,
-        "🛏️ 스탠다드 (45,000원)": 45000,
-        "🛌 트윈 (50,000원)": 50000
-    };
-    const price = roomPrices[selectedRoom] || 50000;
+    // 판매/마감 상태 확인
+    const isAvailable = await checkRoomAvailability(rangeStart, rangeEnd, selectedRoom);
+    if (!isAvailable) {
+        appendMessage("❌ 선택하신 날짜에 해당 객실이 마감되었습니다. 다른 날짜나 객실을 선택해주세요.", "bot");
+        return;
+    }
 
     // 박 수 계산
     let nights = 1;
@@ -834,10 +895,26 @@ function showPaymentButton() {
         const ms = new Date(rangeEnd) - new Date(rangeStart);
         nights = Math.round(ms / (1000 * 60 * 60 * 24));
     }
-    let amount = price * nights;
-    if (nights === 1) {
-        amount = price - 10000;
-        if (amount < 0) amount = 0;
+    
+    let amount;
+    if (nights > 1) {
+        // 숙박 예약: 마지막날을 제외한 날들의 숙박 가격을 더함
+        console.log('[결제금액] 숙박 예약 가격 계산 시작');
+        amount = 0;
+        
+        for (let dt = new Date(rangeStart); dt < new Date(rangeEnd); dt.setDate(dt.getDate() + 1)) {
+            const dateStr = formatDateYMD(dt);
+            const dayPrice = await getRoomPrice(dt, null, selectedRoom); // 해당 날짜의 숙박 가격
+            console.log('[결제금액] 날짜별 가격:', { date: dateStr, price: dayPrice });
+            amount += dayPrice;
+        }
+        
+        console.log('[결제금액] 숙박 총 가격:', amount);
+    } else {
+        // 대실 예약: 해당 날짜의 대실 가격
+        const price = await getRoomPrice(rangeStart, rangeEnd, selectedRoom);
+        console.log('[결제금액] 선택된 객실:', selectedRoom, '가격:', price);
+        amount = price;
     }
 
     // 고객 타입별 할인 적용
@@ -845,16 +922,16 @@ function showPaymentButton() {
     let finalAmount = amount;
     if (userType === "first") {
         finalAmount = Math.round(amount * 0.5);
-        discountMsg = "🎉 첫방문 고객 반값 할인 적용!";
+        discountMsg = `🎉 첫방문 고객 반값 할인 적용!\n원래 가격: ${amount.toLocaleString()}원 → 할인 가격: ${finalAmount.toLocaleString()}원`;
     } else if (userType === "recent") {
         finalAmount = Math.round(amount * 0.8);
-        discountMsg = "💰 재방문 고객 20% 할인 적용!";
+        discountMsg = `💰 재방문 고객 20% 할인 적용!\n원래 가격: ${amount.toLocaleString()}원 → 할인 가격: ${finalAmount.toLocaleString()}원`;
     } else {
-        discountMsg = "할인 없음 (오랜만에 방문해주셔서 감사합니다!)";
+        discountMsg = `할인 없음 (오랜만에 방문해주셔서 감사합니다!)\n결제 금액: ${finalAmount.toLocaleString()}원`;
     }
 
     // 결제 버튼 위에 할인 안내 메시지 출력
-    appendMessage(`${discountMsg} 결제 금액: ${finalAmount.toLocaleString()}원`, "bot");
+    appendMessage(discountMsg, "bot");
 
     const btn = document.createElement("button");
     btn.className = "bot-option";
@@ -962,8 +1039,7 @@ function requestTossPayment(paymentData, paymentMethod) {
     }
 }
 
-// renderCalendar 함수 내에서 날짜별로 재고 체크해서 disabled 처리하는 부분을 모두 제거
-// 모든 날짜가 항상 선택 가능하도록 수정
+// renderCalendar 함수 - 선택된 상품이 마감된 날짜들을 비활성화
 async function renderCalendar(selectedStart = null, selectedEnd = null) {
     const year = calendarYear;
     const month = calendarMonth;
@@ -989,8 +1065,28 @@ async function renderCalendar(selectedStart = null, selectedEnd = null) {
         d.setDate(startDate.getDate() + i);
         days.push(d);
     }
+    
     const today = new Date();
     today.setHours(0,0,0,0);
+    
+    // 선택된 상품이 있으면 해당 상품의 마감된 날짜들 확인
+    let unavailableDates = new Set();
+    if (selectedProduct) {
+        console.log('[달력] 선택된 상품 확인:', selectedProduct);
+        try {
+            // 해당 월의 모든 날짜에 대해 상품 가용성 확인
+            for (let dt = new Date(year, month, 1); dt <= new Date(year, month + 1, 0); dt.setDate(dt.getDate() + 1)) {
+                const isAvailable = await checkRoomAvailability(dt, null, selectedProduct);
+                if (!isAvailable) {
+                    unavailableDates.add(formatDateYMD(dt));
+                }
+            }
+            console.log('[달력] 마감된 날짜들:', Array.from(unavailableDates));
+        } catch (error) {
+            console.error('[달력] 상품 가용성 확인 오류:', error);
+        }
+    }
+    
     for (let i = 0; i < days.length; i++) {
         const currentDate = days[i];
         let classes = "calendar-cell";
@@ -1000,17 +1096,22 @@ async function renderCalendar(selectedStart = null, selectedEnd = null) {
         const isInRange = selectedStart && selectedEnd && currentDate > selectedStart && currentDate < selectedEnd;
         const isToday = currentDate.toDateString() === today.toDateString();
         const isPast = currentDate < today;
+        const isUnavailable = unavailableDates.has(formatDateYMD(currentDate));
+        
         if (isToday) classes += " today";
         if (!isInMonth) classes += " inactive";
         if (isStart || isEnd) classes += " selected";
         else if (isInRange) classes += " range";
-        if (isPast) classes += " inactive";
+        if (isPast || isUnavailable) classes += " inactive";
+        
         // 날짜 포맷을 항상 두 자리로 맞춤
         const y = currentDate.getFullYear();
         const m = String(currentDate.getMonth() + 1).padStart(2, '0');
         const d = String(currentDate.getDate()).padStart(2, '0');
+        
+        const isDisabled = isPast || isUnavailable;
         html += `
-            <button class="${classes}" ${isPast ? 'disabled' : ''} onclick="selectDate('${y}-${m}-${d}')">
+            <button class="${classes}" ${isDisabled ? 'disabled' : ''} onclick="selectDate('${y}-${m}-${d}')">
                 ${currentDate.getDate()}
             </button>
         `;
@@ -1061,82 +1162,26 @@ if (typeof io === 'undefined') {
     document.head.appendChild(script);
 }
 
-// Socket.IO 이벤트 리스너 설정
-palaceAPI.onSocketEvent('reservation-confirmed', (data) => {
-    // setTimeout으로 확정 메시지가 항상 뒤에 오도록
-    setTimeout(() => {
-        appendMessage('🎉 예약이 확정되었습니다! 관리자 승인 완료.', 'bot');
-    }, 100);
-});
+// Socket.IO 이벤트 리스너 설정 함수
+function setupSocketEventListeners() {
+    palaceAPI.onSocketEvent('reservation-confirmed', (data) => {
+        // 관리자 승인 후 예약 확정 알림
+        setTimeout(() => {
+            appendMessage('🎉 예약이 확정되었습니다! 관리자 승인 완료.', 'bot');
+        }, 100);
+    });
 
-// 특가상품별 예약 플로우 핸들러
-function handleMidnightSpecial() {
-    // 오늘 날짜, 객실/날짜 선택 없이 바로 결제
-    appendMessage("심야 반짝 할인 특가 예약을 진행합니다. (오늘 1박, 30,000원)", "bot");
-    selectedRoom = "심야 반짝 할인";
-    rangeStart = new Date();
-    rangeEnd = new Date();
-    rangeEnd.setDate(rangeStart.getDate() + 1);
-    showPaymentButtonWithAmount(30000, "심야 반짝 할인");
-}
-function handleDayUseSpecial() {
-    appendMessage("DAY USE 특가 예약을 진행합니다. 날짜를 선택해 주세요. (1박, 30,000원)", "bot");
-    selectedRoom = "DAY USE";
-    rangeStart = null;
-    rangeEnd = null;
-    // 날짜만 선택, 객실 선택 없이
-    removeOldCalendars(); // 기존 달력 삭제
-    const cal = document.createElement("div");
-    cal.className = "message bot";
-    cal.id = "calendarBox";
-    renderCalendar().then(html => {
-        cal.innerHTML = html;
+    palaceAPI.onSocketEvent('reservation-cancelled', (data) => {
+        // 관리자 취소 후 예약 취소 알림
+        setTimeout(() => {
+            appendMessage('❌ 예약이 취소되었습니다. 관리자에 의해 취소 처리되었습니다.', 'bot');
+        }, 100);
     });
-    document.getElementById("chat").appendChild(cal);
-    // 결제는 날짜 선택 후 submitSelectedDate에서 처리
-}
-function handleWalkSpecial() {
-    appendMessage("도보 특가 예약을 진행합니다. 날짜를 선택해 주세요. (1박, 25,000원)", "bot");
-    selectedRoom = "도보 특가";
-    rangeStart = null;
-    rangeEnd = null;
-    removeOldCalendars(); // 기존 달력 삭제
-    const cal = document.createElement("div");
-    cal.className = "message bot";
-    cal.id = "calendarBox";
-    renderCalendar().then(html => {
-        cal.innerHTML = html;
-    });
-    document.getElementById("chat").appendChild(cal);
-}
-function handle2PCSpecial() {
-    appendMessage("2PC 특가 예약을 진행합니다. 날짜를 선택해 주세요. (1박, 30,000원)", "bot");
-    selectedRoom = "2PC 특가";
-    rangeStart = null;
-    rangeEnd = null;
-    removeOldCalendars(); // 기존 달력 삭제
-    const cal = document.createElement("div");
-    cal.className = "message bot";
-    cal.id = "calendarBox";
-    renderCalendar().then(html => {
-        cal.innerHTML = html;
-    });
-    document.getElementById("chat").appendChild(cal);
 }
 
-// 특가상품 결제 금액 강제 지정용
-function showPaymentButtonWithAmount(amount, label) {
-    const chatBox = document.getElementById("chat");
-    const container = document.createElement("div");
-    container.className = "message bot";
-    appendMessage(`결제 금액: ${amount.toLocaleString()}원`, "bot");
-    const btn = document.createElement("button");
-    btn.className = "bot-option";
-    btn.textContent = `${amount.toLocaleString()}원 결제하기`;
-    btn.onclick = () => processPayment("자동");
-    container.appendChild(btn);
-    chatBox.appendChild(container);
-}
+
+
+
 
 function disableOldCalendars() {
     document.querySelectorAll('#calendarBox').forEach(el => {

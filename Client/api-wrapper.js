@@ -21,6 +21,11 @@ class PalaceBookingAPI {
         this.socket = io();
         this.socket.emit('join', phone);
         
+        // 연결 완료 후 콜백 실행
+        this.socket.on('connect', () => {
+            console.log('Socket.IO 연결 완료');
+        });
+        
         return this.socket;
     }
 
@@ -147,13 +152,15 @@ class PalaceBookingAPI {
         }
     }
 
+
+
     /**
-     * 특가 상품 목록 조회
-     * @returns {Promise<Array>} 특가 상품 배열
+     * 객실 목록 조회
+     * @returns {Promise<Array>} 객실 목록
      */
-    async getSpecialProducts() {
+    async getRooms() {
         try {
-            const response = await fetch(`${this.baseURL}/api/admin/specials`);
+            const response = await fetch(`${this.baseURL}/api/admin/rooms`);
             
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -161,7 +168,7 @@ class PalaceBookingAPI {
             
             return await response.json();
         } catch (error) {
-            console.error('특가 상품 조회 실패:', error);
+            console.error('객실 목록 조회 실패:', error);
             return []; // 실패 시 빈 배열 반환
         }
     }
@@ -172,17 +179,76 @@ class PalaceBookingAPI {
      * @returns {Promise<Array>} 객실 재고 정보
      */
     async getRoomStock(date) {
+        console.log('[API] getRoomStock 호출:', date);
         try {
-            const response = await fetch(`${this.baseURL}/api/admin/roomStock?date=${date}`);
+            const url = `${this.baseURL}/api/admin/roomStock?date=${date}`;
+            console.log('[API] 요청 URL:', url);
+            const response = await fetch(url);
             
+            console.log('[API] 응답 상태:', response.status);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             
-            return await response.json();
+            const data = await response.json();
+            console.log('[API] getRoomStock 결과:', data);
+            return data;
         } catch (error) {
-            console.error('객실 재고 조회 실패:', error);
+            console.error('[API] 객실 재고 조회 실패:', error);
             return []; // 실패 시 빈 배열 반환
+        }
+    }
+
+    /**
+     * 날짜별 가격 조회 (daily_prices 테이블)
+     * @param {string} date - 날짜 (YYYY-MM-DD)
+     * @param {string} roomType - 객실 타입 ('daily' 또는 'overnight')
+     * @returns {Promise<Array>} 날짜별 가격 정보
+     */
+    async getDailyPrices(date, roomType = 'daily') {
+        console.log('[API] getDailyPrices 호출:', { date, roomType });
+        try {
+            const url = `${this.baseURL}/api/admin/dailyPrices?date=${date}&roomType=${roomType}`;
+            console.log('[API] 요청 URL:', url);
+            const response = await fetch(url);
+            
+            console.log('[API] 응답 상태:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('[API] getDailyPrices 결과:', data);
+            return data;
+        } catch (error) {
+            console.error('[API] 날짜별 가격 조회 실패:', error);
+            return []; // 실패 시 빈 배열 반환
+        }
+    }
+
+    /**
+     * 객실별 요일 가격 조회 (rooms 테이블)
+     * @param {string} roomName - 객실 이름
+     * @returns {Promise<Object>} 객실 정보 (요일별 가격 포함)
+     */
+    async getRoomInfo(roomName) {
+        console.log('[API] getRoomInfo 호출:', roomName);
+        try {
+            const url = `${this.baseURL}/api/admin/roomInfo?name=${encodeURIComponent(roomName)}`;
+            console.log('[API] 요청 URL:', url);
+            const response = await fetch(url);
+            
+            console.log('[API] 응답 상태:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('[API] getRoomInfo 결과:', data);
+            return data;
+        } catch (error) {
+            console.error('[API] 객실 정보 조회 실패:', error);
+            return null; // 실패 시 null 반환
         }
     }
 
