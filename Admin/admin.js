@@ -86,6 +86,12 @@ function switchTab(tabName) {
     
     // 선택된 패널에 active 클래스 추가
     document.getElementById(`panel-${tabName}`).classList.add('active');
+    
+    // 판매 캘린더 탭을 클릭한 경우에만 데이터 로드
+    if (tabName === 'sales') {
+        console.log('판매 캘린더 탭 클릭 - 데이터 로드 시작');
+        initCalendar();
+    }
 }
 
 // 마감 설정 데이터
@@ -96,9 +102,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // 초기 데이터 로드
     fetchReservations();
     
-    // 객실 데이터 로드 후 달력 초기화
+    // 객실 데이터 로드
     loadRoomsFromDB().then(() => {
-        initCalendar();
         // 대실/숙박 버튼 초기화
         switchRoomType('daily');
     });
@@ -113,19 +118,30 @@ document.addEventListener('DOMContentLoaded', function() {
 // 객실 관리 함수들
 // 기존 addRoom 함수 대체
 function addRoom() {
-    // 새로운 객실 ID 및 이름 생성
-    const roomCount = Object.keys(roomData).length;
+    // 사용 가능한 첫 번째 빈 인덱스 찾기
+    const roomLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+    let availableIndex = 0;
+    
+    // 이미 존재하는 객실 ID들을 확인하여 빈 인덱스 찾기
+    for (let i = 0; i < roomLetters.length; i++) {
+        const testRoomId = `room${roomLetters[i]}`;
+        if (!roomData[testRoomId]) {
+            availableIndex = i;
+            break;
+        }
+    }
     
     // 최대 12개 객실 제한
-    if (roomCount >= 12) {
+    if (availableIndex >= 12) {
         alert('최대 12개 객실까지 등록 가능합니다.');
         return;
     }
     
-    // 객실 ID 및 이름 생성 (A~L까지)
-    const roomLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
-    const newRoomId = `room${roomLetters[roomCount]}`;
-    const newRoomName = `객실 ${roomLetters[roomCount]}`;
+    // 객실 ID 및 이름 생성
+    const newRoomId = `room${roomLetters[availableIndex]}`;
+    const newRoomName = `객실 ${roomLetters[availableIndex]}`;
+    
+    console.log('사용 가능한 인덱스:', availableIndex, '새 객실 ID:', newRoomId);
 
     // 기본 데이터 생성 (기본값으로 시작)
     roomData[newRoomId] = {
@@ -1105,6 +1121,11 @@ async function loadDailyPricesForMonth(year, month) {
 
 // 달력 초기화
 async function initCalendar() {
+    console.log('판매 캘린더 데이터 로드 시작');
+    
+    // 캐시 초기화 (최신 데이터를 위해)
+    dailyPricesCache = {};
+    
     await renderSalesCalendar();
     
     // 판매 캘린더 초기화 - 숙박 버튼 활성화 및 월 이동 버튼 상태 업데이트
@@ -1114,6 +1135,7 @@ async function initCalendar() {
             overnightBtn.classList.add('active');
         }
         updateMonthNavigationButtons();
+        console.log('판매 캘린더 데이터 로드 완료');
     }, 100);
 }
 
