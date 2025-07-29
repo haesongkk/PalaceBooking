@@ -36,22 +36,15 @@
 
         <!-- 퀵메뉴 모달 -->
         <div id="quickMenuBar" class="quick-menu-bar hidden">
-            <div class="circle-btn" onclick="sendQuick('📅 날짜로 예약')">
+            <div class="circle-btn" onclick="sendQuick('📅 날짜로 예약').catch(console.error)">
                 <div class="icon">📅</div>
                 <div class="label">날짜로 예약</div>
             </div>
-            <div class="circle-btn" onclick="sendQuick('🛏️ 상품으로 예약')">
+            <div class="circle-btn" onclick="sendQuick('🛏️ 상품으로 예약').catch(console.error)">
                 <div class="icon">🛏️</div>
                 <div class="label">상품으로 예약</div>
             </div>
-            <div class="circle-btn" onclick="sendQuick('🔥 오늘 예약')">
-                <div class="icon">🔥</div>
-                <div class="label">오늘 예약</div>
-            </div>
-            <div class="circle-btn" onclick="sendQuick('💰 재방문 할인예약')">
-                <div class="icon">💰</div>
-                <div class="label">재방문 할인예약</div>
-            </div>
+
             <div class="circle-btn" onclick="sendQuick('📄 예약 내역')">
                 <div class="icon">📄</div>
                 <div class="label">예약 내역</div>

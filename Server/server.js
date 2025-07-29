@@ -350,26 +350,47 @@ try {
 app.get('/api/admin/roomStock', (req, res) => {
     const { date } = req.query;
     if (!date) return res.status(400).json({ error: '날짜 필요' });
-    // 객실별 총 객실 수(고정)
-    const totalRooms = {
-        "🖥️ 2PC (60,000원)": 5,
-        "🎥 멀티플렉스 (50,000원)": 4,
-        "🎤 노래방 (60,000원)": 3,
-        "🛏️ 스탠다드 (45,000원)": 10,
-        "🛌 트윈 (50,000원)": 6
-    };
-    // DB에서 해당 날짜의 예약 수 조회
-    const rows = db.prepare('SELECT room_type, reserved FROM room_stock WHERE date = ?').all(date);
-    const reservedMap = {};
-    rows.forEach(r => { reservedMap[r.room_type] = r.reserved; });
-    // 결과 조합
-    const result = [];
-    for (const room in totalRooms) {
-        const total = totalRooms[room];
-        const reserved = reservedMap[room] || 0;
-        result.push({ room_type: room, reserved, total });
+    
+    try {
+        // room.db에서 객실 목록 가져오기
+        const roomRows = roomDb.prepare('SELECT name FROM rooms').all();
+        const totalRooms = {};
+        
+        // 각 객실에 기본 총 객실 수 설정 (기본값: 5개)
+        roomRows.forEach(room => {
+            totalRooms[room.name] = 5; // 기본값
+        });
+        
+        // 기존 하드코딩된 객실들도 포함 (호환성 유지)
+        const defaultRooms = {
+            "🖥️ 2PC": 5,
+            "🎥 멀티플렉스": 4,
+            "🎤 노래방": 3,
+            "🛏️ 스탠다드": 10,
+            "🛌 트윈": 6
+        };
+        
+        // 기본 객실들을 totalRooms에 추가
+        Object.assign(totalRooms, defaultRooms);
+        
+        // DB에서 해당 날짜의 예약 수 조회
+        const rows = db.prepare('SELECT room_type, reserved FROM room_stock WHERE date = ?').all(date);
+        const reservedMap = {};
+        rows.forEach(r => { reservedMap[r.room_type] = r.reserved; });
+        
+        // 결과 조합
+        const result = [];
+        for (const room in totalRooms) {
+            const total = totalRooms[room];
+            const reserved = reservedMap[room] || 0;
+            result.push({ room_type: room, reserved, total });
+        }
+        
+        res.json(result);
+    } catch (error) {
+        console.error('객실 재고 조회 오류:', error);
+        res.status(500).json({ error: '객실 재고 조회 실패' });
     }
-    res.json(result);
 });
 
 // POST: 날짜별 객실 예약 수 조정

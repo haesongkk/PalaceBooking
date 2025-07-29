@@ -147,13 +147,15 @@ class PalaceBookingAPI {
         }
     }
 
+
+
     /**
-     * 특가 상품 목록 조회
-     * @returns {Promise<Array>} 특가 상품 배열
+     * 객실 목록 조회
+     * @returns {Promise<Array>} 객실 목록
      */
-    async getSpecialProducts() {
+    async getRooms() {
         try {
-            const response = await fetch(`${this.baseURL}/api/admin/specials`);
+            const response = await fetch(`${this.baseURL}/api/admin/rooms`);
             
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -161,7 +163,7 @@ class PalaceBookingAPI {
             
             return await response.json();
         } catch (error) {
-            console.error('특가 상품 조회 실패:', error);
+            console.error('객실 목록 조회 실패:', error);
             return []; // 실패 시 빈 배열 반환
         }
     }

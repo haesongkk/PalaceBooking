@@ -118,26 +118,6 @@ document.addEventListener("DOMContentLoaded", () => {
 window.onload = () => {
     appendMessage("안녕하세요. 예약을 도와드릴게요.");
     appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
     
     curHandler = phoneHandler;
 };
@@ -248,7 +228,7 @@ function phoneHandler(input)
             // 통일된 메뉴 (고객 타입 구분 없음)
             const menuOptions = [
                 "📅 날짜로 예약",
-                "🛏️ 상품으로 예약", 
+                "🛏️ 상품으로 예약"
             ];
 
             updateHeaderNickname(username, userphone);
@@ -295,86 +275,30 @@ async function showQuickMenuWith(labels = []) {
         const btn = document.createElement("button");
         btn.className = "bot-option";
         btn.textContent = label;
-        btn.onclick = () => sendQuick(label);
+        btn.onclick = () => sendQuick(label).catch(console.error);
         container.appendChild(btn);
     });
 
-    // 2. 고정 특가상품 버튼
-    const now = new Date();
-    const hour = now.getHours();
-    // 심야 반짝 할인: 20~22시만 노출
-    if (hour >= 20 && hour < 22) {
-        const btn = document.createElement("button");
-        btn.className = "bot-option special";
-        btn.textContent = `🌙✨ 심야 반짝 할인 (30,000원)`;
-        btn.onclick = () => handleMidnightSpecial();
-        container.appendChild(btn);
-    }
-    // DAY USE
-    const btnDayUse = document.createElement("button");
-    btnDayUse.className = "bot-option special";
-    btnDayUse.textContent = `🌞 DAY USE (30,000원)`;
-    btnDayUse.onclick = () => handleDayUseSpecial();
-    container.appendChild(btnDayUse);
-    // 도보 특가
-    const btnWalk = document.createElement("button");
-    btnWalk.className = "bot-option special";
-    btnWalk.textContent = `🚶 도보 특가 (25,000원)`;
-    btnWalk.onclick = () => handleWalkSpecial();
-    container.appendChild(btnWalk);
-    // 2PC
-    const btn2PC = document.createElement("button");
-    btn2PC.className = "bot-option special";
-    btn2PC.textContent = `🖥️ 2PC (30,000원)`;
-    btn2PC.onclick = () => handle2PCSpecial();
-    container.appendChild(btn2PC);
 
-    // 3. 동적 특가상품 버튼 (기존 방식)
-    try {
-        const specials = await palaceAPI.getSpecialProducts();
-        specials.forEach(special => {
-            const btn = document.createElement("button");
-            btn.className = "bot-option special";
-            btn.textContent = `⭐ ${special.name} (${special.price.toLocaleString()}원)`;
-            btn.onclick = () => handleSpecialProduct(special);
-            container.appendChild(btn);
-        });
-    } catch (e) {
-        // ignore
-    }
+
+
 
     // 4. 예약 내역 확인 버튼
     const btn = document.createElement("button");
     btn.className = "bot-option";
     btn.textContent = "📄 예약 내역 확인";
-    btn.onclick = () => sendQuick("📄 예약 내역 확인");
+    btn.onclick = () => sendQuick("📄 예약 내역 확인").catch(console.error);
     container.appendChild(btn);
 
     document.getElementById("chat").appendChild(container);
 }
 
-function handleSpecialProduct(special) {
-    // 특가상품 버튼 클릭 시 예약 플로우 진입
-    selectedProduct = special.roomType;
-    selectedRoom = special.roomType;
-    console.log('[handleSpecialProduct] 특가상품 객실 선택됨:', selectedRoom);
-    appendMessage(`특가상품 선택: ${special.name} (${special.price.toLocaleString()}원)`, "user");
-    appendMessage("이용하실 날짜를 선택해주세요.");
-    calendarEnabled = true;
-    const cal = document.createElement("div");
-    cal.className = "message bot";
-    cal.id = "calendarBox";
-    renderCalendar().then(html => {
-        cal.innerHTML = html;
-    });
-    document.getElementById("chat").appendChild(cal);
-    selectedMode = "product-first";
-}
+
 
 let reserveStartDate;
 let reserveEndDate;
 let reserveRoomType;
-function sendQuick(label) {
+async function sendQuick(label) {
     appendMessage(label, "user");
 
     if (label.includes("날짜로 예약")) {
@@ -394,7 +318,7 @@ function sendQuick(label) {
         // 상품 먼저 선택
         selectedMode = "product-first";
         appendMessage("이용하실 상품을 선택해주세요.");
-        showProductList();
+        await showProductList();
     }
     else if (label.includes("예약 내역")) {
         appendMessage("📄 현재 예약 내역입니다:");
@@ -413,13 +337,23 @@ async function showRoomButtons() {
     const container = document.createElement("div");
     container.className = "message bot";
 
-    const rooms = [
-        "🖥️ 2PC (60,000원)",
-        "🎥 멀티플렉스 (50,000원)",
-        "🎤 노래방 (60,000원)",
-        "🛏️ 스탠다드 (45,000원)",
-        "🛌 트윈 (50,000원)"
-    ];
+    // 서버에서 객실 목록 가져오기
+    let rooms = [];
+    try {
+        const roomData = await palaceAPI.getRooms();
+        rooms = roomData.map(room => room.name);
+        console.log('[객실목록] 서버에서 가져온 객실:', rooms);
+    } catch (error) {
+        console.error('[객실목록] 서버 조회 실패, 기본 객실 사용:', error);
+        // 서버 조회 실패 시 기본 객실 목록 사용
+        rooms = [
+            "🖥️ 2PC",
+            "🎥 멀티플렉스",
+            "🎤 노래방",
+            "🛏️ 스탠다드",
+            "🛌 트윈"
+        ];
+    }
 
     // 날짜를 YYYY-MM-DD 포맷으로 맞추는 함수
     function formatDateYMD(date) {
@@ -455,7 +389,8 @@ async function showRoomButtons() {
                 console.log(`[재고조회][하루] ${dateStr}`, data);
                 rooms.forEach(room => {
                     const found = data.find(r => r.room_type.trim() === room.trim());
-                    stockMap[room] = found ? found.reserved < found.total : false;
+                    // found가 없으면 예약 가능한 것으로 처리 (기본값: true)
+                    stockMap[room] = found ? found.reserved < found.total : true;
                 });
                 console.log('[stockMap][하루]', stockMap);
             }
@@ -726,18 +661,28 @@ function showPaymentOptions() {
 }
 
 
-function showProductList() {
+async function showProductList() {
     const chatBox = document.getElementById("chat");
     const container = document.createElement("div");
     container.className = "message bot";
 
-    const products = [
-        "🖥️ 2PC (60,000원)",
-        "🎥 멀티플렉스 (50,000원)",
-        "🎤 노래방 (60,000원)",
-        "🛏️ 스탠다드 (45,000원)",
-        "🛌 트윈 (50,000원)"
-    ];
+    // 서버에서 객실 목록 가져오기
+    let products = [];
+    try {
+        const roomData = await palaceAPI.getRooms();
+        products = roomData.map(room => room.name);
+        console.log('[상품목록] 서버에서 가져온 상품:', products);
+    } catch (error) {
+        console.error('[상품목록] 서버 조회 실패, 기본 상품 사용:', error);
+        // 서버 조회 실패 시 기본 상품 목록 사용
+        products = [
+            "🖥️ 2PC",
+            "🎥 멀티플렉스",
+            "🎤 노래방",
+            "🛏️ 스탠다드",
+            "🛌 트윈"
+        ];
+    }
 
     products.forEach(p => {
         const btn = document.createElement("button");
@@ -774,7 +719,7 @@ function handleBackspace(event) {
     }
 }
 
-function submitSelectedDate() {
+async function submitSelectedDate() {
     // 입력창의 내용 가져오기
     const input = document.getElementById("customInput");
     const inputText = input.innerText.trim();
@@ -792,7 +737,7 @@ function submitSelectedDate() {
 
     // 날짜와 룸이 모두 선택되었는지 확인
     if (rangeStart && selectedRoom) {
-        showPaymentButton();
+        await showPaymentButton();
     } else if (rangeStart && !selectedRoom) {
         appendMessage("객실을 선택해주세요.");
         showRoomButtons();
@@ -813,20 +758,35 @@ function submitSelectedDate() {
     }
 }
 
-function showPaymentButton() {
+async function showPaymentButton() {
     const chatBox = document.getElementById("chat");
     const container = document.createElement("div");
     container.className = "message bot";
 
-    // 결제 금액 계산 (서버와 동일하게)
-    const roomPrices = {
-        "🖥️ 2PC (60,000원)": 60000,
-        "🎥 멀티플렉스 (50,000원)": 50000,
-        "🎤 노래방 (60,000원)": 60000,
-        "🛏️ 스탠다드 (45,000원)": 45000,
-        "🛌 트윈 (50,000원)": 50000
-    };
-    const price = roomPrices[selectedRoom] || 50000;
+    // 서버에서 객실 가격 정보 가져오기
+    let price = 50000; // 기본값
+    try {
+        const roomData = await palaceAPI.getRooms();
+        const selectedRoomData = roomData.find(room => room.name === selectedRoom);
+        
+        if (selectedRoomData && selectedRoomData.price) {
+            // 가격에서 숫자만 추출 (예: "60,000원" -> 60000)
+            const priceStr = selectedRoomData.price.replace(/[^\d]/g, '');
+            price = parseInt(priceStr) || 50000;
+        }
+        console.log('[결제금액] 선택된 객실:', selectedRoom, '가격:', price);
+    } catch (error) {
+        console.error('[결제금액] 서버 조회 실패, 기본 가격 사용:', error);
+        // 서버 조회 실패 시 기본 가격 매핑 사용
+        const roomPrices = {
+            "🖥️ 2PC": 60000,
+            "🎥 멀티플렉스": 50000,
+            "🎤 노래방": 60000,
+            "🛏️ 스탠다드": 45000,
+            "🛌 트윈": 50000
+        };
+        price = roomPrices[selectedRoom] || 50000;
+    }
 
     // 박 수 계산
     let nights = 1;
@@ -1069,74 +1029,9 @@ palaceAPI.onSocketEvent('reservation-confirmed', (data) => {
     }, 100);
 });
 
-// 특가상품별 예약 플로우 핸들러
-function handleMidnightSpecial() {
-    // 오늘 날짜, 객실/날짜 선택 없이 바로 결제
-    appendMessage("심야 반짝 할인 특가 예약을 진행합니다. (오늘 1박, 30,000원)", "bot");
-    selectedRoom = "심야 반짝 할인";
-    rangeStart = new Date();
-    rangeEnd = new Date();
-    rangeEnd.setDate(rangeStart.getDate() + 1);
-    showPaymentButtonWithAmount(30000, "심야 반짝 할인");
-}
-function handleDayUseSpecial() {
-    appendMessage("DAY USE 특가 예약을 진행합니다. 날짜를 선택해 주세요. (1박, 30,000원)", "bot");
-    selectedRoom = "DAY USE";
-    rangeStart = null;
-    rangeEnd = null;
-    // 날짜만 선택, 객실 선택 없이
-    removeOldCalendars(); // 기존 달력 삭제
-    const cal = document.createElement("div");
-    cal.className = "message bot";
-    cal.id = "calendarBox";
-    renderCalendar().then(html => {
-        cal.innerHTML = html;
-    });
-    document.getElementById("chat").appendChild(cal);
-    // 결제는 날짜 선택 후 submitSelectedDate에서 처리
-}
-function handleWalkSpecial() {
-    appendMessage("도보 특가 예약을 진행합니다. 날짜를 선택해 주세요. (1박, 25,000원)", "bot");
-    selectedRoom = "도보 특가";
-    rangeStart = null;
-    rangeEnd = null;
-    removeOldCalendars(); // 기존 달력 삭제
-    const cal = document.createElement("div");
-    cal.className = "message bot";
-    cal.id = "calendarBox";
-    renderCalendar().then(html => {
-        cal.innerHTML = html;
-    });
-    document.getElementById("chat").appendChild(cal);
-}
-function handle2PCSpecial() {
-    appendMessage("2PC 특가 예약을 진행합니다. 날짜를 선택해 주세요. (1박, 30,000원)", "bot");
-    selectedRoom = "2PC 특가";
-    rangeStart = null;
-    rangeEnd = null;
-    removeOldCalendars(); // 기존 달력 삭제
-    const cal = document.createElement("div");
-    cal.className = "message bot";
-    cal.id = "calendarBox";
-    renderCalendar().then(html => {
-        cal.innerHTML = html;
-    });
-    document.getElementById("chat").appendChild(cal);
-}
 
-// 특가상품 결제 금액 강제 지정용
-function showPaymentButtonWithAmount(amount, label) {
-    const chatBox = document.getElementById("chat");
-    const container = document.createElement("div");
-    container.className = "message bot";
-    appendMessage(`결제 금액: ${amount.toLocaleString()}원`, "bot");
-    const btn = document.createElement("button");
-    btn.className = "bot-option";
-    btn.textContent = `${amount.toLocaleString()}원 결제하기`;
-    btn.onclick = () => processPayment("자동");
-    container.appendChild(btn);
-    chatBox.appendChild(container);
-}
+
+
 
 function disableOldCalendars() {
     document.querySelectorAll('#calendarBox').forEach(el => {
