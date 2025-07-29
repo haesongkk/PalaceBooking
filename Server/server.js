@@ -346,49 +346,73 @@ try {
     db.prepare('ALTER TABLE room_stock ADD COLUMN reserved INTEGER DEFAULT 0').run();
 } catch (e) {}
 
-// GET: 날짜별 객실 예약 수 조회 (stock=총 객실 수, reserved=예약 수)
+// GET: 날짜별 객실 판매/마감 상태 조회
 app.get('/api/admin/roomStock', (req, res) => {
     const { date } = req.query;
+    console.log('[서버] roomStock 요청:', { date });
     if (!date) return res.status(400).json({ error: '날짜 필요' });
     
     try {
-        // room.db에서 객실 목록 가져오기
-        const roomRows = roomDb.prepare('SELECT name FROM rooms').all();
-        const totalRooms = {};
+        // room.db에서 객실 목록과 상태 정보 가져오기
+        const roomRows = roomDb.prepare('SELECT * FROM rooms').all();
+        console.log('[서버] rooms 테이블 조회 결과:', roomRows);
         
-        // 각 객실에 기본 총 객실 수 설정 (기본값: 5개)
-        roomRows.forEach(room => {
-            totalRooms[room.name] = 5; // 기본값
-        });
+        // daily_prices 테이블에서 해당 날짜의 판매/마감 상태 조회
+        const dailyPrices = roomDb.prepare('SELECT room_id, room_type, status FROM daily_prices WHERE date = ?').all(date);
+        console.log('[서버] daily_prices 조회 결과:', dailyPrices);
         
-        // 기존 하드코딩된 객실들도 포함 (호환성 유지)
-        const defaultRooms = {
-            "🖥️ 2PC": 5,
-            "🎥 멀티플렉스": 4,
-            "🎤 노래방": 3,
-            "🛏️ 스탠다드": 10,
-            "🛌 트윈": 6
-        };
-        
-        // 기본 객실들을 totalRooms에 추가
-        Object.assign(totalRooms, defaultRooms);
-        
-        // DB에서 해당 날짜의 예약 수 조회
-        const rows = db.prepare('SELECT room_type, reserved FROM room_stock WHERE date = ?').all(date);
-        const reservedMap = {};
-        rows.forEach(r => { reservedMap[r.room_type] = r.reserved; });
+        // 요일 계산 (0: 일요일, 1: 월요일, ..., 6: 토요일)
+        const requestDate = new Date(date);
+        const dayOfWeek = requestDate.getDay();
+        console.log('[서버] 요일:', dayOfWeek);
         
         // 결과 조합
         const result = [];
-        for (const room in totalRooms) {
-            const total = totalRooms[room];
-            const reserved = reservedMap[room] || 0;
-            result.push({ room_type: room, reserved, total });
-        }
+        roomRows.forEach(room => {
+            // daily_prices에서 해당 객실의 상태 확인 (room_id 또는 room_type으로 매칭)
+            const dailyPrice = dailyPrices.find(dp => 
+                dp.room_id === room.id || 
+                dp.room_id === room.name || 
+                dp.room_type === room.name ||
+                dp.room_id === room.id.toLowerCase() ||
+                dp.room_id === room.name.toLowerCase()
+            );
+            
+            if (dailyPrice) {
+                // daily_prices에 데이터가 있으면 해당 상태 사용 (우선순위)
+                console.log('[서버] daily_prices 사용:', { room: room.name, status: dailyPrice.status });
+                result.push({ 
+                    room_type: room.name, 
+                    available: dailyPrice.status === 1, // 1: 판매, 0: 마감
+                    status: dailyPrice.status 
+                });
+            } else {
+                // daily_prices에 데이터가 없으면 rooms 테이블의 해당 요일 상태 사용
+                let roomStatus = 1; // 기본값: 판매
+                if (room.status) {
+                    try {
+                        const statusArray = JSON.parse(room.status);
+                        if (statusArray && statusArray[dayOfWeek] !== undefined) {
+                            roomStatus = statusArray[dayOfWeek];
+                        }
+                    } catch (e) {
+                        console.error('[서버] status 파싱 오류:', e);
+                    }
+                }
+                
+                console.log('[서버] rooms 테이블 사용:', { room: room.name, dayOfWeek, status: roomStatus });
+                result.push({ 
+                    room_type: room.name, 
+                    available: roomStatus === 1, // 1: 판매, 0: 마감
+                    status: roomStatus 
+                });
+            }
+        });
         
+        console.log('[서버] 최종 결과:', result);
         res.json(result);
     } catch (error) {
-        console.error('객실 재고 조회 오류:', error);
+        console.error('[서버] 객실 재고 조회 오류:', error);
         res.status(500).json({ error: '객실 재고 조회 실패' });
     }
 });
@@ -405,6 +429,42 @@ app.post('/api/admin/roomStock', (req, res) => {
         db.prepare('INSERT INTO room_stock (date, room_type, reserved) VALUES (?, ?, ?)').run(date, room_type, reserved);
     }
     res.json({ success: true });
+});
+
+// GET: 날짜별 가격 조회 (daily_prices 테이블)
+app.get('/api/admin/dailyPrices', (req, res) => {
+    const { date, roomType = 'daily' } = req.query;
+    console.log('[서버] dailyPrices 요청:', { date, roomType });
+    if (!date) return res.status(400).json({ error: '날짜 필요' });
+    
+    try {
+        const rows = roomDb.prepare('SELECT * FROM daily_prices WHERE date = ? AND room_type = ?').all(date, roomType);
+        console.log('[서버] daily_prices 조회 결과:', rows);
+        res.json(rows);
+    } catch (error) {
+        console.error('[서버] 날짜별 가격 조회 오류:', error);
+        res.status(500).json({ error: '날짜별 가격 조회 실패' });
+    }
+});
+
+// GET: 객실별 요일 가격 조회 (rooms 테이블)
+app.get('/api/admin/roomInfo', (req, res) => {
+    const { name } = req.query;
+    console.log('[서버] roomInfo 요청:', { name });
+    if (!name) return res.status(400).json({ error: '객실명 필요' });
+    
+    try {
+        const room = roomDb.prepare('SELECT * FROM rooms WHERE name = ?').get(name);
+        console.log('[서버] room 조회 결과:', room);
+        if (!room) {
+            console.log('[서버] 객실을 찾을 수 없음:', name);
+            return res.status(404).json({ error: '객실을 찾을 수 없습니다' });
+        }
+        res.json(room);
+    } catch (error) {
+        console.error('[서버] 객실 정보 조회 오류:', error);
+        res.status(500).json({ error: '객실 정보 조회 실패' });
+    }
 });
 
 // 객실 관리 테이블 생성
