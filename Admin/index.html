@@ -12,7 +12,7 @@
             <button class="tab-btn active" onclick="switchTab('reservation')">예약 승인</button>
             <button class="tab-btn" onclick="switchTab('room')">요금표 관리</button>
             <button class="tab-btn" onclick="switchTab('sales')">판매 캘린더</button>
-            <button class="tab-btn" onclick="switchTab('closure')">마감 설정</button>
+
         </div>
         
         <!-- 예약 승인 패널 -->
@@ -168,38 +168,7 @@
         
 
         
-        <!-- 마감 설정 패널 -->
-        <div class="admin-panel" id="panel-closure">
-            <h2>날짜별 마감 설정</h2>
-            <div class="closure-content">
-                <div class="calendar-container">
-                    <div class="calendar-section">
-                        <div class="calendar-header">
-                            <button class="calendar-nav" onclick="previousMonth()">&lt;</button>
-                            <h3 id="current-month">2024년 1월</h3>
-                            <button class="calendar-nav" onclick="nextMonth()">&gt;</button>
-                        </div>
-                        <div class="calendar-grid">
-                            <div class="calendar-weekdays">
-                                <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
-                            </div>
-                            <div class="calendar-days" id="calendar-days">
-                                <!-- 달력 날짜들이 동적으로 생성됩니다 -->
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="date-detail-section">
-                        <div class="date-detail-header">
-                            <h3 id="selected-date-title">날짜 선택</h3>
-                        </div>
-                        <div class="date-detail-content" id="date-detail-content">
-                            <p class="no-selection">달력에서 날짜를 선택하세요</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+
         </div>
     </div>
     <script src="/socket.io/socket.io.js"></script>

@@ -89,7 +89,7 @@ function switchTab(tabName) {
 }
 
 // 마감 설정 데이터
-const closureData = {};
+
 
 // 초기화 및 이벤트 리스너
 document.addEventListener('DOMContentLoaded', function() {
@@ -127,34 +127,41 @@ function addRoom() {
     const newRoomId = `room${roomLetters[roomCount]}`;
     const newRoomName = `객실 ${roomLetters[roomCount]}`;
 
-    // 기본 데이터 생성 (초기값)
+    // 기본 데이터 생성 (기본값으로 시작)
     roomData[newRoomId] = {
         name: newRoomName,
         data: {
-            checkInOut: Array(7).fill('16:00~13:00'),
+            checkInOut: Array(7).fill([16, 13]),
             price: Array(7).fill(50000),
             status: Array(7).fill('판매'),
             usageTime: Array(7).fill('5시간'),
-            openClose: Array(7).fill('14:00~22:00'),
+            openClose: Array(7).fill([14, 22]),
             rentalPrice: Array(7).fill(30000),
             rentalStatus: Array(7).fill('판매')
         }
     };
+    
+    console.log('새 객실 데이터 초기화:', newRoomId, roomData[newRoomId]);
 
-    // UI 업데이트
+    // UI 업데이트 (기본값이 설정된 후 즉시 렌더링)
     renderRoomButtons();
     renderRoomList();
 
-    // 새 객실로 전환
-    switchRoom(newRoomId);
-    
-    // DB에 새 객실 저장
-    saveRoomToDB(newRoomId);
-    
-    // 바로 수정 모드 진입
+    // 새 객실로 전환 (DOM이 완전히 렌더링된 후)
     setTimeout(() => {
-        const editBtn = document.querySelector(`[onclick="editRoom('${newRoomId}')"]`);
-        if (editBtn) editBtn.click();
+        switchRoom(newRoomId);
+        
+        // 테이블 데이터 업데이트 (시간 형식 변환을 위해)
+        updateRoomTable(newRoomId);
+        
+        // DB에 새 객실 저장
+        saveRoomToDB(newRoomId);
+        
+        // 기본값이 표시된 후 수정 모드 진입
+        setTimeout(() => {
+            const editBtn = document.querySelector(`[onclick="editRoom('${newRoomId}')"]`);
+            if (editBtn) editBtn.click();
+        }, 100);
     }, 100);
 }
 
@@ -185,8 +192,15 @@ function editRoom(roomId) {
             openCloseCells.forEach((cell, cellIndex) => {
                 const currentTime = cell.textContent.trim();
                 const [open, close] = currentTime.split('~');
-                const [openHour, openMin] = open.split(':');
-                const [closeHour, closeMin] = close.split(':');
+                
+                // 안전한 기본값 설정
+                let openHour = '14';
+                let closeHour = '22';
+                
+                if (open && close) {
+                    openHour = open.replace('시', '') || '14';
+                    closeHour = close.replace('시', '') || '22';
+                }
                 
                 cell.innerHTML = `
                     <div class="time-inputs">
@@ -194,21 +208,12 @@ function editRoom(roomId) {
                             <div class="dropdown-display">${openHour}</div>
                             <div class="dropdown-options" style="display: none;"></div>
                         </div>
-                        <span class="time-separator">:</span>
-                        <div class="custom-dropdown" id="open-min-${cellIndex}" onmouseenter="showDropdown(this, 'min', 0, 59, '${openMin}', 5)" onmouseleave="hideDropdown(this)" onclick="toggleInputMode(this, '${openMin}')">
-                            <div class="dropdown-display">${openMin}</div>
-                            <div class="dropdown-options" style="display: none;"></div>
-                        </div>
-                        <span class="time-separator">~</span>
+                        <span class="time-separator">시~</span>
                         <div class="custom-dropdown" id="close-hour-${cellIndex}" onmouseenter="showDropdown(this, 'hour', 0, 23, '${closeHour}')" onmouseleave="hideDropdown(this)" onclick="toggleInputMode(this, '${closeHour}')">
                             <div class="dropdown-display">${closeHour}</div>
                             <div class="dropdown-options" style="display: none;"></div>
                         </div>
-                        <span class="time-separator">:</span>
-                        <div class="custom-dropdown" id="close-min-${cellIndex}" onmouseenter="showDropdown(this, 'min', 0, 59, '${closeMin}', 5)" onmouseleave="hideDropdown(this)" onclick="toggleInputMode(this, '${closeMin}')">
-                            <div class="dropdown-display">${closeMin}</div>
-                            <div class="dropdown-options" style="display: none;"></div>
-                        </div>
+                        <span class="time-separator">시</span>
                     </div>
                 `;
             });
@@ -218,8 +223,15 @@ function editRoom(roomId) {
             checkInOutCells.forEach((cell, cellIndex) => {
                 const currentTime = cell.textContent.trim();
                 const [checkIn, checkOut] = currentTime.split('~');
-                const [checkInHour, checkInMin] = checkIn.split(':');
-                const [checkOutHour, checkOutMin] = checkOut.split(':');
+                
+                // 안전한 기본값 설정
+                let checkInHour = '16';
+                let checkOutHour = '13';
+                
+                if (checkIn && checkOut) {
+                    checkInHour = checkIn.replace('시', '') || '16';
+                    checkOutHour = checkOut.replace('시', '') || '13';
+                }
                 
                 cell.innerHTML = `
                     <div class="time-inputs">
@@ -227,21 +239,12 @@ function editRoom(roomId) {
                             <div class="dropdown-display">${checkInHour}</div>
                             <div class="dropdown-options" style="display: none;"></div>
                         </div>
-                        <span class="time-separator">:</span>
-                        <div class="custom-dropdown" id="checkin-min-${cellIndex}" onmouseenter="showDropdown(this, 'min', 0, 59, '${checkInMin}', 5)" onmouseleave="hideDropdown(this)" onclick="toggleInputMode(this, '${checkInMin}')">
-                            <div class="dropdown-display">${checkInMin}</div>
-                            <div class="dropdown-options" style="display: none;"></div>
-                        </div>
-                        <span class="time-separator">~</span>
+                        <span class="time-separator">시~</span>
                         <div class="custom-dropdown" id="checkout-hour-${cellIndex}" onmouseenter="showDropdown(this, 'hour', 0, 23, '${checkOutHour}')" onmouseleave="hideDropdown(this)" onclick="toggleInputMode(this, '${checkOutHour}')">
                             <div class="dropdown-display">${checkOutHour}</div>
                             <div class="dropdown-options" style="display: none;"></div>
                         </div>
-                        <span class="time-separator">:</span>
-                        <div class="custom-dropdown" id="checkout-min-${cellIndex}" onmouseenter="showDropdown(this, 'min', 0, 59, '${checkOutMin}', 5)" onmouseleave="hideDropdown(this)" onclick="toggleInputMode(this, '${checkOutMin}')">
-                            <div class="dropdown-display">${checkOutMin}</div>
-                            <div class="dropdown-options" style="display: none;"></div>
-                        </div>
+                        <span class="time-separator">시</span>
                     </div>
                 `;
             });
@@ -407,14 +410,13 @@ function updateSalesDataFromDropdown(dropdown) {
             const openCloseCells = roomTable.querySelectorAll('tr:nth-child(3) td:not(:first-child)');
             openCloseCells.forEach((cell, cellIndex) => {
                 const timeInputs = cell.querySelectorAll('.custom-dropdown .dropdown-display');
-                const openHour = timeInputs[0] ? timeInputs[0].textContent : '14';
-                const openMin = timeInputs[1] ? timeInputs[1].textContent : '00';
-                const closeHour = timeInputs[2] ? timeInputs[2].textContent : '22';
-                const closeMin = timeInputs[3] ? timeInputs[3].textContent : '00';
-                const timeString = `${openHour}:${openMin}~${closeHour}:${closeMin}`;
+                const openHour = parseInt(timeInputs[0] ? timeInputs[0].textContent : '14');
+                const closeHour = parseInt(timeInputs[1] ? timeInputs[1].textContent : '22');
+                const timeTuple = [openHour, closeHour];
+                const timeString = `${openHour}시~${closeHour}시`;
                 cell.innerHTML = `<span>${timeString}</span>`;
                 if (roomId) {
-                    roomData[roomId].data.openClose[cellIndex] = timeString;
+                    roomData[roomId].data.openClose[cellIndex] = timeTuple;
                 }
             });
         } else {
@@ -422,14 +424,13 @@ function updateSalesDataFromDropdown(dropdown) {
             const checkInOutCells = roomTable.querySelectorAll('tr:nth-child(3) td:not(:first-child)');
             checkInOutCells.forEach((cell, cellIndex) => {
                 const timeInputs = cell.querySelectorAll('.custom-dropdown .dropdown-display');
-                const checkInHour = timeInputs[0] ? timeInputs[0].textContent : '16';
-                const checkInMin = timeInputs[1] ? timeInputs[1].textContent : '00';
-                const checkOutHour = timeInputs[2] ? timeInputs[2].textContent : '13';
-                const checkOutMin = timeInputs[3] ? timeInputs[3].textContent : '00';
-                const timeString = `${checkInHour}:${checkInMin}~${checkOutHour}:${checkOutMin}`;
+                const checkInHour = parseInt(timeInputs[0] ? timeInputs[0].textContent : '16');
+                const checkOutHour = parseInt(timeInputs[1] ? timeInputs[1].textContent : '13');
+                const timeTuple = [checkInHour, checkOutHour];
+                const timeString = `${checkInHour}시~${checkOutHour}시`;
                 cell.innerHTML = `<span>${timeString}</span>`;
                 if (roomId) {
-                    roomData[roomId].data.checkInOut[cellIndex] = timeString;
+                    roomData[roomId].data.checkInOut[cellIndex] = timeTuple;
                 }
             });
         }
@@ -715,14 +716,36 @@ function loadRoomsFromDB() {
                     }
                 };
 
+                // 시간 데이터를 로드할 때 형식 변환 (정수 튜플 배열 -> HH시 형식)
+                const checkInOutData = parseArray(room.checkInOut, Array(7).fill([16, 13]));
+                const openCloseData = parseArray(room.openClose, Array(7).fill([14, 22]));
+                
+                // 정수 튜플 배열을 HH시 형식으로 변환
+                const formatTimeArray = (timeArray) => {
+                    return timeArray.map(timeTuple => {
+                        if (Array.isArray(timeTuple) && timeTuple.length === 2) {
+                            const [startHour, endHour] = timeTuple;
+                            return `${startHour}시~${endHour}시`;
+                        }
+                        // 기존 문자열 형식이 남아있다면 변환
+                        if (typeof timeTuple === 'string' && timeTuple.includes('~')) {
+                            const [start, end] = timeTuple.split('~');
+                            const formattedStart = formatTimeDisplay(start.trim());
+                            const formattedEnd = formatTimeDisplay(end.trim());
+                            return `${formattedStart}~${formattedEnd}`;
+                        }
+                        return '16시~13시'; // 기본값
+                    });
+                };
+                
                 roomData[room.id] = {
                     name: room.name,
                     data: {
-                        checkInOut: parseArray(room.checkInOut, Array(7).fill('16:00~13:00')),
+                        checkInOut: formatTimeArray(checkInOutData),
                         price: parseArray(room.price, Array(7).fill(50000)),
                         status: parseArray(room.status, Array(7).fill('판매')),
                         usageTime: parseArray(room.usageTime, Array(7).fill('5시간')),
-                        openClose: parseArray(room.openClose, Array(7).fill('14:00~22:00')),
+                        openClose: formatTimeArray(openCloseData),
                         rentalPrice: parseArray(room.rentalPrice, Array(7).fill(30000)),
                         rentalStatus: parseArray(room.rentalStatus, Array(7).fill('판매'))
                     }
@@ -779,6 +802,7 @@ function renderRoomList() {
     roomList.innerHTML = '';
     
     const roomIds = Object.keys(roomData);
+    console.log('renderRoomList 호출, 객실 목록:', roomIds, '전체 데이터:', roomData);
     
     if (roomIds.length === 0) {
         roomList.innerHTML = '<p>등록된 객실이 없습니다.</p>';
@@ -799,7 +823,12 @@ function renderRoomList() {
                 <tbody>
                     <tr><td>판매/마감</td>${room.data.rentalStatus.map(v => `<td>${v}</td>`).join('')}</tr>
                     <tr><td>판매가</td>${room.data.rentalPrice.map(v => `<td>${v}원</td>`).join('')}</tr>
-                    <tr><td>개시/마감 시각</td>${room.data.openClose.map(v => `<td>${v}</td>`).join('')}</tr>
+                    <tr><td>개시/마감 시각</td>${room.data.openClose.map(v => {
+                        if (Array.isArray(v) && v.length === 2) {
+                            return `<td>${v[0]}시~${v[1]}시</td>`;
+                        }
+                        return `<td>${v}</td>`;
+                    }).join('')}</tr>
                     <tr><td>이용시간</td>${room.data.usageTime.map(v => `<td>${v}</td>`).join('')}</tr>
                 </tbody>
             `;
@@ -809,7 +838,12 @@ function renderRoomList() {
                 <tbody>
                     <tr><td>판매/마감</td>${room.data.status.map(v => `<td>${v}</td>`).join('')}</tr>
                     <tr><td>판매가</td>${room.data.price.map(v => `<td>${v}원</td>`).join('')}</tr>
-                    <tr><td>입실/퇴실 시각</td>${room.data.checkInOut.map(v => `<td>${v}</td>`).join('')}</tr>
+                    <tr><td>입실/퇴실 시각</td>${room.data.checkInOut.map(v => {
+                        if (Array.isArray(v) && v.length === 2) {
+                            return `<td>${v[0]}시~${v[1]}시</td>`;
+                        }
+                        return `<td>${v}</td>`;
+                    }).join('')}</tr>
                 </tbody>
             `;
         }
@@ -866,6 +900,7 @@ function switchRoom(roomId) {
     if (!roomData[roomId]) return;
     
     currentRoom = roomId;
+    console.log('switchRoom 호출:', roomId, '현재 객실:', currentRoom);
     
     // 버튼 활성화 상태 변경
     document.querySelectorAll('.room-btn').forEach(btn => btn.classList.remove('active'));
@@ -880,197 +915,147 @@ function switchRoom(roomId) {
     });
 }
 
+// 시간 형식을 변환하는 함수 (HH:MM -> HH시)
+function formatTimeDisplay(timeString) {
+    if (!timeString || typeof timeString !== 'string') return timeString;
+    
+    // HH:MM 형식을 HH시 형식으로 변환
+    const match = timeString.match(/^(\d{1,2}):(\d{2})$/);
+    if (match) {
+        const hour = parseInt(match[1]);
+        return `${hour}시`;
+    }
+    
+    // 이미 HH시 형식이면 그대로 반환
+    if (timeString.includes('시')) {
+        return timeString;
+    }
+    
+    return timeString;
+}
+
+// 시간 형식을 파싱하는 함수 (HH시 -> HH:00)
+function parseTimeDisplay(timeString) {
+    if (!timeString || typeof timeString !== 'string') return timeString;
+    
+    // HH시 형식을 HH:00 형식으로 변환
+    const match = timeString.match(/^(\d{1,2})시$/);
+    if (match) {
+        const hour = parseInt(match[1]);
+        return `${hour.toString().padStart(2, '0')}:00`;
+    }
+    
+    // 이미 HH:MM 형식이면 그대로 반환
+    if (timeString.includes(':')) {
+        return timeString;
+    }
+    
+    return timeString;
+}
+
 // 테이블 데이터 업데이트 함수
 function updateRoomTable(roomId) {
     if (!roomData[roomId]) return;
     
     const data = roomData[roomId].data;
+    console.log('updateRoomTable 호출:', roomId, '데이터:', data);
     
-    // 입실/퇴실시간
-    const checkInOutCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(1) td:not(:first-child)');
-    checkInOutCells.forEach((cell, index) => {
-        cell.textContent = data.checkInOut[index];
-    });
+    // 현재 표시된 객실의 DOM 요소 확인
+    const currentRoomItem = document.querySelector('.room-item[style*="display: none"]');
+    const visibleRoomItem = document.querySelector('.room-item:not([style*="display: none"])');
+    console.log('숨겨진 객실 요소:', currentRoomItem);
+    console.log('표시된 객실 요소:', visibleRoomItem);
+    console.log('현재 객실 타입:', currentRoomType);
     
-    // 판매가
-    const priceCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(2) td:not(:first-child)');
-    priceCells.forEach((cell, index) => {
-        cell.textContent = data.price[index];
-    });
-    
-    // 판매/마감
-    const statusCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(3) td:not(:first-child)');
-    statusCells.forEach((cell, index) => {
-        cell.textContent = data.status[index];
-    });
-    
-    // 이용시간
-    const usageCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(4) td:not(:first-child)');
-    usageCells.forEach((cell, index) => {
-        cell.textContent = data.usageTime[index];
-    });
-    
-    // 개시/마감시간
-    const openCloseCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(5) td:not(:first-child)');
-    openCloseCells.forEach((cell, index) => {
-        cell.textContent = data.openClose[index];
-    });
-    
-    // 판매가(대실)
-    const rentalPriceCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(6) td:not(:first-child)');
-    rentalPriceCells.forEach((cell, index) => {
-        cell.textContent = data.rentalPrice[index];
-    });
-    
-    // 판매/마감(대실)
-    const rentalStatusCells = document.querySelectorAll('#panel-room .room-table tr:nth-child(7) td:not(:first-child)');
-    rentalStatusCells.forEach((cell, index) => {
-        cell.textContent = data.rentalStatus[index];
-    });
+    if (currentRoomType === 'daily') {
+        console.log('대실 모드 테이블 업데이트 시작');
+        // 현재 표시된 객실의 테이블만 선택
+        const visibleRoomItem = document.querySelector('.room-item:not([style*="display: none"])');
+        if (!visibleRoomItem) {
+            console.log('표시된 객실을 찾을 수 없음');
+            return;
+        }
+        const roomTable = visibleRoomItem.querySelector('.room-table');
+        if (!roomTable) {
+            console.log('객실 테이블을 찾을 수 없음');
+            return;
+        }
+        
+        // 대실 테이블 순서: 판매/마감, 판매가, 개시/마감 시각, 이용시간
+        const rentalStatusCells = roomTable.querySelectorAll('tr:nth-child(1) td:not(:first-child)');
+        console.log('판매/마감 셀 개수:', rentalStatusCells.length);
+        rentalStatusCells.forEach((cell, index) => {
+            cell.textContent = data.rentalStatus[index];
+        });
+        
+        const rentalPriceCells = roomTable.querySelectorAll('tr:nth-child(2) td:not(:first-child)');
+        console.log('판매가 셀 개수:', rentalPriceCells.length);
+        rentalPriceCells.forEach((cell, index) => {
+            cell.textContent = data.rentalPrice[index];
+        });
+        
+        const openCloseCells = roomTable.querySelectorAll('tr:nth-child(3) td:not(:first-child)');
+        console.log('개시/마감 시각 셀 개수:', openCloseCells.length);
+        openCloseCells.forEach((cell, index) => {
+            const timeData = data.openClose[index];
+            if (Array.isArray(timeData) && timeData.length === 2) {
+                cell.textContent = `${timeData[0]}시~${timeData[1]}시`;
+            } else {
+                cell.textContent = timeData;
+            }
+        });
+        
+        const usageCells = roomTable.querySelectorAll('tr:nth-child(4) td:not(:first-child)');
+        console.log('이용시간 셀 개수:', usageCells.length);
+        usageCells.forEach((cell, index) => {
+            cell.textContent = data.usageTime[index];
+        });
+    } else {
+        console.log('숙박 모드 테이블 업데이트 시작');
+        // 현재 표시된 객실의 테이블만 선택
+        const visibleRoomItem = document.querySelector('.room-item:not([style*="display: none"])');
+        if (!visibleRoomItem) {
+            console.log('표시된 객실을 찾을 수 없음');
+            return;
+        }
+        const roomTable = visibleRoomItem.querySelector('.room-table');
+        if (!roomTable) {
+            console.log('객실 테이블을 찾을 수 없음');
+            return;
+        }
+        
+        // 숙박 테이블 순서: 판매/마감, 판매가, 입실/퇴실 시각
+        const statusCells = roomTable.querySelectorAll('tr:nth-child(1) td:not(:first-child)');
+        console.log('판매/마감 셀 개수:', statusCells.length);
+        statusCells.forEach((cell, index) => {
+            cell.textContent = data.status[index];
+        });
+        
+        const priceCells = roomTable.querySelectorAll('tr:nth-child(2) td:not(:first-child)');
+        console.log('판매가 셀 개수:', priceCells.length);
+        priceCells.forEach((cell, index) => {
+            cell.textContent = data.price[index];
+        });
+        
+        const checkInOutCells = roomTable.querySelectorAll('tr:nth-child(3) td:not(:first-child)');
+        console.log('입실/퇴실 시각 셀 개수:', checkInOutCells.length);
+        checkInOutCells.forEach((cell, index) => {
+            const timeData = data.checkInOut[index];
+            if (Array.isArray(timeData) && timeData.length === 2) {
+                cell.textContent = `${timeData[0]}시~${timeData[1]}시`;
+            } else {
+                cell.textContent = timeData;
+            }
+        });
+    }
 }
 
 
 
 // 마감 설정 관련 함수들
-function addClosure() {
-    const dateInput = document.getElementById('closure-date');
-    const selectedDate = dateInput.value;
-    
-    if (!selectedDate) {
-        alert('날짜를 선택해주세요.');
-        return;
-    }
-    
-    const closureId = `closure_${selectedDate.replace(/-/g, '')}`;
-    
-    // 객실 목록에서 선택
-    const roomOptions = Object.keys(roomData).map(roomId => roomData[roomId].name);
-    const selectedRooms = prompt('마감할 객실을 선택하세요 (쉼표로 구분):', roomOptions.join(', '));
-    
-    if (!selectedRooms) return;
-    
-    const rooms = selectedRooms.split(',').map(room => room.trim()).filter(room => room);
-    
-    closureData[closureId] = {
-        date: selectedDate,
-        rooms: rooms
-    };
-    
-    renderClosureList();
-    saveClosureToDB(closureId);
-    dateInput.value = '';
-}
 
-function renderClosureList() {
-    const closureList = document.querySelector('.closure-list');
-    closureList.innerHTML = '';
-    
-    Object.keys(closureData).forEach(closureId => {
-        const closure = closureData[closureId];
-        const closureItem = document.createElement('div');
-        closureItem.className = 'closure-item';
-        closureItem.innerHTML = `
-            <div class="closure-info">
-                <div class="closure-date">${closure.date}</div>
-                <div class="closure-rooms">마감 객실: ${closure.rooms.join(', ')}</div>
-            </div>
-            <div class="closure-actions">
-                <button class="btn" onclick="editClosure('${closureId}')">수정</button>
-                <button class="btn" style="background: #dc3545;" onclick="deleteClosure('${closureId}')">삭제</button>
-            </div>
-        `;
-        closureList.appendChild(closureItem);
-    });
-}
 
-function editClosure(closureId) {
-    const closure = closureData[closureId];
-    if (!closure) return;
-    
-    const selectedRooms = prompt('마감할 객실을 선택하세요 (쉼표로 구분):', closure.rooms.join(', '));
-    if (!selectedRooms) return;
-    
-    const rooms = selectedRooms.split(',').map(room => room.trim()).filter(room => room);
-    
-    closureData[closureId] = {
-        date: closure.date,
-        rooms: rooms
-    };
-    
-    renderClosureList();
-    saveClosureToDB(closureId);
-}
 
-function deleteClosure(closureId) {
-    if (confirm('정말로 이 마감 설정을 삭제하시겠습니까?')) {
-        delete closureData[closureId];
-        renderClosureList();
-        
-        fetch(`/api/admin/closures/${closureId}`, {
-            method: 'DELETE'
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                console.log('마감 설정 삭제 성공:', closureId);
-            } else {
-                console.error('마감 설정 삭제 실패:', data.error);
-            }
-        })
-        .catch(error => {
-            console.error('마감 설정 삭제 오류:', error);
-        });
-    }
-}
-
-function loadClosuresFromDB() {
-    return adminAPI.getAllClosures()
-        .then(closures => {
-            Object.keys(closureData).forEach(key => delete closureData[key]);
-            
-            closures.forEach(closure => {
-                closureData[closure.id] = {
-                    date: closure.date,
-                    rooms: JSON.parse(closure.rooms || '[]')
-                };
-            });
-            
-            // 달력이 이미 렌더링된 경우 업데이트
-            if (document.getElementById('calendar-days')) {
-                renderCalendar();
-            }
-        })
-        .catch(error => {
-            console.error('마감 설정 데이터 로드 실패:', error);
-        });
-}
-
-function saveClosureToDB(closureId) {
-    if (!closureData[closureId]) return;
-    
-    const closure = closureData[closureId];
-    const closureDataForDB = {
-        id: closureId,
-        date: closure.date,
-        rooms: JSON.stringify(closure.rooms)
-    };
-
-    adminAPI.saveClosure(closureDataForDB)
-        .then(data => {
-            if (data.success) {
-                console.log('마감 설정 저장 성공:', closureId);
-            } else {
-                console.error('마감 설정 저장 실패:', data.error);
-            }
-        })
-        .catch(error => {
-            adminAPI.handleError(error, '마감 설정 저장');
-        });
-}
-
-// 달력 관련 변수들
-let currentDate = new Date();
-let selectedDate = null;
 
 // 판매 캘린더 관련 변수들
 let salesCurrentDate = new Date();
@@ -1120,8 +1105,6 @@ async function loadDailyPricesForMonth(year, month) {
 
 // 달력 초기화
 async function initCalendar() {
-    renderCalendar();
-    loadClosuresFromDB();
     await renderSalesCalendar();
     
     // 판매 캘린더 초기화 - 숙박 버튼 활성화 및 월 이동 버튼 상태 업데이트
@@ -1134,137 +1117,13 @@ async function initCalendar() {
     }, 100);
 }
 
-// 달력 렌더링
-function renderCalendar() {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    
-    // 월 표시 업데이트
-    document.getElementById('current-month').textContent = `${year}년 ${month + 1}월`;
-    
-    // 달력 날짜 생성
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    
-    // 달력의 시작일 계산 (일요일부터 시작)
-    const startDate = new Date(firstDay);
-    const firstDayOfWeek = firstDay.getDay(); // 0=일요일, 1=월요일, ..., 6=토요일
-    startDate.setDate(startDate.getDate() - firstDayOfWeek);
-    
-    const calendarDays = document.getElementById('calendar-days');
-    calendarDays.innerHTML = '';
-    
-    for (let i = 0; i < 42; i++) {
-        const date = new Date(startDate);
-        date.setDate(startDate.getDate() + i);
-        
-        const dayElement = document.createElement('div');
-        dayElement.className = 'calendar-day';
-        dayElement.textContent = date.getDate();
-        
-        // 다른 월의 날짜인지 확인
-        if (date.getMonth() !== month) {
-            dayElement.classList.add('other-month');
-        }
-        
-        // 마감 설정이 있는 날짜인지 확인
-        const dateString = formatDate(date);
-        if (closureData[`closure_${dateString.replace(/-/g, '')}`]) {
-            dayElement.classList.add('has-closure');
-        }
-        
-        // 선택된 날짜인지 확인
-        if (selectedDate && formatDate(date) === selectedDate) {
-            dayElement.classList.add('selected');
-        }
-        
-        // 클릭 이벤트
-        dayElement.onclick = () => selectDate(date);
-        
-        calendarDays.appendChild(dayElement);
-    }
-}
 
-// 날짜 선택
-function selectDate(date) {
-    selectedDate = formatDate(date);
-    
-    // 선택 상태 업데이트
-    document.querySelectorAll('.calendar-day').forEach(day => {
-        day.classList.remove('selected');
-    });
-    event.target.classList.add('selected');
-    
-    // 상세 정보 표시
-    showDateDetail(date);
-}
 
-// 날짜 상세 정보 표시
-function showDateDetail(date) {
-    const dateString = formatDate(date);
-    const closureId = `closure_${dateString.replace(/-/g, '')}`;
-    const closure = closureData[closureId];
-    
-    document.getElementById('selected-date-title').textContent = `${dateString} 마감 설정`;
-    
-    const detailContent = document.getElementById('date-detail-content');
-    
-    // 모든 객실의 마감 상태를 표시
-    const roomStatusHTML = Object.keys(roomData).map(roomId => {
-        const roomName = roomData[roomId].name;
-        const isClosed = closure && closure.rooms.includes(roomName);
-        
-        return `
-            <div class="room-status-item">
-                <span class="room-name">${roomName}</span>
-                <button class="btn ${isClosed ? 'btn-closed' : 'btn-open'}" 
-                        onclick="toggleRoomClosure('${dateString}', '${roomName}', ${isClosed})">
-                    ${isClosed ? '마감됨' : '마감하기'}
-                </button>
-            </div>
-        `;
-    }).join('');
-    
-    detailContent.innerHTML = `
-        <div class="room-status-list">
-            ${roomStatusHTML}
-        </div>
-    `;
-}
 
-// 특정 날짜에 마감 설정 추가
-function addClosureForDate(dateString) {
-    const checkboxes = document.querySelectorAll('.room-checkboxes input:checked');
-    const selectedRooms = Array.from(checkboxes).map(cb => cb.value);
-    
-    if (selectedRooms.length === 0) {
-        alert('마감할 객실을 선택해주세요.');
-        return;
-    }
-    
-    const closureId = `closure_${dateString.replace(/-/g, '')}`;
-    
-    closureData[closureId] = {
-        date: dateString,
-        rooms: selectedRooms
-    };
-    
-    renderCalendar();
-    saveClosureToDB(closureId);
-    showDateDetail(new Date(dateString));
-}
 
-// 이전 월
-function previousMonth() {
-    currentDate.setMonth(currentDate.getMonth() - 1);
-    renderCalendar();
-}
 
-// 다음 월
-function nextMonth() {
-    currentDate.setMonth(currentDate.getMonth() + 1);
-    renderCalendar();
-}
+
+
 
 // 날짜 포맷팅 (YYYY-MM-DD)
 function formatDate(date) {
@@ -1567,8 +1426,18 @@ async function generateSalesForm() {
             (room.data.usageTime[0] || '5시간') : '');
         
         if (salesCurrentRoomType === 'daily') {
-            const [openHour, openMin] = currentDetails.split('~')[0].split(':');
-            const [closeHour, closeMin] = currentDetails.split('~')[1].split(':');
+            // 정수 튜플 배열에서 시간 추출
+            let openHour, closeHour;
+            if (Array.isArray(currentDetails) && currentDetails.length === 2) {
+                [openHour, closeHour] = currentDetails;
+            } else if (typeof currentDetails === 'string' && currentDetails.includes('~')) {
+                const [open, close] = currentDetails.split('~');
+                openHour = parseTimeDisplay(open).split(':')[0];
+                closeHour = parseTimeDisplay(close).split(':')[0];
+            } else {
+                openHour = '14';
+                closeHour = '22';
+            }
             const usageHours = currentUsageTime.replace('시간', '');
             
             return `
@@ -1593,21 +1462,12 @@ async function generateSalesForm() {
                                     <div class="dropdown-display">${openHour}</div>
                                     <div class="dropdown-options" style="display: none;"></div>
                                 </div>
-                                <span class="time-separator">:</span>
-                                <div class="custom-dropdown" id="sales-open-min-${roomId}" onmouseenter="showDropdown(this, 'min', 0, 59, '${openMin}', 5)" onmouseleave="hideDropdown(this)" onclick="toggleInputMode(this, '${openMin}')">
-                                    <div class="dropdown-display">${openMin}</div>
-                                    <div class="dropdown-options" style="display: none;"></div>
-                                </div>
-                                <span class="time-separator">~</span>
+                                <span class="time-separator">시~</span>
                                 <div class="custom-dropdown" id="sales-close-hour-${roomId}" onmouseenter="showDropdown(this, 'hour', 0, 23, '${closeHour}')" onmouseleave="hideDropdown(this)" onclick="toggleInputMode(this, '${closeHour}')">
                                     <div class="dropdown-display">${closeHour}</div>
                                     <div class="dropdown-options" style="display: none;"></div>
                                 </div>
-                                <span class="time-separator">:</span>
-                                <div class="custom-dropdown" id="sales-close-min-${roomId}" onmouseenter="showDropdown(this, 'min', 0, 59, '${closeMin}', 5)" onmouseleave="hideDropdown(this)" onclick="toggleInputMode(this, '${closeMin}')">
-                                    <div class="dropdown-display">${closeMin}</div>
-                                    <div class="dropdown-options" style="display: none;"></div>
-                                </div>
+                                <span class="time-separator">시</span>
                             </div>
                         </div>
                         <div>
@@ -1623,8 +1483,18 @@ async function generateSalesForm() {
                 </div>
             `;
         } else {
-            const [checkInHour, checkInMin] = currentDetails.split('~')[0].split(':');
-            const [checkOutHour, checkOutMin] = currentDetails.split('~')[1].split(':');
+            // 정수 튜플 배열에서 시간 추출
+            let checkInHour, checkOutHour;
+            if (Array.isArray(currentDetails) && currentDetails.length === 2) {
+                [checkInHour, checkOutHour] = currentDetails;
+            } else if (typeof currentDetails === 'string' && currentDetails.includes('~')) {
+                const [checkIn, checkOut] = currentDetails.split('~');
+                checkInHour = parseTimeDisplay(checkIn).split(':')[0];
+                checkOutHour = parseTimeDisplay(checkOut).split(':')[0];
+            } else {
+                checkInHour = '16';
+                checkOutHour = '13';
+            }
             
             return `
                 <div class="form-row">
@@ -1647,21 +1517,12 @@ async function generateSalesForm() {
                                 <div class="dropdown-display">${checkInHour}</div>
                                 <div class="dropdown-options" style="display: none;"></div>
                             </div>
-                            <span class="time-separator">:</span>
-                            <div class="custom-dropdown" id="sales-checkin-min-${roomId}" onmouseenter="showDropdown(this, 'min', 0, 59, '${checkInMin}', 5)" onmouseleave="hideDropdown(this)" onclick="toggleInputMode(this, '${checkInMin}')">
-                                <div class="dropdown-display">${checkInMin}</div>
-                                <div class="dropdown-options" style="display: none;"></div>
-                            </div>
-                            <span class="time-separator">~</span>
+                            <span class="time-separator">시~</span>
                             <div class="custom-dropdown" id="sales-checkout-hour-${roomId}" onmouseenter="showDropdown(this, 'hour', 0, 23, '${checkOutHour}')" onmouseleave="hideDropdown(this)" onclick="toggleInputMode(this, '${checkOutHour}')">
                                 <div class="dropdown-display">${checkOutHour}</div>
                                 <div class="dropdown-options" style="display: none;"></div>
                             </div>
-                            <span class="time-separator">:</span>
-                            <div class="custom-dropdown" id="sales-checkout-min-${roomId}" onmouseenter="showDropdown(this, 'min', 0, 59, '${checkOutMin}', 5)" onmouseleave="hideDropdown(this)" onclick="toggleInputMode(this, '${checkOutMin}')">
-                                <div class="dropdown-display">${checkOutMin}</div>
-                                <div class="dropdown-options" style="display: none;"></div>
-                            </div>
+                            <span class="time-separator">시</span>
                         </div>
                     </div>
                 </div>
@@ -1706,20 +1567,16 @@ function updateSalesTime(roomId, type) {
     
     if (salesCurrentRoomType === 'daily') {
         // 대실: 개시/마감 시각
-        const openHour = document.querySelector(`#sales-open-hour-${roomId} .dropdown-display`)?.textContent || '14';
-        const openMin = document.querySelector(`#sales-open-min-${roomId} .dropdown-display`)?.textContent || '00';
-        const closeHour = document.querySelector(`#sales-close-hour-${roomId} .dropdown-display`)?.textContent || '22';
-        const closeMin = document.querySelector(`#sales-close-min-${roomId} .dropdown-display`)?.textContent || '00';
+        const openHour = parseInt(document.querySelector(`#sales-open-hour-${roomId} .dropdown-display`)?.textContent || '14');
+        const closeHour = parseInt(document.querySelector(`#sales-close-hour-${roomId} .dropdown-display`)?.textContent || '22');
         
-        timeString = `${openHour.padStart(2, '0')}:${openMin.padStart(2, '0')}~${closeHour.padStart(2, '0')}:${closeMin.padStart(2, '0')}`;
+        timeString = [openHour, closeHour];
     } else {
         // 숙박: 입실/퇴실 시각
-        const checkInHour = document.querySelector(`#sales-checkin-hour-${roomId} .dropdown-display`)?.textContent || '16';
-        const checkInMin = document.querySelector(`#sales-checkin-min-${roomId} .dropdown-display`)?.textContent || '00';
-        const checkOutHour = document.querySelector(`#sales-checkout-hour-${roomId} .dropdown-display`)?.textContent || '13';
-        const checkOutMin = document.querySelector(`#sales-checkout-min-${roomId} .dropdown-display`)?.textContent || '00';
+        const checkInHour = parseInt(document.querySelector(`#sales-checkin-hour-${roomId} .dropdown-display`)?.textContent || '16');
+        const checkOutHour = parseInt(document.querySelector(`#sales-checkout-hour-${roomId} .dropdown-display`)?.textContent || '13');
         
-        timeString = `${checkInHour.padStart(2, '0')}:${checkInMin.padStart(2, '0')}~${checkOutHour.padStart(2, '0')}:${checkOutMin.padStart(2, '0')}`;
+        timeString = [checkInHour, checkOutHour];
     }
     
     window.salesTempData[roomId].details = timeString;
@@ -1760,22 +1617,18 @@ async function saveSalesSettingsAsync() {
         
         if (salesCurrentRoomType === 'daily') {
             // 대실: 개시/마감 시각과 이용시간
-            const openHour = document.querySelector(`#sales-open-hour-${roomId} .dropdown-display`)?.textContent || '14';
-            const openMin = document.querySelector(`#sales-open-min-${roomId} .dropdown-display`)?.textContent || '00';
-            const closeHour = document.querySelector(`#sales-close-hour-${roomId} .dropdown-display`)?.textContent || '22';
-            const closeMin = document.querySelector(`#sales-close-min-${roomId} .dropdown-display`)?.textContent || '00';
+            const openHour = parseInt(document.querySelector(`#sales-open-hour-${roomId} .dropdown-display`)?.textContent || '14');
+            const closeHour = parseInt(document.querySelector(`#sales-close-hour-${roomId} .dropdown-display`)?.textContent || '22');
             const usageHours = document.querySelector(`#sales-usage-hour-${roomId} .dropdown-display`)?.textContent || '5';
             
-            details = `${openHour.padStart(2, '0')}:${openMin.padStart(2, '0')}~${closeHour.padStart(2, '0')}:${closeMin.padStart(2, '0')}`;
+            details = [openHour, closeHour];
             usageTime = `${usageHours}시간`;
         } else {
             // 숙박: 입실/퇴실 시각
-            const checkInHour = document.querySelector(`#sales-checkin-hour-${roomId} .dropdown-display`)?.textContent || '16';
-            const checkInMin = document.querySelector(`#sales-checkin-min-${roomId} .dropdown-display`)?.textContent || '00';
-            const checkOutHour = document.querySelector(`#sales-checkout-hour-${roomId} .dropdown-display`)?.textContent || '13';
-            const checkOutMin = document.querySelector(`#sales-checkout-min-${roomId} .dropdown-display`)?.textContent || '00';
+            const checkInHour = parseInt(document.querySelector(`#sales-checkin-hour-${roomId} .dropdown-display`)?.textContent || '16');
+            const checkOutHour = parseInt(document.querySelector(`#sales-checkout-hour-${roomId} .dropdown-display`)?.textContent || '13');
             
-            details = `${checkInHour.padStart(2, '0')}:${checkInMin.padStart(2, '0')}~${checkOutHour.padStart(2, '0')}:${checkOutMin.padStart(2, '0')}`;
+            details = [checkInHour, checkOutHour];
         }
         
         const currentData = {
@@ -1823,34 +1676,38 @@ async function saveSalesSettingsAsync() {
         formData[roomId] = currentData;
     });
     
-    // 새로운 날짜별 요금 테이블에 저장 (수정된 객실만)
-    const pricesToSave = [];
+    // 새로운 날짜별 요금 테이블에 저장 (날짜별로 모든 객실 정보를 한 항목에 저장)
+    const dateGroups = {};
     
-    // 선택된 날짜들에 대해 데이터 수집 (수정된 객실만)
+    // 선택된 날짜들에 대해 데이터 수집
     salesSelectedDates.forEach(dateString => {
         const date = new Date(dateString);
         const dayOfWeek = date.getDay(); // 0: 일요일, 1: 월요일, ...
         
-        // 수정된 객실만 처리
-        modifiedRooms.forEach(roomId => {
+        // 해당 날짜의 모든 객실 데이터 수집
+        const roomsData = {};
+        roomIds.forEach(roomId => {
             const room = roomData[roomId];
             const data = formData[roomId];
             
-            // 새로운 날짜별 요금 테이블용 데이터 추가 (기존 rooms 데이터는 수정하지 않음)
-            pricesToSave.push({
-                date: dateString,
-                room_id: roomId,
-                room_type: salesCurrentRoomType,
+            // 새로운 날짜별 요금 테이블용 데이터 추가
+            roomsData[roomId] = {
                 price: data.price,
                 status: data.status,
                 details: data.details,
                 usage_time: data.usageTime
-            });
+            };
         });
+        
+        dateGroups[dateString] = {
+            date: dateString,
+            room_type: salesCurrentRoomType,
+            rooms_data: roomsData
+        };
     });
     
     console.log(`수정된 객실 수: ${modifiedRooms.size}개 (${Array.from(modifiedRooms).join(', ')})`);
-    console.log(`저장할 요금 데이터 수: ${pricesToSave.length}개`);
+    console.log(`저장할 날짜 수: ${Object.keys(dateGroups).length}개`);
     
     // 수정사항이 없는 경우 저장하지 않음
     if (modifiedRooms.size === 0) {
@@ -1862,7 +1719,7 @@ async function saveSalesSettingsAsync() {
     
     // 새로운 API를 사용하여 날짜별 요금 저장
     try {
-        await adminAPI.saveDailyPricesBulk(pricesToSave);
+        await adminAPI.saveDailyPricesBulkNew(dateGroups);
         console.log('날짜별 요금이 성공적으로 저장되었습니다.');
     } catch (error) {
         console.error('날짜별 요금 저장 실패:', error);
@@ -2181,12 +2038,14 @@ function generateRoomDataForDate(date) {
             if (salesCurrentRoomType === 'daily') {
                 status = room.data.rentalStatus[dayOfWeek] || '판매';
                 price = (room.data.rentalPrice[dayOfWeek] || 30000) + '원';
-                time = room.data.openClose[dayOfWeek] || '14:00~22:00';
+                const timeTuple = room.data.openClose[dayOfWeek] || [14, 22];
+                time = Array.isArray(timeTuple) ? `${timeTuple[0]}시~${timeTuple[1]}시` : timeTuple;
                 usageTime = room.data.usageTime[dayOfWeek] || '5시간';
             } else {
                 status = room.data.status[dayOfWeek] || '판매';
                 price = (room.data.price[dayOfWeek] || 50000) + '원';
-                time = room.data.checkInOut[dayOfWeek] || '16:00~13:00';
+                const timeTuple = room.data.checkInOut[dayOfWeek] || [16, 13];
+                time = Array.isArray(timeTuple) ? `${timeTuple[0]}시~${timeTuple[1]}시` : timeTuple;
                 usageTime = '';
             }
         }
@@ -2287,43 +2146,3 @@ function toggleWeekday(weekday, checkbox) {
     updateFloatingSelectionUI();
 }
 
-// 객실별 마감 상태 토글
-function toggleRoomClosure(dateString, roomName, isCurrentlyClosed) {
-    const closureId = `closure_${dateString.replace(/-/g, '')}`;
-    
-    if (!closureData[closureId]) {
-        // 해당 날짜에 마감 설정이 없으면 새로 생성
-        closureData[closureId] = {
-            date: dateString,
-            rooms: []
-        };
-    }
-    
-    if (isCurrentlyClosed) {
-        // 마감 해제
-        closureData[closureId].rooms = closureData[closureId].rooms.filter(room => room !== roomName);
-    } else {
-        // 마감 설정
-        if (!closureData[closureId].rooms.includes(roomName)) {
-            closureData[closureId].rooms.push(roomName);
-        }
-    }
-    
-    // 마감된 객실이 없으면 해당 날짜의 마감 설정 삭제
-    if (closureData[closureId].rooms.length === 0) {
-        delete closureData[closureId];
-        // DB에서도 삭제
-        adminAPI.deleteClosure(closureId).catch(error => {
-            adminAPI.handleError(error, '마감 설정 삭제');
-        });
-    } else {
-        // DB에 저장
-        saveClosureToDB(closureId);
-    }
-    
-    // 달력 업데이트
-    renderCalendar();
-    
-    // 상세 정보 다시 표시
-    showDateDetail(new Date(dateString));
-}

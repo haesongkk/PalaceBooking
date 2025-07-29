@@ -244,73 +244,7 @@ class PalaceBookingAdminAPI {
 
     // ===== 마감 설정 관리 API =====
 
-    /**
-     * 모든 마감 설정 조회
-     * @returns {Promise<Array>} 마감 설정 목록
-     */
-    async getAllClosures() {
-        try {
-            const response = await fetch(`${this.baseURL}/api/admin/closures`);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('마감 설정 조회 실패:', error);
-            throw error;
-        }
-    }
 
-    /**
-     * 마감 설정 저장/수정 (upsert)
-     * @param {Object} closureData - 마감 설정 데이터
-     * @param {string} closureData.id - 마감 설정 ID
-     * @param {string} closureData.date - 날짜
-     * @param {string} closureData.rooms - 마감 객실 (JSON)
-     * @returns {Promise<Object>} 저장 결과
-     */
-    async saveClosure(closureData) {
-        try {
-            const response = await fetch(`${this.baseURL}/api/admin/closures`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(closureData)
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('마감 설정 저장 실패:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * 마감 설정 삭제
-     * @param {string} closureId - 마감 설정 ID
-     * @returns {Promise<Object>} 삭제 결과
-     */
-    async deleteClosure(closureId) {
-        try {
-            const response = await fetch(`${this.baseURL}/api/admin/closures/${closureId}`, {
-                method: 'DELETE'
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('마감 설정 삭제 실패:', error);
-            throw error;
-        }
-    }
 
     // ===== 객실 재고 관리 API =====
 
@@ -464,15 +398,55 @@ class PalaceBookingAdminAPI {
     }
 
     /**
+     * 여러 날짜의 요금 일괄 저장 (새로운 구조 - 날짜별로 모든 객실 정보를 한 항목에 저장)
+     * @param {Object} dateGroups - 날짜별 그룹화된 데이터
+     * @returns {Promise<Object>} 저장 결과
+     */
+    async saveDailyPricesBulkNew(dateGroups) {
+        try {
+            // 기존 API와 호환성을 위해 prices 배열 형태로 변환
+            const prices = [];
+            Object.values(dateGroups).forEach(({ date, room_type, rooms_data }) => {
+                Object.keys(rooms_data).forEach(room_id => {
+                    const roomData = rooms_data[room_id];
+                    prices.push({
+                        date,
+                        room_id,
+                        room_type,
+                        price: roomData.price,
+                        status: roomData.status,
+                        details: roomData.details,
+                        usage_time: roomData.usage_time
+                    });
+                });
+            });
+
+            const response = await fetch(`${this.baseURL}/api/admin/daily-prices/bulk`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prices })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('날짜별 요금 일괄 저장 실패:', error);
+            throw error;
+        }
+    }
+
+    /**
      * 날짜별 요금 삭제
      * @param {string} date - 날짜
-     * @param {string} room_id - 객실 ID
      * @param {string} room_type - 객실 타입
      * @returns {Promise<Object>} 삭제 결과
      */
-    async deleteDailyPrice(date, room_id, room_type) {
+    async deleteDailyPrice(date, room_type) {
         try {
-            const response = await fetch(`${this.baseURL}/api/admin/daily-prices/${date}/${room_id}/${room_type}`, {
+            const response = await fetch(`${this.baseURL}/api/admin/daily-prices/${date}/${room_type}`, {
                 method: 'DELETE'
             });
             

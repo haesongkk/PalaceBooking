@@ -6,7 +6,7 @@ const path = require("path");
 const Database = require("better-sqlite3");
 const db = new Database("data.db");
 const roomDb = new Database("room.db");
-const closureDb = new Database("closure.db");
+
 
 const http = require("http");
 const { Server: SocketIOServer } = require("socket.io");
@@ -467,7 +467,7 @@ try {
         
         // 다른 필드들도 수정
         if (!room.checkInOut) {
-            updateData.checkInOut = JSON.stringify(Array(7).fill('16:00~13:00'));
+            updateData.checkInOut = JSON.stringify(Array(7).fill([16, 13]));
             needsUpdate = true;
         }
         
@@ -482,7 +482,7 @@ try {
         }
         
         if (!room.openClose) {
-            updateData.openClose = JSON.stringify(Array(7).fill('14:00~22:00'));
+            updateData.openClose = JSON.stringify(Array(7).fill([14, 22]));
             needsUpdate = true;
         }
         
@@ -505,33 +505,184 @@ try {
     console.error('데이터 마이그레이션 오류:', e);
 }
 
-// 날짜별 요금 테이블 생성
+// 시간 데이터를 정수 튜플 배열로 마이그레이션
+try {
+    const rooms = roomDb.prepare('SELECT * FROM rooms').all();
+    rooms.forEach(room => {
+        let needsUpdate = false;
+        let updateData = {};
+        
+        // checkInOut 필드를 정수 튜플 배열로 변환
+        if (room.checkInOut) {
+            try {
+                const checkInOutArray = JSON.parse(room.checkInOut);
+                if (Array.isArray(checkInOutArray) && checkInOutArray.length > 0) {
+                    // 첫 번째 요소가 문자열인지 확인 (아직 변환되지 않은 경우)
+                    if (typeof checkInOutArray[0] === 'string') {
+                        const convertedCheckInOut = checkInOutArray.map(timeStr => {
+                            if (timeStr.includes('~')) {
+                                const [start, end] = timeStr.split('~');
+                                // "16시" 또는 "16:00" 형식에서 시간 추출
+                                const startHour = parseInt(start.replace(/[시:]/g, ''));
+                                const endHour = parseInt(end.replace(/[시:]/g, ''));
+                                return [startHour, endHour];
+                            }
+                            return [16, 13]; // 기본값
+                        });
+                        updateData.checkInOut = JSON.stringify(convertedCheckInOut);
+                        needsUpdate = true;
+                    }
+                }
+            } catch (e) {
+                // 파싱 오류 시 기본값으로 설정
+                updateData.checkInOut = JSON.stringify(Array(7).fill([16, 13]));
+                needsUpdate = true;
+            }
+        } else {
+            updateData.checkInOut = JSON.stringify(Array(7).fill([16, 13]));
+            needsUpdate = true;
+        }
+        
+        // openClose 필드를 정수 튜플 배열로 변환
+        if (room.openClose) {
+            try {
+                const openCloseArray = JSON.parse(room.openClose);
+                if (Array.isArray(openCloseArray) && openCloseArray.length > 0) {
+                    // 첫 번째 요소가 문자열인지 확인 (아직 변환되지 않은 경우)
+                    if (typeof openCloseArray[0] === 'string') {
+                        const convertedOpenClose = openCloseArray.map(timeStr => {
+                            if (timeStr.includes('~')) {
+                                const [start, end] = timeStr.split('~');
+                                // "14:00" 형식에서 시간 추출
+                                const startHour = parseInt(start.split(':')[0]);
+                                const endHour = parseInt(end.split(':')[0]);
+                                return [startHour, endHour];
+                            }
+                            return [14, 22]; // 기본값
+                        });
+                        updateData.openClose = JSON.stringify(convertedOpenClose);
+                        needsUpdate = true;
+                    }
+                }
+            } catch (e) {
+                // 파싱 오류 시 기본값으로 설정
+                updateData.openClose = JSON.stringify(Array(7).fill([14, 22]));
+                needsUpdate = true;
+            }
+        } else {
+            updateData.openClose = JSON.stringify(Array(7).fill([14, 22]));
+            needsUpdate = true;
+        }
+        
+        // 업데이트가 필요한 경우 실행
+        if (needsUpdate) {
+            const setClause = Object.keys(updateData).map(key => `${key} = ?`).join(', ');
+            const values = Object.values(updateData);
+            values.push(room.id);
+            
+            roomDb.prepare(`UPDATE rooms SET ${setClause} WHERE id = ?`).run(...values);
+            console.log(`객실 ${room.id} 시간 데이터 마이그레이션 완료`);
+        }
+    });
+} catch (e) {
+    console.error('시간 데이터 마이그레이션 오류:', e);
+}
+
+// 날짜별 요금 테이블 생성 (날짜별로 모든 객실 정보를 한 항목에 저장)
 roomDb.prepare(`
   CREATE TABLE IF NOT EXISTS daily_prices (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT NOT NULL,
-    room_id TEXT NOT NULL,
     room_type TEXT NOT NULL, -- 'daily' 또는 'overnight'
-    price INTEGER NOT NULL,
-    status TEXT DEFAULT '판매',
-    details TEXT, -- 시간 정보 (예: "14:00~22:00" 또는 "16:00~13:00")
-    usage_time TEXT, -- 이용시간 (대실용)
+    rooms_data TEXT NOT NULL, -- JSON 형태로 모든 객실 정보 저장
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(date, room_id, room_type)
+    UNIQUE(date, room_type)
   )
 `).run();
 
-// 마감 설정 테이블 생성
-closureDb.prepare(`
-  CREATE TABLE IF NOT EXISTS closures (
-    id TEXT PRIMARY KEY,
-    date TEXT,
-    rooms TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`).run();
+// 기존 데이터 마이그레이션 (기존 구조에서 새로운 구조로)
+try {
+    // 기존 테이블이 있는지 확인
+    const oldTableExists = roomDb.prepare(`
+        SELECT name FROM sqlite_master 
+        WHERE type='table' AND name='daily_prices_old'
+    `).get();
+    
+    if (!oldTableExists) {
+        // 기존 테이블을 백업
+        roomDb.prepare(`
+            CREATE TABLE IF NOT EXISTS daily_prices_old AS 
+            SELECT * FROM daily_prices WHERE 1=0
+        `).run();
+        
+        // 기존 데이터가 있는지 확인
+        const existingData = roomDb.prepare('SELECT COUNT(*) as count FROM daily_prices').get();
+        
+        if (existingData.count > 0) {
+            console.log('기존 daily_prices 데이터를 새로운 구조로 마이그레이션합니다...');
+            
+            // 기존 데이터를 백업 테이블로 복사
+            roomDb.prepare(`
+                INSERT INTO daily_prices_old 
+                SELECT * FROM daily_prices
+            `).run();
+            
+            // 기존 테이블 삭제
+            roomDb.prepare('DROP TABLE daily_prices').run();
+            
+            // 새로운 구조로 테이블 재생성
+            roomDb.prepare(`
+                CREATE TABLE daily_prices (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date TEXT NOT NULL,
+                    room_type TEXT NOT NULL,
+                    rooms_data TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(date, room_type)
+                )
+            `).run();
+            
+            // 기존 데이터를 새로운 구조로 변환하여 삽입
+            const oldData = roomDb.prepare('SELECT * FROM daily_prices_old').all();
+            const dateGroups = {};
+            
+            oldData.forEach(row => {
+                const key = `${row.date}_${row.room_type}`;
+                if (!dateGroups[key]) {
+                    dateGroups[key] = {
+                        date: row.date,
+                        room_type: row.room_type,
+                        rooms_data: {}
+                    };
+                }
+                
+                dateGroups[key].rooms_data[row.room_id] = {
+                    price: row.price,
+                    status: row.status || '판매',
+                    details: row.details,
+                    usage_time: row.usage_time
+                };
+            });
+            
+            // 새로운 구조로 데이터 삽입
+            Object.values(dateGroups).forEach(({ date, room_type, rooms_data }) => {
+                const roomsDataJson = JSON.stringify(rooms_data);
+                roomDb.prepare(`
+                    INSERT INTO daily_prices (date, room_type, rooms_data)
+                    VALUES (?, ?, ?)
+                `).run(date, room_type, roomsDataJson);
+            });
+            
+            console.log(`마이그레이션 완료: ${Object.keys(dateGroups).length}개 날짜 그룹이 변환되었습니다.`);
+        }
+    }
+} catch (error) {
+    console.error('데이터 마이그레이션 오류:', error);
+}
+
+
 
 // 객실 관리 API
 // 모든 객실 조회
@@ -606,63 +757,7 @@ app.delete('/api/admin/rooms/:id', (req, res) => {
 
 
 
-// 마감 설정 관리 API
-// 모든 마감 설정 조회
-app.get('/api/admin/closures', (req, res) => {
-    try {
-        const rows = closureDb.prepare('SELECT * FROM closures ORDER BY date ASC').all();
-        res.json(rows);
-    } catch (error) {
-        console.error('마감 설정 조회 오류:', error);
-        res.status(500).json({ error: '마감 설정 조회 실패' });
-    }
-});
 
-// 마감 설정 저장/수정 (upsert)
-app.post('/api/admin/closures', (req, res) => {
-    try {
-        const { id, date, rooms } = req.body;
-        
-        if (!id || !date || !rooms) {
-            return res.status(400).json({ error: '필수 정보가 누락되었습니다.' });
-        }
-
-        // 기존 마감 설정 확인
-        const existingClosure = closureDb.prepare('SELECT id FROM closures WHERE id = ?').get(id);
-        
-        if (existingClosure) {
-            // 기존 마감 설정 수정
-            closureDb.prepare(`
-                UPDATE closures 
-                SET date = ?, rooms = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            `).run(date, rooms, id);
-        } else {
-            // 새 마감 설정 생성
-            closureDb.prepare(`
-                INSERT INTO closures (id, date, rooms)
-                VALUES (?, ?, ?)
-            `).run(id, date, rooms);
-        }
-        
-        res.json({ success: true, id });
-    } catch (error) {
-        console.error('마감 설정 저장 오류:', error);
-        res.status(500).json({ error: '마감 설정 저장 실패' });
-    }
-});
-
-// 마감 설정 삭제
-app.delete('/api/admin/closures/:id', (req, res) => {
-    try {
-        const { id } = req.params;
-        const info = closureDb.prepare('DELETE FROM closures WHERE id = ?').run(id);
-        res.json({ success: info.changes > 0 });
-    } catch (error) {
-        console.error('마감 설정 삭제 오류:', error);
-        res.status(500).json({ error: '마감 설정 삭제 실패' });
-    }
-});
 
 // 날짜별 요금 관리 API
 // 특정 날짜의 모든 객실 요금 조회
@@ -682,41 +777,71 @@ app.get('/api/admin/daily-prices', (req, res) => {
             params.push(room_type);
         }
         
-        query += ' ORDER BY room_id ASC';
-        
         const rows = roomDb.prepare(query).all(...params);
-        res.json(rows);
+        
+        // rooms_data를 파싱하여 각 객실별로 분리
+        const result = [];
+        rows.forEach(row => {
+            try {
+                const roomsData = JSON.parse(row.rooms_data);
+                Object.keys(roomsData).forEach(room_id => {
+                    const roomData = roomsData[room_id];
+                    result.push({
+                        id: row.id,
+                        date: row.date,
+                        room_id: room_id,
+                        room_type: row.room_type,
+                        price: roomData.price,
+                        status: roomData.status,
+                        details: roomData.details,
+                        usage_time: roomData.usage_time,
+                        created_at: row.created_at,
+                        updated_at: row.updated_at
+                    });
+                });
+            } catch (error) {
+                console.error('rooms_data 파싱 오류:', error);
+            }
+        });
+        
+        // room_id로 정렬
+        result.sort((a, b) => a.room_id.localeCompare(b.room_id));
+        
+        res.json(result);
     } catch (error) {
         console.error('날짜별 요금 조회 오류:', error);
         res.status(500).json({ error: '날짜별 요금 조회 실패' });
     }
 });
 
-// 날짜별 요금 저장/수정 (upsert)
+// 날짜별 요금 저장/수정 (upsert) - 날짜별로 모든 객실 정보를 한 항목에 저장
 app.post('/api/admin/daily-prices', (req, res) => {
     try {
-        const { date, room_id, room_type, price, status, details, usage_time } = req.body;
+        const { date, room_type, rooms_data } = req.body;
         
-        if (!date || !room_id || !room_type || price === undefined) {
+        if (!date || !room_type || !rooms_data) {
             return res.status(400).json({ error: '필수 정보가 누락되었습니다.' });
         }
 
+        // rooms_data를 JSON 문자열로 변환
+        const roomsDataJson = JSON.stringify(rooms_data);
+
         // 기존 요금 설정 확인
-        const existingPrice = roomDb.prepare('SELECT id FROM daily_prices WHERE date = ? AND room_id = ? AND room_type = ?').get(date, room_id, room_type);
+        const existingPrice = roomDb.prepare('SELECT id FROM daily_prices WHERE date = ? AND room_type = ?').get(date, room_type);
         
         if (existingPrice) {
             // 기존 요금 설정 수정
             roomDb.prepare(`
                 UPDATE daily_prices 
-                SET price = ?, status = ?, details = ?, usage_time = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE date = ? AND room_id = ? AND room_type = ?
-            `).run(price, status || '판매', details, usage_time, date, room_id, room_type);
+                SET rooms_data = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE date = ? AND room_type = ?
+            `).run(roomsDataJson, date, room_type);
         } else {
             // 새 요금 설정 생성
             roomDb.prepare(`
-                INSERT INTO daily_prices (date, room_id, room_type, price, status, details, usage_time)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            `).run(date, room_id, room_type, price, status || '판매', details, usage_time);
+                INSERT INTO daily_prices (date, room_type, rooms_data)
+                VALUES (?, ?, ?)
+            `).run(date, room_type, roomsDataJson);
         }
         
         res.json({ success: true });
@@ -726,7 +851,7 @@ app.post('/api/admin/daily-prices', (req, res) => {
     }
 });
 
-// 여러 날짜의 요금 일괄 저장
+// 여러 날짜의 요금 일괄 저장 - 날짜별로 모든 객실 정보를 한 항목에 저장
 app.post('/api/admin/daily-prices/bulk', (req, res) => {
     try {
         const { prices } = req.body;
@@ -735,29 +860,51 @@ app.post('/api/admin/daily-prices/bulk', (req, res) => {
             return res.status(400).json({ error: '요금 데이터가 필요합니다.' });
         }
 
+        // 날짜별로 데이터 그룹화
+        const dateGroups = {};
+        prices.forEach(({ date, room_id, room_type, price, status, details, usage_time }) => {
+            if (!date || !room_id || !room_type || price === undefined) {
+                throw new Error('필수 정보가 누락되었습니다.');
+            }
+            
+            const key = `${date}_${room_type}`;
+            if (!dateGroups[key]) {
+                dateGroups[key] = {
+                    date,
+                    room_type,
+                    rooms_data: {}
+                };
+            }
+            
+            dateGroups[key].rooms_data[room_id] = {
+                price,
+                status: status || '판매',
+                details,
+                usage_time
+            };
+        });
+
         // 트랜잭션 시작
         const transaction = roomDb.transaction(() => {
-            prices.forEach(({ date, room_id, room_type, price, status, details, usage_time }) => {
-                if (!date || !room_id || !room_type || price === undefined) {
-                    throw new Error('필수 정보가 누락되었습니다.');
-                }
+            Object.values(dateGroups).forEach(({ date, room_type, rooms_data }) => {
+                const roomsDataJson = JSON.stringify(rooms_data);
 
                 // 기존 요금 설정 확인
-                const existingPrice = roomDb.prepare('SELECT id FROM daily_prices WHERE date = ? AND room_id = ? AND room_type = ?').get(date, room_id, room_type);
+                const existingPrice = roomDb.prepare('SELECT id FROM daily_prices WHERE date = ? AND room_type = ?').get(date, room_type);
                 
                 if (existingPrice) {
                     // 기존 요금 설정 수정
                     roomDb.prepare(`
                         UPDATE daily_prices 
-                        SET price = ?, status = ?, details = ?, usage_time = ?, updated_at = CURRENT_TIMESTAMP
-                        WHERE date = ? AND room_id = ? AND room_type = ?
-                    `).run(price, status || '판매', details, usage_time, date, room_id, room_type);
+                        SET rooms_data = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE date = ? AND room_type = ?
+                    `).run(roomsDataJson, date, room_type);
                 } else {
                     // 새 요금 설정 생성
                     roomDb.prepare(`
-                        INSERT INTO daily_prices (date, room_id, room_type, price, status, details, usage_time)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    `).run(date, room_id, room_type, price, status || '판매', details, usage_time);
+                        INSERT INTO daily_prices (date, room_type, rooms_data)
+                        VALUES (?, ?, ?)
+                    `).run(date, room_type, roomsDataJson);
                 }
             });
         });
@@ -765,7 +912,7 @@ app.post('/api/admin/daily-prices/bulk', (req, res) => {
         // 트랜잭션 실행
         transaction();
         
-        res.json({ success: true, count: prices.length });
+        res.json({ success: true, count: Object.keys(dateGroups).length });
     } catch (error) {
         console.error('날짜별 요금 일괄 저장 오류:', error);
         res.status(500).json({ error: '날짜별 요금 일괄 저장 실패' });
@@ -773,10 +920,10 @@ app.post('/api/admin/daily-prices/bulk', (req, res) => {
 });
 
 // 날짜별 요금 삭제
-app.delete('/api/admin/daily-prices/:date/:room_id/:room_type', (req, res) => {
+app.delete('/api/admin/daily-prices/:date/:room_type', (req, res) => {
     try {
-        const { date, room_id, room_type } = req.params;
-        const info = roomDb.prepare('DELETE FROM daily_prices WHERE date = ? AND room_id = ? AND room_type = ?').run(date, room_id, room_type);
+        const { date, room_type } = req.params;
+        const info = roomDb.prepare('DELETE FROM daily_prices WHERE date = ? AND room_type = ?').run(date, room_type);
         res.json({ success: info.changes > 0 });
     } catch (error) {
         console.error('날짜별 요금 삭제 오류:', error);
