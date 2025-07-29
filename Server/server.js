@@ -608,6 +608,88 @@ app.get('/api/logs', (req, res) => {
   res.json(rows);
 });
 
+// Dev API: Get available DB files
+app.get('/api/dev/dbs', (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    
+    // 현재 디렉토리에서 .db 파일들 찾기
+    const dbFiles = fs.readdirSync('.')
+      .filter(file => file.endsWith('.db'))
+      .map(file => ({
+        name: file,
+        displayName: file.replace('.db', ''),
+        icon: getDbIcon(file)
+      }));
+    
+    res.json(dbFiles);
+  } catch (error) {
+    console.error('DB files fetch error:', error);
+    res.status(500).json({ error: 'Failed to get DB files' });
+  }
+});
+
+// Dev API: Get all DB data for development
+app.get('/api/dev/db/:dbName', (req, res) => {
+  try {
+    const { dbName } = req.params;
+    let targetDb;
+    
+    // 동적으로 DB 파일 찾기
+    const fs = require('fs');
+    const dbFileName = `${dbName}.db`;
+    
+    if (!fs.existsSync(dbFileName)) {
+      return res.status(404).json({ error: 'Database file not found' });
+    }
+    
+    // DB 연결
+    const Database = require("better-sqlite3");
+    targetDb = new Database(dbFileName);
+    
+    // 모든 테이블 조회
+    const tables = targetDb.prepare(`
+      SELECT name FROM sqlite_master 
+      WHERE type='table' AND name NOT LIKE 'sqlite_%'
+      ORDER BY name
+    `).all();
+    
+    const result = {};
+    
+    tables.forEach(table => {
+      const tableName = table.name;
+      try {
+        // 각 테이블의 모든 데이터 조회
+        const rows = targetDb.prepare(`SELECT * FROM ${tableName}`).all();
+        result[tableName] = rows;
+      } catch (error) {
+        console.error(`Error reading table ${tableName}:`, error);
+        result[tableName] = { error: error.message };
+      }
+    });
+    
+    // DB 연결 닫기
+    targetDb.close();
+    
+    res.json(result);
+  } catch (error) {
+    console.error('DB data fetch error:', error);
+    res.status(500).json({ error: 'Database access failed' });
+  }
+});
+
+// DB 파일별 아이콘 반환 함수
+function getDbIcon(fileName) {
+  const name = fileName.replace('.db', '').toLowerCase();
+  switch (name) {
+    case 'data': return '📊';
+    case 'room': return '🏠';
+    case 'closure': return '🔒';
+    default: return '🗄️';
+  }
+}
+
 
 const os = require("os");
 
