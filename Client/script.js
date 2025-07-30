@@ -766,39 +766,87 @@ function getDayOfWeek(date) {
 async function checkRoomAvailability(startDate, endDate, roomName) {
     console.log('[재고확인] 시작:', { startDate, endDate, roomName });
     try {
-        if (endDate) {
-            // 숙박 예약 (이틀 이상) - 모든 날짜가 판매 상태여야 함
+        const isOvernight = endDate && new Date(endDate) > new Date(startDate);
+        const roomType = isOvernight ? 'overnight' : 'daily';
+        console.log('[재고확인] 예약 타입:', { isOvernight, roomType });
+        
+        if (isOvernight) {
+            // 숙박 예약 (이틀 이상) - 모든 날짜가 숙박 판매 상태여야 함
             console.log('[재고확인] 숙박 예약 확인');
             let isAvailable = true;
             for (let dt = new Date(startDate); dt < new Date(endDate); dt.setDate(dt.getDate() + 1)) {
                 const dateStr = formatDateYMD(dt);
                 console.log('[재고확인] 날짜 확인:', dateStr);
-                const stockData = await palaceAPI.getRoomStock(dateStr);
-                console.log('[재고확인] 판매 상태 데이터:', stockData);
-                const roomStock = stockData.find(r => r.room_type.trim() === roomName.trim());
-                console.log('[재고확인] 해당 객실 판매 상태:', roomStock);
                 
-                if (!roomStock || !roomStock.available) {
-                    console.log('[재고확인] 마감 발견:', { roomName, dateStr, roomStock });
-                    isAvailable = false;
-                    break;
+                // 1. daily_prices 테이블에서 숙박 상태 우선 확인
+                const dailyPrices = await palaceAPI.getDailyPrices(dateStr, 'overnight');
+                const roomDailyPrice = dailyPrices.find(p => 
+                    p.room_id === roomName || 
+                    p.room_type === roomName ||
+                    p.room_id === roomName.replace('객실 ', 'room').toLowerCase() ||
+                    p.room_id === roomName.replace('객실 ', 'room') ||
+                    p.room_id === roomName.replace('객실 ', 'room').toUpperCase()
+                );
+                
+                if (roomDailyPrice) {
+                    // daily_prices에 데이터가 있으면 해당 상태 사용
+                    if (roomDailyPrice.status !== 1) {
+                        console.log('[재고확인] daily_prices 숙박 마감 발견:', { roomName, dateStr, status: roomDailyPrice.status });
+                        isAvailable = false;
+                        break;
+                    }
+                } else {
+                    // 2. rooms 테이블에서 숙박 상태 확인
+                    const roomInfo = await palaceAPI.getRoomInfo(roomName);
+                    if (roomInfo && roomInfo.status) {
+                        const dayOfWeek = getDayOfWeek(dt);
+                        const statusArray = JSON.parse(roomInfo.status);
+                        if (statusArray && statusArray[dayOfWeek] !== undefined && statusArray[dayOfWeek] !== 1) {
+                            console.log('[재고확인] rooms 테이블 숙박 마감 발견:', { roomName, dateStr, dayOfWeek, status: statusArray[dayOfWeek] });
+                            isAvailable = false;
+                            break;
+                        }
+                    }
                 }
             }
-            console.log('[재고확인] 최종 결과:', isAvailable);
+            console.log('[재고확인] 숙박 최종 결과:', isAvailable);
             return isAvailable;
         } else {
-            // 대실 예약 (하루) - 해당 날짜가 판매 상태여야 함
+            // 대실 예약 (하루) - 해당 날짜가 대실 판매 상태여야 함
             console.log('[재고확인] 대실 예약 확인');
             const dateStr = formatDateYMD(startDate);
             console.log('[재고확인] 날짜 확인:', dateStr);
-            const stockData = await palaceAPI.getRoomStock(dateStr);
-            console.log('[재고확인] 판매 상태 데이터:', stockData);
-            const roomStock = stockData.find(r => r.room_type.trim() === roomName.trim());
-            console.log('[재고확인] 해당 객실 판매 상태:', roomStock);
             
-            const result = roomStock && roomStock.available;
-            console.log('[재고확인] 최종 결과:', result);
-            return result;
+            // 1. daily_prices 테이블에서 대실 상태 우선 확인
+            const dailyPrices = await palaceAPI.getDailyPrices(dateStr, 'daily');
+            const roomDailyPrice = dailyPrices.find(p => 
+                p.room_id === roomName || 
+                p.room_type === roomName ||
+                p.room_id === roomName.replace('객실 ', 'room').toLowerCase() ||
+                p.room_id === roomName.replace('객실 ', 'room') ||
+                p.room_id === roomName.replace('객실 ', 'room').toUpperCase()
+            );
+            
+            if (roomDailyPrice) {
+                // daily_prices에 데이터가 있으면 해당 상태 사용
+                const result = roomDailyPrice.status === 1;
+                console.log('[재고확인] daily_prices 대실 결과:', { roomName, dateStr, status: roomDailyPrice.status, result });
+                return result;
+            } else {
+                // 2. rooms 테이블에서 대실 상태 확인
+                const roomInfo = await palaceAPI.getRoomInfo(roomName);
+                if (roomInfo && roomInfo.rentalStatus) {
+                    const dayOfWeek = getDayOfWeek(startDate);
+                    const rentalStatusArray = JSON.parse(roomInfo.rentalStatus);
+                    const result = rentalStatusArray && rentalStatusArray[dayOfWeek] !== undefined ? rentalStatusArray[dayOfWeek] === 1 : true;
+                    console.log('[재고확인] rooms 테이블 대실 결과:', { roomName, dateStr, dayOfWeek, status: rentalStatusArray?.[dayOfWeek], result });
+                    return result;
+                }
+            }
+            
+            // 기본값: 예약 가능
+            console.log('[재고확인] 대실 기본값: 예약 가능');
+            return true;
         }
     } catch (error) {
         console.error('[재고확인] 오류:', error);
@@ -844,11 +892,11 @@ async function getRoomPrice(startDate, endDate, roomName) {
             
             if (isOvernight) {
                 // 숙박 가격
-                priceArray = JSON.parse(roomInfo.rentalPrice || '[]');
+                priceArray = JSON.parse(roomInfo.price || '[]');
                 console.log('[가격조회] 숙박 가격 배열:', priceArray);
             } else {
                 // 대실 가격
-                priceArray = JSON.parse(roomInfo.price || '[]');
+                priceArray = JSON.parse(roomInfo.rentalPrice || '[]');
                 console.log('[가격조회] 대실 가격 배열:', priceArray);
             }
             
@@ -858,22 +906,13 @@ async function getRoomPrice(startDate, endDate, roomName) {
             }
         }
         
-        // 3. 기본 가격 (fallback)
-        const defaultPrices = {
-            "🖥️ 2PC": isOvernight ? 50000 : 60000,
-            "🎥 멀티플렉스": isOvernight ? 40000 : 50000,
-            "🎤 노래방": isOvernight ? 50000 : 60000,
-            "🛏️ 스탠다드": isOvernight ? 35000 : 45000,
-            "🛌 트윈": isOvernight ? 40000 : 50000
-        };
-        
-        const defaultPrice = defaultPrices[roomName] || 50000;
-        console.log('[가격조회] 기본 가격 사용:', { roomName, price: defaultPrice });
-        return defaultPrice;
+        // 3. 가격 정보를 찾을 수 없음 - 통신 오류로 처리
+        console.log('[가격조회] 가격 정보를 찾을 수 없음:', { roomName, isOvernight });
+        throw new Error('가격 정보를 찾을 수 없습니다. 잠시 후 다시 시도해주세요.');
         
     } catch (error) {
         console.error('[가격조회] 오류:', error);
-        return 50000; // 오류 시 기본 가격
+        throw new Error('가격 조회 중 통신 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
     }
 }
 
@@ -897,24 +936,30 @@ async function showPaymentButton() {
     }
     
     let amount;
-    if (nights > 1) {
-        // 숙박 예약: 마지막날을 제외한 날들의 숙박 가격을 더함
-        console.log('[결제금액] 숙박 예약 가격 계산 시작');
-        amount = 0;
-        
-        for (let dt = new Date(rangeStart); dt < new Date(rangeEnd); dt.setDate(dt.getDate() + 1)) {
-            const dateStr = formatDateYMD(dt);
-            const dayPrice = await getRoomPrice(dt, null, selectedRoom); // 해당 날짜의 숙박 가격
-            console.log('[결제금액] 날짜별 가격:', { date: dateStr, price: dayPrice });
-            amount += dayPrice;
+    try {
+        if (nights > 1) {
+            // 숙박 예약: 마지막날을 제외한 날들의 숙박 가격을 더함
+            console.log('[결제금액] 숙박 예약 가격 계산 시작');
+            amount = 0;
+            
+            for (let dt = new Date(rangeStart); dt < new Date(rangeEnd); dt.setDate(dt.getDate() + 1)) {
+                const dateStr = formatDateYMD(dt);
+                const dayPrice = await getRoomPrice(dt, null, selectedRoom); // 해당 날짜의 숙박 가격
+                console.log('[결제금액] 날짜별 가격:', { date: dateStr, price: dayPrice });
+                amount += dayPrice;
+            }
+            
+            console.log('[결제금액] 숙박 총 가격:', amount);
+        } else {
+            // 대실 예약: 해당 날짜의 대실 가격
+            const price = await getRoomPrice(rangeStart, rangeEnd, selectedRoom);
+            console.log('[결제금액] 선택된 객실:', selectedRoom, '가격:', price);
+            amount = price;
         }
-        
-        console.log('[결제금액] 숙박 총 가격:', amount);
-    } else {
-        // 대실 예약: 해당 날짜의 대실 가격
-        const price = await getRoomPrice(rangeStart, rangeEnd, selectedRoom);
-        console.log('[결제금액] 선택된 객실:', selectedRoom, '가격:', price);
-        amount = price;
+    } catch (error) {
+        console.error('[결제금액] 가격 계산 오류:', error);
+        appendMessage(`❌ ${error.message}`, "bot");
+        return;
     }
 
     // 고객 타입별 할인 적용
@@ -952,7 +997,8 @@ function processPayment(paymentMethod) {
         phone: userphone,
         room: selectedRoom,
         startDate: rangeStart?.toISOString().split('T')[0],
-        endDate: rangeEnd?.toISOString().split('T')[0] || null
+        endDate: rangeEnd?.toISOString().split('T')[0] || null,
+        amount: finalAmount // 계산된 최종 가격 전송
     };
     palaceAPI.createReservation(payload)
     .then(data => {
