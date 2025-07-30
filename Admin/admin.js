@@ -114,7 +114,7 @@ function switchTab(tabName) {
     }
     
     // 요금표 관리 탭을 클릭한 경우 숙박 모드로 기본 설정
-    if (tabName === 'rooms') {
+    if (tabName === 'room') {
         // 숙박 버튼 활성화
         document.querySelectorAll('.room-type-btn').forEach(btn => btn.classList.remove('active'));
         const overnightBtn = document.querySelector('[onclick="switchRoomType(\'overnight\')"]');
@@ -194,23 +194,20 @@ function addRoom() {
     console.log('새 객실 데이터 초기화:', newRoomId, roomData[newRoomId]);
 
     // UI 업데이트 (기본값이 설정된 후 즉시 렌더링)
-    renderRoomButtons();
     renderRoomList();
 
-    // 새 객실로 전환 (DOM이 완전히 렌더링된 후)
+    // 새 객실이 추가되었으므로 DB에 저장
     setTimeout(() => {
-        switchRoom(newRoomId);
-        
-        // 테이블 데이터 업데이트 (시간 형식 변환을 위해)
-        updateRoomTable(newRoomId);
-        
         // DB에 새 객실 저장
         saveRoomToDB(newRoomId);
         
-        // 기본값이 표시된 후 수정 모드 진입
+        // 새로 추가된 객실의 수정 모드 진입
         setTimeout(() => {
-            const editBtn = document.querySelector(`[onclick="editRoom('${newRoomId}')"]`);
-            if (editBtn) editBtn.click();
+            const editBtns = document.querySelectorAll(`[onclick="editRoom('${newRoomId}')"]`);
+            if (editBtns.length > 0) {
+                // 마지막에 추가된 객실의 수정 버튼 클릭
+                editBtns[editBtns.length - 1].click();
+            }
         }, 100);
     }, 100);
 }
@@ -714,20 +711,10 @@ function deleteRoom(roomId) {
                     delete roomData[roomId];
                     
                     // UI 업데이트
-                    renderRoomButtons();
                     renderRoomList();
                     
-                    // 현재 선택된 객실이 삭제된 객실이면 첫 번째 객실로 이동
-                    if (currentRoom === roomId) {
-                        const firstRoomId = Object.keys(roomData)[0];
-                        if (firstRoomId) {
-                            switchRoom(firstRoomId);
-                        } else {
-                            // 객실이 없으면 빈 상태로
-                            currentRoom = null;
-                            document.querySelector('.room-list').innerHTML = '<p>등록된 객실이 없습니다.</p>';
-                        }
-                    }
+                    // 모든 객실이 표시되므로 switchRoom 호출이 필요하지 않음
+                    console.log('객실 삭제 완료 - 모든 객실이 세로로 표시됩니다');
                     
                     alert('객실이 삭제되었습니다.');
                 } else {
@@ -819,19 +806,10 @@ function loadRoomsFromDB() {
             });
             
             // UI 업데이트
-            renderRoomButtons();
             renderRoomList();
             
-            // 첫 번째 객실이 있으면 선택
-            const firstRoomId = Object.keys(roomData)[0];
-            if (firstRoomId) {
-                switchRoom(firstRoomId);
-            } else {
-                // 객실이 없으면 빈 상태로 설정
-                currentRoom = null;
-                const roomList = document.querySelector('.room-list');
-                roomList.innerHTML = '<p>등록된 객실이 없습니다.</p>';
-            }
+            // 모든 객실이 표시되므로 switchRoom 호출이 필요하지 않음
+            console.log('객실 데이터 로드 완료 - 모든 객실이 세로로 표시됩니다');
         })
         .catch(error => {
             console.error('객실 데이터 로드 실패:', error);
@@ -843,23 +821,10 @@ function loadRoomsFromDB() {
 }
 
 // 객실 버튼 렌더링
+// 객실 버튼 렌더링 함수 제거됨 - 모든 객실이 세로로 표시됩니다
 function renderRoomButtons() {
-    const roomButtons = document.querySelector('.room-buttons');
-    roomButtons.innerHTML = '';
-    
-    const roomIds = Object.keys(roomData);
-    
-    if (roomIds.length === 0) {
-        return; // 객실이 없으면 버튼도 표시하지 않음
-    }
-    
-    roomIds.forEach(roomId => {
-        const btn = document.createElement('button');
-        btn.className = 'room-btn';
-        btn.textContent = roomData[roomId].name;
-        btn.onclick = function(e) { switchRoom(roomId); };
-        roomButtons.appendChild(btn);
-    });
+    // 객실 버튼이 더 이상 필요하지 않으므로 빈 함수로 유지
+    console.log('객실 버튼 렌더링이 비활성화되었습니다 - 모든 객실이 세로로 표시됩니다');
 }
 
 // status 값을 문자열로 변환하는 함수
@@ -870,7 +835,7 @@ function getStatusText(status) {
     return result;
 }
 
-// 객실 목록 렌더링
+// 객실 목록 렌더링 - 모든 객실을 세로로 표시
 function renderRoomList() {
     const roomList = document.querySelector('.room-list');
     roomList.innerHTML = '';
@@ -887,7 +852,8 @@ function renderRoomList() {
         const room = roomData[roomId];
         const roomItem = document.createElement('div');
         roomItem.className = 'room-item';
-        roomItem.style.display = 'none';
+        // 모든 객실을 항상 표시
+        roomItem.style.display = 'block';
         
         let tableContent = '';
         
@@ -970,23 +936,10 @@ function switchRoomType(type) {
 }
 
 // 객실 전환 함수
+// 객실 전환 함수 - 더 이상 필요하지 않음 (모든 객실이 표시됨)
 function switchRoom(roomId) {
-    if (!roomData[roomId]) return;
-    
-    currentRoom = roomId;
-    console.log('switchRoom 호출:', roomId, '현재 객실:', currentRoom);
-    
-    // 버튼 활성화 상태 변경
-    document.querySelectorAll('.room-btn').forEach(btn => btn.classList.remove('active'));
-    // 버튼 찾기
-    const btns = Array.from(document.querySelectorAll('.room-btn'));
-    const idx = Object.keys(roomData).indexOf(roomId);
-    if (btns[idx]) btns[idx].classList.add('active');
-    // room-item 표시/숨김
-    const items = document.querySelectorAll('.room-item');
-    items.forEach((item, i) => {
-        item.style.display = (i === idx) ? '' : 'none';
-    });
+    // 객실 버튼이 제거되었으므로 이 함수는 더 이상 사용되지 않습니다
+    console.log('switchRoom 함수가 비활성화되었습니다 - 모든 객실이 세로로 표시됩니다');
 }
 
 // 시간 형식을 변환하는 함수 (HH:MM -> HH시)

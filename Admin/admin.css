@@ -774,50 +774,34 @@ th {
     border-color: #3b82f6;
 }
 
-.room-header {
-    display: flex;
-    justify-content: flex-start;
-    align-items: flex-start;
-    margin-bottom: 20px;
-}
-
-.room-buttons {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    max-width: 100%;
-}
-
-.room-btn {
-    padding: 8px 16px;
-    border: 1px solid #d1d5db;
-    background: #f9fafb;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.875rem;
-    transition: all 0.2s;
-    min-width: 80px;
-    max-width: 120px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex-shrink: 0;
-}
-
-.room-btn:hover {
-    background: #e5e7eb;
-}
-
-.room-btn.active {
-    background: #3b82f6;
-    color: white;
-    border-color: #3b82f6;
-}
+/* 객실 버튼 관련 스타일 제거됨 - 모든 객실이 세로로 표시됩니다 */
 
 .room-list {
     display: flex;
     flex-direction: column;
     gap: 24px;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+/* 객실 목록 스크롤바 스타일링 */
+.room-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.room-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.room-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.room-list::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
 }
 
 .room-item {

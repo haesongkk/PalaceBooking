@@ -83,15 +83,26 @@ body {
   gap: 2px;
   padding: 10px;
 }
-/*
+
+/* 스크롤바 숨기기 */
 .chat-window::-webkit-scrollbar {
-    width: 8px; 
-    background: #22223b; 
+  width: 0;
+  background: transparent;
 }
+
 .chat-window::-webkit-scrollbar-thumb {
-  background: #ffd600;
-  border-radius: 4px;
-}*/
+  background: transparent;
+}
+
+.chat-window::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Firefox용 스크롤바 숨기기 */
+.chat-window {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
 
 .message {
   display: inline-block;
