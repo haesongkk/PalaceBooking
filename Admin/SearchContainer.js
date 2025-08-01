@@ -11,7 +11,8 @@ class SearchBox {
         this.input.style.border = '1px solid #ddd';
         this.input.style.borderRadius = '6px';
         this.input.style.fontSize = '14px';
-        this.input.style.width = '200px';
+        this.input.style.flex = '1';
+        this.input.style.minWidth = '0';
         this.input.style.outline = 'none';
         this.input.style.transition = 'border-color 0.2s';
         
@@ -70,7 +71,7 @@ class SearchButton {
 } 
 
 class RegisterButton {
-    constructor(container, text = '등록하기') {
+    constructor(container, text = '등록') {
         this.registerButton = document.createElement('button');
         container.appendChild(this.registerButton);
 
@@ -102,7 +103,8 @@ class RegisterButton {
 
         // 클릭 이벤트
         this.registerButton.addEventListener('click', () => {
-            console.log('등록하기 버튼 클릭됨');
+            const popup = new PopupCanvas('등록');
+            popup.append(new CustomerForm().form);
         });
     }
 
@@ -114,7 +116,8 @@ class SearchContainer {
         // 컨테이너 스타일링
         this.div.style.display = 'flex';
         this.div.style.alignItems = 'center';
-        //this.div.style.gap = '12px';
+        this.div.style.gap = '8px';
+        this.div.style.width = '100%';
         //this.div.style.marginBottom = '24px';
         //this.div.style.padding = '16px';
         //this.div.style.backgroundColor = '#f8fafc';

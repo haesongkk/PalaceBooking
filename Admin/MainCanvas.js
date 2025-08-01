@@ -54,13 +54,11 @@ class MainCanvas {
         this.mainCanvas.style.display = 'none';
 
         this.header = new MainCanvasHeader(this.mainCanvas, title);
-        this.body = new MainCanvasBody(this.mainCanvas);
 
     }
 
-    appendBetween(element) {
-        // header와 body 사이에 element를 삽입
-        this.mainCanvas.insertBefore(element, this.body.div);
+    append(element) {
+        this.mainCanvas.appendChild(element);
     }
 
 
