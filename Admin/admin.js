@@ -85,8 +85,33 @@ function cancelReservation(id, btn) {
         });
 }
 
+let tabButton;
+let mainCanvas;
+let canvasHeader;
+let searchContainer;
+
+window.onload = function() {
+    mainCanvas = new MainCanvas(document.querySelector('.admin-3col'), '고객 등록');
+    tabButton = new TabButton(document.querySelector('.tab-navigation'), '고객 등록');
+    
+    // 검색창과 버튼들을 MainCanvas에 추가 (좌측 하단에 배치)
+    mainCanvas.appendBetween(new SearchContainer().div);
 
 
+    tabButton.tabButton.addEventListener('click', () => {
+        // 모든 탭 버튼에서 active 클래스 제거
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+                    
+        // 모든 패널에서 active 클래스 제거
+        document.querySelectorAll('.admin-panel').forEach(panel => {
+            panel.classList.remove('active');
+        });
+
+        mainCanvas.show();
+    });
+}
 
 
 // 탭 전환 함수
@@ -101,6 +126,9 @@ function switchTab(tabName) {
         panel.classList.remove('active');
     });
     
+    tabButton.hide();
+    mainCanvas.hide();
+
     // 선택된 탭 버튼에 active 클래스 추가
     document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
     
