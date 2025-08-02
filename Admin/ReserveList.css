@@ -51,3 +51,36 @@
     white-space: nowrap;
 }
 
+/* 테이블 셀 안의 버튼 스타일 */
+.reserve-list-bottom-container table td button {
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    margin: 0 2px;
+    transition: background-color 0.2s;
+}
+
+.reserve-list-bottom-container table td button.confirm {
+    background-color: #3b82f6;
+}
+.reserve-list-bottom-container table td button.confirm:hover {
+    background-color: #2563eb;
+}
+
+.reserve-list-bottom-container table td button.cancel {
+    background-color: #dc3545;
+}
+.reserve-list-bottom-container table td button.cancel:hover {
+    background-color: #c82333;
+}
+
+.reserve-list-bottom-container table td button:disabled {
+    background-color: #9ca3af;
+}
+
+
+

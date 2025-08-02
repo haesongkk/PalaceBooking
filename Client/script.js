@@ -11,6 +11,7 @@ let selectedProduct = "";
 
 let logBuffer = [];
 let userNick = null; // ex: "몽글몽글한 젤리(1234)"
+let finalAmount = 0; // 전역 변수로 선언
 
 function sendLogToServer(log) {
     palaceAPI.saveLog(log).catch(error => {
@@ -964,7 +965,7 @@ async function showPaymentButton() {
 
     // 고객 타입별 할인 적용
     let discountMsg = "";
-    let finalAmount = amount;
+    finalAmount = amount; // 전역 변수에 할당
     if (userType === "first") {
         finalAmount = Math.round(amount * 0.5);
         discountMsg = `🎉 첫방문 고객 반값 할인 적용!\n원래 가격: ${amount.toLocaleString()}원 → 할인 가격: ${finalAmount.toLocaleString()}원`;
@@ -991,6 +992,13 @@ async function showPaymentButton() {
 function processPayment(paymentMethod) {
     appendMessage('⚠️ 테스트 페이지이므로 결제 과정 없이 예약이 바로 진행됩니다.', 'user');
     appendMessage("예약을 진행합니다...", "bot");
+    
+    // finalAmount가 정의되지 않은 경우를 대비한 안전장치
+    if (typeof finalAmount === 'undefined') {
+        appendMessage("❌ 가격 계산에 오류가 발생했습니다. 다시 시도해주세요.", "bot");
+        return;
+    }
+    
     // 서버에 예약 정보 요청 (결제 없이 바로 예약)
     const payload = {
         username: username,
@@ -1000,8 +1008,12 @@ function processPayment(paymentMethod) {
         endDate: rangeEnd?.toISOString().split('T')[0] || null,
         amount: finalAmount // 계산된 최종 가격 전송
     };
+    
+    console.log('예약 요청 데이터:', payload);
+    
     palaceAPI.createReservation(payload)
     .then(data => {
+        console.log('예약 응답:', data);
         if (data.success) {
             appendMessage('✅ 예약이 접수되었습니다! 예약 확정 대기 중입니다.', 'bot');
             // 필요하다면 예약 내역 새로고침 함수 호출
@@ -1011,6 +1023,7 @@ function processPayment(paymentMethod) {
         }
     })
     .catch(err => {
+        console.error('예약 생성 오류:', err);
         appendMessage("❌ 서버 통신 오류가 발생했습니다.", "bot");
     });
 }
