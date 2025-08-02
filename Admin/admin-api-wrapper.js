@@ -6,6 +6,7 @@ class PalaceBookingAdminAPI {
     constructor(baseURL = '') {
         this.baseURL = baseURL;
         this.socket = null;
+        this.allReservations = []; // 예약 목록 저장
     }
 
     /**
@@ -26,10 +27,10 @@ class PalaceBookingAdminAPI {
     // ===== 예약 관리 API =====
 
     /**
-     * 모든 예약 목록 조회
+     * 모든 예약 목록 조회 및 저장
      * @returns {Promise<Array>} 예약 목록
      */
-    async getAllReservations() {
+    async fetchReservations() {
         try {
             const response = await fetch(`${this.baseURL}/api/admin/reservations`);
             
@@ -37,11 +38,28 @@ class PalaceBookingAdminAPI {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             
-            return await response.json();
+            this.allReservations = await response.json();
+            return this.allReservations;
         } catch (error) {
             console.error('예약 목록 조회 실패:', error);
             throw error;
         }
+    }
+
+    /**
+     * 저장된 예약 목록 반환
+     * @returns {Array} 예약 목록
+     */
+    getAllReservations() {
+        return this.allReservations;
+    }
+
+    /**
+     * 예약 목록 새로고침
+     * @returns {Promise<Array>} 새로운 예약 목록
+     */
+    async refreshReservations() {
+        return await this.fetchReservations();
     }
 
     /**

@@ -1,43 +1,6 @@
-class MainCanvasHeader {
-    constructor(container, title) {
-        this.div = document.createElement('div');
-        container.appendChild(this.div);
-
-        this.div.style.display = 'flex';
-        this.div.style.alignItems = 'center';
-        this.div.style.justifyContent = 'center';
-
-        this.div.style.marginBottom = '20px';
-
-        this.div.style.fontSize = '1.2rem';
-        this.div.style.fontWeight = 'bold';
-        this.div.style.color = '#333';
-
-        this.div.textContent = title;  
-    }
-
-}
-
-class MainCanvasBody {
-    constructor(container) {
-        this.div = document.createElement('div');
-        container.appendChild(this.div);
-
-        this.div.style.display = 'flex';
-        this.div.style.flexDirection = 'column';
-        this.div.style.gap = '24px';
-
-        this.div.style.maxHeight = 'calc(100vh - 200px)';
-        this.div.style.overflowY = 'auto';
-        this.div.style.paddingRight = '8px';
-
-    }
-}
-
 class MainCanvas {
-    constructor(container, title) {
+    constructor() {
         this.mainCanvas = document.createElement('div');
-        container.appendChild(this.mainCanvas);
 
         this.mainCanvas.style.background = '#fff';
         this.mainCanvas.style.borderRadius = '18px';
@@ -51,23 +14,18 @@ class MainCanvas {
         this.mainCanvas.style.flexDirection = 'column';
         this.mainCanvas.style.transition = 'all 0.2s';
 
-        this.mainCanvas.style.display = 'none';
-
-        this.header = new MainCanvasHeader(this.mainCanvas, title);
-
-    }
-
-    append(element) {
-        this.mainCanvas.appendChild(element);
-    }
-
-
-    show() {
         this.mainCanvas.style.display = 'flex';
+
+        document.querySelector('.admin-3col').appendChild(this.mainCanvas);
     }
 
-    hide() {
-        this.mainCanvas.style.display = 'none';
+    append(content) {
+        this.content?.remove();
+        this.content = content;
+        this.mainCanvas.appendChild(content.getRootElement());
+        console.log(content);
     }
+
+
 }
 

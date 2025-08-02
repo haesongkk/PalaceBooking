@@ -1,0 +1,68 @@
+.customer-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.customer-list-top-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.customer-list-top-search-input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    flex: 1;
+    min-width: 0;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.customer-list-top-search-input:focus {
+    border-color: #007bff;
+}
+
+.customer-list-top-search-input:blur {
+    border-color: #ddd;
+}
+
+.customer-list-top-search-button {
+    padding: 12px 20px;
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-left: 8px;
+}
+
+.customer-list-top-search-button:hover {
+    background-color: #2563eb;
+}
+
+.customer-list-top-register-button {
+    padding: 12px 20px;
+    background-color: #10b981;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-left: 8px;
+}
+
+.customer-list-top-register-button:hover {    
+    background-color: #059669;
+}
+
+
+

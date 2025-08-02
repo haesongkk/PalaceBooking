@@ -1,20 +1,15 @@
-let allReservations = [];
+// allReservations는 이제 adminAPI 객체에서 관리됨
 let currentFilter = 'pending';
 
 function fetchReservations() {
-    adminAPI.getAllReservations()
+    adminAPI.fetchReservations()
         .then(data => {
-            allReservations = data;
             renderTable();
         })
         .catch(error => {
             console.error('예약 목록 조회 실패:', error);
         });
 }
-
-
-
-
 
 function setFilter(filter) {
     currentFilter = filter;
@@ -25,7 +20,7 @@ function setFilter(filter) {
 
 function renderTable() {
     const tbody = document.querySelector('#reservationTable tbody');
-    let data = allReservations;
+    let data = adminAPI.getAllReservations();
     if (currentFilter === 'pending') data = data.filter(r => !r.confirmed);
     else if (currentFilter === 'confirmed') data = data.filter(r => r.confirmed);
     if (!data.length) {
@@ -86,31 +81,12 @@ function cancelReservation(id, btn) {
 }
 
 let tabButton;
-let mainCanvas;
-let canvasHeader;
-let searchContainer;
-
+let menuBar;
 window.onload = function() {
-    mainCanvas = new MainCanvas(document.querySelector('.admin-3col'), '고객 등록');
-    tabButton = new TabButton(document.querySelector('.tab-navigation'), '고객 등록');
-    
-    mainCanvas.append(new SearchContainer().div);
-    
+    menuBar = new MenuBar();
+    window.mainCanvas = new MainCanvas();
+    window.popupCanvas = new PopupCanvas();
 
-
-    tabButton.tabButton.addEventListener('click', () => {
-        // 모든 탭 버튼에서 active 클래스 제거
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-                    
-        // 모든 패널에서 active 클래스 제거
-        document.querySelectorAll('.admin-panel').forEach(panel => {
-            panel.classList.remove('active');
-        });
-
-        mainCanvas.show();
-    });
 }
 
 
@@ -127,7 +103,7 @@ function switchTab(tabName) {
     });
     
     tabButton.hide();
-    mainCanvas.hide();
+    window.mainCanvas.hide();
 
     // 선택된 탭 버튼에 active 클래스 추가
     document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
