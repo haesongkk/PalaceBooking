@@ -37,13 +37,14 @@ class MenuBar {
                 tabContent = new ReserveList();
                 break;
             case '요금표 관리':
-                tabContent = new ReserveList();
+                tabContent = new PriceTable();
                 break;
             case '판매 캘린더':
-                tabContent = new ReserveList(); 
+                tabContent = new PriceTable();
+                //tabContent = new SalesCalendar(); 
                 break;
         }
-        window.mainCanvas.append(tabContent);
+        mainCanvas.append(tabContent, tabName);
 
     }
 }

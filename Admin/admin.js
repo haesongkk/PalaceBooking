@@ -1,104 +1,6 @@
-// allReservations는 이제 직접 관리
-let allReservations = [];
-let currentFilter = 'pending';
 
-function fetchReservations() {
-    fetch('/api/admin/reservations')
-        .then(res => res.json())
-        .then(data => {
-            allReservations = data;
-            renderTable();
-        })
-        .catch(error => {
-            console.error('예약 목록 조회 실패:', error);
-        });
-}
-
-function setFilter(filter) {
-    currentFilter = filter;
-    document.querySelectorAll('.filter-btns button').forEach(btn => btn.classList.remove('active'));
-    document.getElementById('filter-' + filter).classList.add('active');
-    renderTable();
-}
-
-function renderTable() {
-    const tbody = document.querySelector('#reservationTable tbody');
-    let data = allReservations;
-    if (currentFilter === 'pending') data = data.filter(r => r.state === 0);
-    else if (currentFilter === 'confirmed') data = data.filter(r => r.state === 1);
-    if (!data.length) {
-        tbody.innerHTML = '<tr><td colspan="6">예약이 없습니다.</td></tr>';
-        return;
-    }
-    tbody.innerHTML = data.map(r => `
-        <tr>
-            <td>${r.id}</td>
-            <td>${r.username || '-'}</td>
-            <td>${r.phone || '-'}</td>
-            <td>${r.room || '-'}</td>
-            <td>${r.start_date || ''} ~ ${r.end_date || ''}</td>
-            <td>
-                <button class="btn btn-confirm" ${r.state !== 0 ? 'disabled' : ''} onclick="confirmReservation(${r.id}, this)">확정</button>
-                <button class="btn btn-cancel" ${r.state === -1 ? 'disabled' : ''} onclick="cancelReservation(${r.id}, this)">취소</button>
-            </td>
-        </tr>
-    `).join('');
-}
-
-function confirmReservation(id, btn) {
-    if (!confirm('이 예약을 확정하시겠습니까?')) return;
-    btn.disabled = true;
-    fetch('/api/admin/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: id })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            alert('예약이 확정되었습니다!');
-            fetchReservations();
-        } else {
-            alert('오류: ' + (data.error || '확정 실패'));
-            btn.disabled = false;
-        }
-    })
-    .catch(error => {
-        console.error('예약 확정 실패:', error);
-        alert('예약 확정 중 오류가 발생했습니다.');
-        btn.disabled = false;
-    });
-}
-
-function cancelReservation(id, btn) {
-    if (!confirm('이 예약을 취소하시겠습니까?')) return;
-    btn.disabled = true;
-    fetch('/api/cancel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: id })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            alert('예약이 취소되었습니다!');
-            fetchReservations();
-        } else {
-            alert('오류: ' + (data.error || '취소 실패'));
-            btn.disabled = false;
-        }
-    })
-    .catch(error => {
-        console.error('예약 취소 실패:', error);
-        alert('예약 취소 중 오류가 발생했습니다.');
-        btn.disabled = false;
-    });
-}
-
-let tabButton;
-let menuBar;
 window.onload = function() {
-    menuBar = new MenuBar();
+    new MenuBar();
     window.mainCanvas = new MainCanvas();
     window.popupCanvas = new PopupCanvas();
 
@@ -107,24 +9,7 @@ window.onload = function() {
 
 // 탭 전환 함수
 function switchTab(tabName) {
-    // 모든 탭 버튼에서 active 클래스 제거
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    // 모든 패널에서 active 클래스 제거
-    document.querySelectorAll('.admin-panel').forEach(panel => {
-        panel.classList.remove('active');
-    });
-    
-    tabButton.hide();
-    window.mainCanvas.hide();
 
-    // 선택된 탭 버튼에 active 클래스 추가
-    document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
-    
-    // 선택된 패널에 active 클래스 추가
-    document.getElementById(`panel-${tabName}`).classList.add('active');
     
     // 판매 캘린더 탭을 클릭한 경우에만 데이터 로드
     if (tabName === 'sales') {

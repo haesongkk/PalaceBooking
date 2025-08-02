@@ -37,9 +37,10 @@
     width: 90%;
     max-width: 1200px;
     height: 80vh;
+    display: flex;
     flex-direction: column;
+    overflow: hidden;
     transition: all 0.2s;
-    display: none;
 }
 
 .main-canvas h2 {
@@ -52,6 +53,7 @@
 }
 
 .popup-canvas-background {
+    display: none;
     position: fixed;
     top: 0;
     left: 0;
@@ -59,7 +61,6 @@
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
     z-index: 2000;
-    display: flex;
     align-items: center;
     justify-content: center;
 }

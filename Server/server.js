@@ -500,7 +500,7 @@ app.get('/api/admin/roomInfo', (req, res) => {
 // 객실 관리 테이블 생성
 roomDb.prepare(`
   CREATE TABLE IF NOT EXISTS rooms (
-    id TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY,
     name TEXT,
     checkInOut TEXT,
     price TEXT, -- JSON 배열 형태: [월요일가격, 화요일가격, 수요일가격, 목요일가격, 금요일가격, 토요일가격, 일요일가격]
@@ -511,6 +511,62 @@ roomDb.prepare(`
     rentalStatus TEXT
   )
 `).run();
+
+// id 컬럼을 TEXT에서 INTEGER로 마이그레이션
+try {
+    // 기존 테이블이 TEXT id를 사용하는지 확인
+    const tableInfo = roomDb.prepare("PRAGMA table_info(rooms)").all();
+    const idColumn = tableInfo.find(col => col.name === 'id');
+    
+    if (idColumn && idColumn.type === 'TEXT') {
+        console.log('id 컬럼을 INTEGER로 마이그레이션 중...');
+        
+        // 임시 테이블 생성
+        roomDb.prepare(`
+            CREATE TABLE rooms_temp (
+                id INTEGER PRIMARY KEY,
+                name TEXT,
+                checkInOut TEXT,
+                price TEXT,
+                status TEXT,
+                usageTime TEXT,
+                openClose TEXT,
+                rentalPrice TEXT,
+                rentalStatus TEXT
+            )
+        `).run();
+        
+        // 기존 데이터를 임시 테이블로 복사 (id를 정수로 변환)
+        const rooms = roomDb.prepare('SELECT * FROM rooms').all();
+        rooms.forEach(room => {
+            const roomId = parseInt(room.id) || Date.now(); // 기존 id를 정수로 변환, 실패하면 현재 시간 사용
+            roomDb.prepare(`
+                INSERT INTO rooms_temp (id, name, checkInOut, price, status, usageTime, openClose, rentalPrice, rentalStatus)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(
+                roomId,
+                room.name,
+                room.checkInOut,
+                room.price,
+                room.status,
+                room.usageTime,
+                room.openClose,
+                room.rentalPrice,
+                room.rentalStatus
+            );
+        });
+        
+        // 기존 테이블 삭제
+        roomDb.prepare('DROP TABLE rooms').run();
+        
+        // 임시 테이블을 새 테이블로 이름 변경
+        roomDb.prepare('ALTER TABLE rooms_temp RENAME TO rooms').run();
+        
+        console.log('id 컬럼 마이그레이션이 완료되었습니다.');
+    }
+} catch (e) {
+    console.error('id 컬럼 마이그레이션 오류:', e);
+}
 
 // 기존 테이블에서 사용되지 않는 컬럼들 제거 (마이그레이션)
 try { roomDb.prepare('ALTER TABLE rooms DROP COLUMN extraPerson').run(); } catch (e) {}
@@ -923,13 +979,49 @@ app.get('/api/admin/rooms', (req, res) => {
     }
 });
 
-// 객실 저장/수정 (upsert)
+// 새 객실 추가 (디폴트 값으로)
+app.post('/api/admin/rooms/add', (req, res) => {
+    try {
+        // 디폴트 값 설정
+        const roomId = Date.now();
+        const roomName = `객실`;
+        const defaultCheckInOut = JSON.stringify(Array(7).fill([16, 13]));
+        const defaultPrice = JSON.stringify(Array(7).fill(50000));
+        const defaultStatus = JSON.stringify(Array(7).fill(1));
+        const defaultUsageTime = JSON.stringify(Array(7).fill(5));
+        const defaultOpenClose = JSON.stringify(Array(7).fill([14, 22]));
+        const defaultRentalPrice = JSON.stringify(Array(7).fill(30000));
+        const defaultRentalStatus = JSON.stringify(Array(7).fill(1));
+        
+        roomDb.prepare(`
+            INSERT INTO rooms (id, name, checkInOut, price, status, usageTime, openClose, rentalPrice, rentalStatus)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+            roomId, 
+            roomName, 
+            defaultCheckInOut, 
+            defaultPrice, 
+            defaultStatus, 
+            defaultUsageTime, 
+            defaultOpenClose, 
+            defaultRentalPrice, 
+            defaultRentalStatus
+        );
+        
+        res.json({ success: true, id: roomId, name: roomName });
+    } catch (error) {
+        console.error('객실 추가 오류:', error);
+        res.status(500).json({ error: '객실 추가 실패' });
+    }
+});
+
+// 객실 수정
 app.post('/api/admin/rooms', (req, res) => {
     try {
         const { id, name, checkInOut, price, status, usageTime, openClose, rentalPrice, rentalStatus } = req.body;
-        
-        if (!id || !name) {
-            return res.status(400).json({ error: '객실 ID와 이름은 필수입니다.' });
+
+        if (!id) {
+            return res.status(400).json({ error: '객실 ID는 필수입니다.' });
         }
 
         // 가격 배열을 JSON 문자열로 변환
@@ -939,26 +1031,22 @@ app.post('/api/admin/rooms', (req, res) => {
         // 기존 객실 확인
         const existingRoom = roomDb.prepare('SELECT id FROM rooms WHERE id = ?').get(id);
         
-        if (existingRoom) {
-            // 기존 객실 수정
-            roomDb.prepare(`
-                UPDATE rooms 
-                SET name = ?, checkInOut = ?, price = ?, status = ?, usageTime = ?, 
-                    openClose = ?, rentalPrice = ?, rentalStatus = ?
-                WHERE id = ?
-            `).run(name, checkInOut, priceJson, status, usageTime, openClose, rentalPriceJson, rentalStatus, id);
-        } else {
-            // 새 객실 생성
-            roomDb.prepare(`
-                INSERT INTO rooms (id, name, checkInOut, price, status, usageTime, openClose, rentalPrice, rentalStatus)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(id, name, checkInOut, priceJson, status, usageTime, openClose, rentalPriceJson, rentalStatus);
+        if (!existingRoom) {
+            return res.status(404).json({ error: '객실을 찾을 수 없습니다.' });
         }
+
+        // 기존 객실 수정
+        roomDb.prepare(`
+            UPDATE rooms 
+            SET name = ?, checkInOut = ?, price = ?, status = ?, usageTime = ?, 
+                openClose = ?, rentalPrice = ?, rentalStatus = ?
+            WHERE id = ?
+        `).run(name, checkInOut, priceJson, status, usageTime, openClose, rentalPriceJson, rentalStatus, id);
         
         res.json({ success: true, id });
     } catch (error) {
-        console.error('객실 저장 오류:', error);
-        res.status(500).json({ error: '객실 저장 실패' });
+        console.error('객실 수정 오류:', error);
+        res.status(500).json({ error: '객실 수정 실패' });
     }
 });
 

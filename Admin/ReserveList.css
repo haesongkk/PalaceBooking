@@ -3,14 +3,7 @@
     flex-direction: column;
     gap: 20px;
 }
-.reserve-list-container h2 {
-    text-align: center;
-    margin-top: 0;
-    margin-bottom: 24px;
-    font-size: 1.5rem;
-    color: #2a2a3a;
-    letter-spacing: -1px;
-}
+
 .reserve-list-top-container {
     text-align: center;
     margin-bottom: 18px;

@@ -3,11 +3,6 @@ class ReserveList {
         this.container = document.createElement('div');
         this.container.className = 'reserve-list-container';
 
-        this.title = document.createElement('h2');
-        this.title.textContent = '예약 승인';
-
-        this.container.appendChild(this.title);
-
         this.topContainer = document.createElement('div');
         this.topContainer.className = 'reserve-list-top-container';
 

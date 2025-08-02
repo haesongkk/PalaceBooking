@@ -1,31 +1,22 @@
 class MainCanvas {
     constructor() {
         this.mainCanvas = document.createElement('div');
+        this.mainCanvas.className = 'main-canvas';
 
-        this.mainCanvas.style.background = '#fff';
-        this.mainCanvas.style.borderRadius = '18px';
-        this.mainCanvas.style.boxShadow = '0 4px 24px #0002';
-        this.mainCanvas.style.padding = '32px';
+        this.title = document.createElement('h2');
+        this.title.textContent = null;
 
-        this.mainCanvas.style.width = '90%';
-        this.mainCanvas.style.maxWidth = '1200px';
-        this.mainCanvas.style.height = '80vh';
-
-        this.mainCanvas.style.flexDirection = 'column';
-        this.mainCanvas.style.transition = 'all 0.2s';
-
-        this.mainCanvas.style.display = 'flex';
+        this.mainCanvas.appendChild(this.title);
 
         document.querySelector('.admin-3col').appendChild(this.mainCanvas);
     }
 
-    append(content) {
+    append(content, title = null) {
+        this.title.textContent = title;
         this.content?.remove();
         this.content = content;
         this.mainCanvas.appendChild(content.getRootElement());
-        console.log(content);
     }
-
 
 }
 
