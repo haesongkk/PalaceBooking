@@ -67,12 +67,12 @@
 
 .popup-canvas {
     background: white;
-    border-radius: 12px;
+    border-radius: 18px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
     width: 60%;
     height: 60%;
     min-width: 400px;
-    overflow: hidden;
+    overflow: visible;
     margin: 20px;
     display: flex;
     flex-direction: column;
@@ -85,6 +85,7 @@
     padding: 20px 25px;
     border-bottom: 1px solid #e5e7eb;
     background: #f9fafb;
+    border-radius: 18px 18px 0 0;
 }
 
 .popup-canvas-top h3 {
@@ -121,7 +122,13 @@
 .popup-canvas-middle {
     padding: 24px;
     flex: 1;
-    overflow-y: auto;
+    overflow: visible;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.popup-canvas-middle::-webkit-scrollbar {
+    display: none;
 }
 
 .popup-canvas-bottom {
@@ -132,6 +139,7 @@
     border-top: 1px solid #e5e7eb;
     background: #f9fafb;
     flex-shrink: 0;
+    border-radius: 0 0 18px 18px;
 }
 
 .popup-canvas-bottom button {

@@ -69,10 +69,55 @@ class PopupCanvas {
     }
 
     submit() {
-        if(this.content) {
-            console.log(this.content.getData());
+        if(this.content && this.content.submit) {
+            this.content.submit();
         }
         this.close();
+    }
+
+    async submitPriceTableItem() {
+        try {
+            const formData = this.content.getData();
+            const room = this.content.room;
+            const originalItem = this.content.originalItem;
+            
+            // 객실 데이터 업데이트
+            room.name = formData.name;
+            room.checkInOut = formData.checkInOut;
+            room.price = formData.price;
+            room.status = formData.status;
+            room.usageTime = formData.usageTime;
+            room.openClose = formData.openClose;
+            room.rentalPrice = formData.rentalPrice;
+            room.rentalStatus = formData.rentalStatus;
+            
+            // DB에 저장
+            const response = await fetch(`/api/admin/rooms/${room.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(room)
+            });
+            
+            if (response.ok) {
+                console.log('PopupCanvas: 객실 수정 완료');
+                
+                // 원본 PriceTableItem 업데이트
+                if (originalItem) {
+                    originalItem.updateFromData(formData);
+                }
+                
+                // 부모 PriceTable 업데이트
+                if (originalItem && originalItem.parentTable) {
+                    originalItem.parentTable.updateRoom();
+                }
+            } else {
+                console.error('PopupCanvas: 객실 수정 실패');
+                alert('객실 수정에 실패했습니다.');
+            }
+        } catch (error) {
+            console.error('PopupCanvas: 객실 수정 오류:', error);
+            alert('객실 수정에 실패했습니다.');
+        }
     }
 
 

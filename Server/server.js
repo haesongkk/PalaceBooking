@@ -1050,6 +1050,41 @@ app.post('/api/admin/rooms', (req, res) => {
     }
 });
 
+// 객실 수정
+app.put('/api/admin/rooms/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const roomData = req.body;
+        
+        // 객실 데이터 업데이트
+        const info = roomDb.prepare(`
+            UPDATE rooms 
+            SET name = ?, checkInOut = ?, price = ?, status = ?, 
+                usageTime = ?, openClose = ?, rentalPrice = ?, rentalStatus = ?
+            WHERE id = ?
+        `).run(
+            roomData.name,
+            JSON.stringify(roomData.checkInOut),
+            JSON.stringify(roomData.price),
+            JSON.stringify(roomData.status),
+            JSON.stringify(roomData.usageTime),
+            JSON.stringify(roomData.openClose),
+            JSON.stringify(roomData.rentalPrice),
+            JSON.stringify(roomData.rentalStatus),
+            id
+        );
+        
+        if (info.changes > 0) {
+            res.json({ success: true, message: '객실 수정 완료' });
+        } else {
+            res.status(404).json({ error: '객실을 찾을 수 없습니다.' });
+        }
+    } catch (error) {
+        console.error('객실 수정 오류:', error);
+        res.status(500).json({ error: '객실 수정 실패' });
+    }
+});
+
 // 객실 삭제
 app.delete('/api/admin/rooms/:id', (req, res) => {
     try {

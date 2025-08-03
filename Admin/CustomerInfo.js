@@ -56,6 +56,14 @@ class CustomerInfo {
         this.container.remove();
     }
 
+    submit() {
+        const data = this.getData();
+        console.log('CustomerInfo submit - data:', data);
+        
+        // TODO: 실제 저장 로직 구현
+        // 현재는 콘솔 출력만
+    }
+
     getData() {
         return {
             name: this.nameInput.value,
@@ -65,4 +73,6 @@ class CustomerInfo {
     }
     
 }
+
+
 

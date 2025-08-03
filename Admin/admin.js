@@ -3,7 +3,6 @@ window.onload = function() {
     new MenuBar();
     window.mainCanvas = new MainCanvas();
     window.popupCanvas = new PopupCanvas();
-
 }
 
 

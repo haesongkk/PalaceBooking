@@ -97,6 +97,7 @@
     padding: 20px;
     min-width: 0;
     flex-shrink: 0;
+    overflow: hidden;
 }
 
 .price-table-inner-top-container {
@@ -136,7 +137,7 @@
     border-collapse: collapse;
     font-size: 0.9rem;
     border-radius: 8px;
-    overflow: auto;
+    overflow: visible;
     table-layout: fixed;
 }
 
@@ -165,6 +166,455 @@
     white-space: nowrap;
     text-overflow: ellipsis;
     position: relative;
+}
+
+.price-table-inner-container table td:first-child {
+    font-weight: 600;
+    background-color: #f8f9fa;
+    border-right: 2px solid #e9ecef;
+}
+
+/* 팝업 캔버스에서 PriceTableItem 표시 시 스타일 */
+.popup-canvas-middle .price-table-inner-container {
+    background: transparent;
+    border: none;
+    padding: 0;
+    border-radius: 0;
+    width: 100%;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 100%;
+    overflow: visible;
+}
+
+.popup-canvas-middle .price-table-inner-container table {
+    margin-top: 0;
+    border-radius: 0;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.popup-canvas-middle .price-table-inner-top-container {
+    margin-bottom: 10px;
+}
+
+.popup-canvas-middle .price-table-inner-top-container button.edit,
+.popup-canvas-middle .price-table-inner-top-container button.delete {
+    display: none;
+}
+
+/* 편집 가능한 요소들의 스타일 */
+.edit-select {
+    padding: 4px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    background: white;
+    cursor: pointer;
+    min-width: 60px;
+    text-align: center;
+}
+
+.edit-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.edit-input {
+    width: 80px;
+    padding: 4px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.edit-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.time-edit-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.usage-edit-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.time-select {
+    min-width: 50px;
+    text-align: center;
+}
+
+.time-separator {
+    font-size: 0.8rem;
+    color: #6b7280;
+    white-space: nowrap;
+}
+
+/* Room Table 스타일 (admin.css에서 이동) */
+.room-table-container {
+    overflow: visible;
+    border-radius: 8px;
+    position: relative;
+}
+
+.room-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    min-width: 600px;
+    border-radius: 8px;
+    overflow: visible;
+    table-layout: fixed;
+}
+
+.room-table th,
+.room-table td {
+    border: 1px solid #e2e8f0;
+    padding: 4px 2px;
+    text-align: center;
+    height: 35px;
+    vertical-align: middle;
+    overflow: visible;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    position: relative;
+}
+
+.room-table th {
+    background: #f1f5f9;
+    font-weight: 600;
+    color: #374151;
+}
+
+.room-table td:first-child {
+    font-weight: 600;
+    background-color: #f8f9fa;
+    border-right: 2px solid #e9ecef;
+}
+
+/* 대실 테이블 스타일 */
+.room-table.daily tr:nth-child(1),
+.room-table.daily tr:nth-child(2),
+.room-table.daily tr:nth-child(3),
+.room-table.daily tr:nth-child(4) {
+    background-color: #e3f2fd;
+}
+
+.room-table.daily tr:nth-child(1) td:first-child,
+.room-table.daily tr:nth-child(2) td:first-child,
+.room-table.daily tr:nth-child(3) td:first-child,
+.room-table.daily tr:nth-child(4) td:first-child {
+    background-color: #e3f2fd;
+}
+
+/* 숙박 테이블 스타일 */
+.room-table.overnight tr:nth-child(1),
+.room-table.overnight tr:nth-child(2),
+.room-table.overnight tr:nth-child(3) {
+    background-color: #e3f2fd;
+}
+
+.room-table.overnight tr:nth-child(1) td:first-child,
+.room-table.overnight tr:nth-child(2) td:first-child,
+.room-table.overnight tr:nth-child(3) td:first-child {
+    background-color: #e3f2fd;
+}
+
+/* Status Buttons */
+.status-buttons {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+}
+
+.status-btn {
+    padding: 4px 8px;
+    border: 1px solid #d1d5db;
+    background: #f9fafb;
+    color: #6b7280;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.status-btn:hover {
+    background: #f3f4f6;
+}
+
+.status-btn.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+/* Time Inputs */
+.time-inputs {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0px;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+/* 이용시간용 Time Inputs */
+.time-inputs[style*="justify-content:center"] {
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 2px !important;
+}
+
+.time-inputs[style*="justify-content:center"] .custom-dropdown {
+    width: 22px;
+    height: 20px;
+}
+
+.time-inputs[style*="justify-content:center"] .dropdown-display {
+    width: 100%;
+    height: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 2px;
+    font-size: 0.75rem;
+    text-align: center;
+    line-height: 18px;
+    background: white;
+    cursor: pointer;
+}
+
+.time-inputs[style*="justify-content:center"] span {
+    font-size: 0.75rem;
+    color: #374151;
+}
+
+.time-input {
+    width: 35px;
+    padding: 1px 2px;
+    border: 1px solid #d1d5db;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    text-align: center;
+    min-width: 35px;
+    max-width: 35px;
+    height: 18px;
+    line-height: 1;
+}
+
+.time-input-hour,
+.time-input-min {
+    width: 22px;
+    padding: 0px;
+    border: 1px solid #d1d5db;
+    border-radius: 2px;
+    font-size: 0.75rem;
+    text-align: center;
+    min-width: 22px;
+    max-width: 22px;
+    height: 20px;
+    line-height: 1;
+    -webkit-appearance: none;
+    -moz-appearance: textfield;
+}
+
+.time-select-hour,
+.time-select-min {
+    width: 22px;
+    padding: 0px;
+    border: 1px solid #d1d5db;
+    border-radius: 2px;
+    font-size: 0.75rem;
+    text-align: center;
+    min-width: 22px;
+    max-width: 22px;
+    height: 20px;
+    line-height: 1;
+    background: white;
+    cursor: pointer;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* Custom Dropdown */
+.custom-dropdown {
+    position: relative;
+    width: 22px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.dropdown-display {
+    width: 100%;
+    height: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 2px;
+    font-size: 0.75rem;
+    text-align: center;
+    line-height: 18px;
+    background: white;
+    cursor: pointer;
+}
+
+.dropdown-options {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 90px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 2px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 99999;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.dropdown-options::-webkit-scrollbar {
+    display: none;
+}
+
+.dropdown-option {
+    padding: 4px 6px;
+    font-size: 0.75rem;
+    text-align: center;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+    background-color: white;
+}
+
+.dropdown-option:hover {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.dropdown-option.selected {
+    background-color: #e3f2fd;
+    color: #1e40af;
+}
+
+.floating-dropdown {
+    max-height: 80px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 2px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    backdrop-filter: blur(4px);
+    background-color: rgba(255, 255, 255, 0.95);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.floating-dropdown::-webkit-scrollbar {
+    display: none;
+}
+
+.time-select-hour:hover,
+.time-select-min:hover {
+    border-color: #3b82f6;
+}
+
+.time-select-hour:focus,
+.time-select-min:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.time-select-hour:hover option,
+.time-select-min:hover option {
+    background-color: #f3f4f6;
+}
+
+.time-select-hour option:hover,
+.time-select-min option:hover {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.time-input-hour::-webkit-outer-spin-button,
+.time-input-hour::-webkit-inner-spin-button,
+.time-input-min::-webkit-outer-spin-button,
+.time-input-min::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Price Input */
+.price-input-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+}
+
+.price-input {
+    width: 50px;
+    padding: 2px 4px;
+    border: 1px solid #d1d5db;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    background: white;
+    text-align: center;
+}
+
+.price-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.price-unit {
+    color: #374151;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* PriceTableItem 테이블에 room-table 스타일 적용 */
+.price-table-inner-container table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    min-width: 600px;
+    border-radius: 8px;
+    overflow: visible;
+    table-layout: fixed;
+}
+
+.price-table-inner-container table th,
+.price-table-inner-container table td {
+    border: 1px solid #e2e8f0;
+    padding: 4px 2px;
+    text-align: center;
+    height: 35px;
+    vertical-align: middle;
+    overflow: visible;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    position: relative;
+}
+
+.price-table-inner-container table th {
+    background: #f1f5f9;
+    font-weight: 600;
+    color: #374151;
 }
 
 .price-table-inner-container table td:first-child {
