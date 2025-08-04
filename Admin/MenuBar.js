@@ -40,8 +40,7 @@ class MenuBar {
                 tabContent = new PriceTable();
                 break;
             case '판매 캘린더':
-                tabContent = new PriceTable();
-                //tabContent = new SalesCalendar(); 
+                tabContent = new DailyPrice();
                 break;
         }
         mainCanvas.append(tabContent, tabName);

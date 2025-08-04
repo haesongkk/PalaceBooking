@@ -623,4 +623,192 @@
     border-right: 2px solid #e9ecef;
 }
 
+/* DailyPricePopup 전용 스타일 */
+.sales-info-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 12px;
+}
+
+.selected-dates-info {
+    font-size: 0.9rem;
+    color: #374151;
+    font-weight: 500;
+}
+
+.current-room-type {
+    font-size: 0.85rem;
+    color: #6b7280;
+    background-color: #e5e7eb;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.sales-form-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    min-width: 600px;
+    border-radius: 8px;
+    overflow: visible;
+    table-layout: fixed;
+}
+
+.sales-form-table th,
+.sales-form-table td {
+    border: 1px solid #e2e8f0;
+    padding: 8px 4px;
+    text-align: center;
+    height: 40px;
+    vertical-align: middle;
+    overflow: visible;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    position: relative;
+}
+
+.sales-form-table th {
+    background: #f1f5f9;
+    font-weight: 600;
+    color: #374151;
+}
+
+.sales-form-table td:first-child {
+    font-weight: 600;
+    background-color: #f8f9fa;
+    border-right: 2px solid #e9ecef;
+}
+
+/* DailyPricePopup의 상태 버튼 스타일 */
+.sales-form-table .status-btn {
+    padding: 4px 8px;
+    border: 1px solid #d1d5db;
+    background: #f9fafb;
+    color: #6b7280;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin: 0 2px;
+}
+
+.sales-form-table .status-btn:hover {
+    background: #f3f4f6;
+}
+
+.sales-form-table .status-btn.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.sales-form-table .status-btn.stopped {
+    background: #f9fafb;
+    color: #6b7280;
+}
+
+.sales-form-table .status-btn.stopped.active {
+    background: #ef4444;
+    color: white;
+    border-color: #ef4444;
+}
+
+/* DailyPricePopup의 가격 입력 스타일 */
+.sales-form-table .price-input-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+}
+
+.sales-form-table .price-input {
+    width: 60px;
+    padding: 4px 6px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    background: white;
+    text-align: center;
+}
+
+.sales-form-table .price-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+}
+
+/* DailyPricePopup의 시간 입력 스타일 */
+.sales-form-table .time-inputs {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.sales-form-table .time-separator {
+    font-size: 0.75rem;
+    color: #374151;
+    margin: 0 2px;
+}
+
+.sales-form-table .custom-dropdown {
+    position: relative;
+    width: 22px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.sales-form-table .dropdown-display {
+    width: 100%;
+    height: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 2px;
+    font-size: 0.75rem;
+    text-align: center;
+    line-height: 18px;
+    background: white;
+    cursor: pointer;
+}
+
+.sales-form-table .dropdown-options {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 90px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 2px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 99999;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.sales-form-table .dropdown-options::-webkit-scrollbar {
+    display: none;
+}
+
+.sales-form-table .dropdown-option {
+    padding: 4px 6px;
+    font-size: 0.75rem;
+    text-align: center;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+    background-color: white;
+}
+
+.sales-form-table .dropdown-option:hover {
+    background-color: #3b82f6;
+    color: white;
+}
+
 

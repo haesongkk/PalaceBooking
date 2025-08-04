@@ -80,7 +80,7 @@ class PriceTableItem {
         editButton.addEventListener('click', () => {
             this.editCurrentRoom();
         });
-        
+            
         deleteButton.addEventListener('click', () => {
             this.deleteCurrentRoom();
         });

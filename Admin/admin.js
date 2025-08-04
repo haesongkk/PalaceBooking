@@ -1,4 +1,3 @@
-
 window.onload = function() {
     new MenuBar();
     window.mainCanvas = new MainCanvas();
@@ -13,7 +12,7 @@ function switchTab(tabName) {
     // 판매 캘린더 탭을 클릭한 경우에만 데이터 로드
     if (tabName === 'sales') {
         console.log('판매 캘린더 탭 클릭 - 데이터 로드 시작');
-        initCalendar();
+        // DailyPrice 클래스가 자체적으로 데이터를 로드하므로 여기서는 아무것도 하지 않음
     }
     
     // 요금표 관리 탭을 클릭한 경우 숙박 모드로 기본 설정
@@ -37,7 +36,7 @@ function switchTab(tabName) {
 // 초기화 및 이벤트 리스너
 document.addEventListener('DOMContentLoaded', function() {
     // 초기 데이터 로드
-    fetchReservations();
+    // fetchReservations(); // 주석 처리 - 함수가 정의되지 않음
     
     // 객실 데이터 로드
     loadRoomsFromDB().then(() => {
@@ -641,13 +640,13 @@ function deleteRoom(roomId) {
 }
 
 // 객실 데이터
-const roomData = {};
+window.roomData = {};
 
 let currentRoom = null;
 let currentRoomType = 'overnight'; // 'daily' 또는 'overnight'
 
 // DB에서 객실 데이터 로드
-function loadRoomsFromDB() {
+window.loadRoomsFromDB = function() {
     return fetch('/api/admin/rooms')
         .then(res => res.json())
         .then(rooms => {
@@ -752,6 +751,13 @@ function getStatusText(status) {
 // 객실 목록 렌더링 - 모든 객실을 세로로 표시
 function renderRoomList() {
     const roomList = document.querySelector('.room-list');
+    
+    // room-list 요소가 존재하지 않으면 함수 종료
+    if (!roomList) {
+        console.log('renderRoomList: .room-list 요소가 존재하지 않습니다. (다른 탭이 활성화됨)');
+        return;
+    }
+    
     roomList.innerHTML = '';
     
     const roomIds = Object.keys(roomData);
@@ -838,10 +844,16 @@ function switchRoomType(type) {
     
     // 버튼 활성화 상태 변경
     document.querySelectorAll('.room-type-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelector(`[onclick="switchRoomType('${type}')"]`).classList.add('active');
+    const targetBtn = document.querySelector(`[onclick="switchRoomType('${type}')"]`);
+    if (targetBtn) {
+        targetBtn.classList.add('active');
+    }
     
-    // 테이블 내용 업데이트
-    renderRoomList();
+    // 테이블 내용 업데이트 (요금표 관리 탭에서만)
+    const roomList = document.querySelector('.room-list');
+    if (roomList) {
+        renderRoomList();
+    }
     
     // 현재 선택된 객실이 있으면 해당 객실 표시
     if (currentRoom) {
