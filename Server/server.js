@@ -7,6 +7,9 @@ const Database = require("better-sqlite3");
 const db = new Database("data.db");
 const roomDb = new Database("room.db");
 
+// 고객 관리 모듈 추가
+const customersModule = require("./customers");
+
 
 const http = require("http");
 const { Server: SocketIOServer } = require("socket.io");
@@ -1460,9 +1463,45 @@ function getDbIcon(fileName) {
     case 'data': return '📊';
     case 'room': return '🏠';
     case 'closure': return '🔒';
+    case 'customers': return '👥';
     default: return '🗄️';
   }
 }
+
+// ===== 고객 관리 API 엔드포인트 =====
+
+app.post('/api/customers', (req, res) => {
+    const { id, name, phone, memo } = req.body;
+    const result = customersModule.updateCustomer(id,  name, phone, memo);
+    
+    res.status(result.status).json({
+        msg: result.msg,
+    });
+});
+
+app.delete('/api/customers/:id', (req, res) => {
+    const { id } = req.params;
+    const result = customersModule.deleteCustomer(id);
+    res.status(result.status).json({
+        msg: result.msg,
+    });
+});
+
+app.get('/api/customers', (req, res) => {
+    const result = customersModule.getAllCustomers();
+    console.log('getAllCustomers - result:', result);
+    
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.customers
+    });     
+});
+
+
+
+
+
+
 
 
 const os = require("os");
