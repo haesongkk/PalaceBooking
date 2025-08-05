@@ -1468,7 +1468,7 @@ function getDbIcon(fileName) {
   }
 }
 
-// ===== 고객 관리 API 엔드포인트 =====
+// 고객 관리 API !!!!!
 
 app.post('/api/customers', (req, res) => {
     const { id, name, phone, memo } = req.body;
@@ -1498,8 +1498,66 @@ app.get('/api/customers', (req, res) => {
 });
 
 
+// 기본 설정 관리 API !!!!!
 
+const defaultSettingsModule = require('./defaultSettings'); 
 
+app.get('/api/defaultSettings', (req, res) => {
+    const result = defaultSettingsModule.getAllDefaultSettings();
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.data
+    });
+});
+
+app.post('/api/defaultSettings/create', (req, res) => {
+    const result = defaultSettingsModule.createDefaultSettings();
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.data
+    });
+});
+
+app.post('/api/defaultSettings/update', (req, res) => {
+    const { 
+        id, 
+        roomType, 
+        overnightStatus, 
+        overnightPrice, 
+        overnightOpenClose, 
+        dailyStatus, 
+        dailyPrice,
+        dailyOpenClose, 
+        dailyUsageTime 
+    } = req.body;
+
+    console.log(req.body);
+    const result = defaultSettingsModule.updateDefaultSettings(
+        id, 
+        roomType, 
+        overnightStatus, 
+        overnightPrice, 
+        overnightOpenClose, 
+        dailyStatus, 
+        dailyPrice, 
+        dailyOpenClose, 
+        dailyUsageTime
+    );
+    
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.data
+    });
+});
+
+app.delete('/api/defaultSettings/:id', (req, res) => {
+    const { id } = req.params;
+    const result = defaultSettingsModule.deleteDefaultSettings(id);
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.data
+    });
+});
 
 
 

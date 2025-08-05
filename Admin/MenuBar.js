@@ -37,7 +37,7 @@ class MenuBar {
                 tabContent = new ReserveList();
                 break;
             case '요금표 관리':
-                tabContent = new PriceTable();
+                tabContent = new DefaultSettings();
                 break;
             case '판매 캘린더':
                 tabContent = new DailyPrice();
