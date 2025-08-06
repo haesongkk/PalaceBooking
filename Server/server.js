@@ -156,8 +156,10 @@ app.post("/api/payment", (req, res) => {
     }
 });
 
-app.get("/recentReserve", (req, res) => {
+// 전체 예약 내역 조회 (배열 반환)
+app.get("/reservationList", (req, res) => {
     const { phone } = req.query;
+    console.log(phone);
     if (!phone) {
         return res.status(400).json({ error: "전화번호가 필요합니다." });
     }
@@ -166,38 +168,6 @@ app.get("/recentReserve", (req, res) => {
         SELECT *
         FROM reservations
         WHERE phone = ? AND state != -1
-        ORDER BY end_date DESC
-        LIMIT 1
-    `);
-
-    const row = stmt.get(phone);
-
-    if (row) {
-        res.json(row);
-    } else {
-        res.json({
-            id: null,
-            username: null,
-            phone: null,
-            room: null,
-            start_date: null,
-            end_date: null,
-            cancelled: null
-        });
-    }
-});
-
-// 전체 예약 내역 조회 (배열 반환)
-app.get("/reservationList", (req, res) => {
-    const { phone } = req.query;
-    if (!phone) {
-        return res.status(400).json({ error: "전화번호가 필요합니다." });
-    }
-
-    const stmt = db.prepare(`
-        SELECT *
-        FROM reservations
-        WHERE phone = ? AND cancelled = 0
         ORDER BY end_date DESC
     `);
 
@@ -1422,6 +1392,39 @@ app.get('/api/customers', (req, res) => {
 });
 
 
+app.get("/recentReserve", (req, res) => {
+    const { phone } = req.query;
+    if (!phone) {
+        return res.status(400).json({ error: "전화번호가 필요합니다." });
+    }
+
+    const stmt = db.prepare(`
+        SELECT *
+        FROM reservations
+        WHERE phone = ? AND state != -1
+        ORDER BY end_date DESC
+        LIMIT 1
+    `);
+
+    const row = stmt.get(phone);
+
+    if (row) {
+        res.json(row);
+    } else {
+        res.json({
+            id: null,
+            username: null,
+            phone: null,
+            room: null,
+            start_date: null,
+            end_date: null,
+            cancelled: null
+        });
+    }
+});
+
+
+
 // 기본 설정 관리 API !!!!!
 
 const defaultSettingsModule = require('./defaultSettings'); 
@@ -1548,6 +1551,8 @@ app.get('/api/dailySettings/:month/:year/:isOvernight', (req, res) => {
         msg: result.msg,
         data: result.data
     });
+    console.log("month: ", month, "year: ", year, "isOvernight: ", isOvernight);
+    console.log("dailySettings: ", result);
 });
 
 app.post('/api/dailySettings', (req, res) => {
