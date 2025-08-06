@@ -17,18 +17,7 @@ const { Server: SocketIOServer } = require("socket.io");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 최초 실행 시 테이블 생성
-db.prepare(`
-  CREATE TABLE IF NOT EXISTS reservations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT,
-    phone TEXT,
-    room TEXT,
-    start_date TEXT,
-    end_date TEXT,
-    state INTEGER DEFAULT 0
-  )
-`).run();
+
 
 
 
@@ -1141,6 +1130,17 @@ app.delete('/api/defaultSettings/:id', (req, res) => {
 
 
 // 예약 관리 API !!!!!
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS reservations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT,
+      phone TEXT,
+      room TEXT,
+      start_date TEXT,
+      end_date TEXT,
+      state INTEGER DEFAULT 0
+    )
+  `).run();
 
 app.post('/api/admin/confirm', (req, res) => {
     const { id } = req.body;

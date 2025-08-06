@@ -186,7 +186,7 @@ let recentEndDate;
 let recentRoomType;
 // 전역 변수로 고객 타입 저장
 let userType = "old"; // "first", "recent", "old" 중 하나
-function phoneHandler(input)
+async function phoneHandler(input)
 {
 	if (!/^\d{10,11}$/.test(input))
     {
@@ -200,9 +200,41 @@ function phoneHandler(input)
     palaceAPI.connectSocket(userphone);
     // Socket 이벤트 리스너 설정
     setupSocketEventListeners();
+    let isRegistered = false;
+    await fetch(`/api/customers`).then(res => res.json()).then(data => data.data).then(data => {
+        data.forEach(item => {
+            if(item.phone === userphone){
+                isRegistered = true;
+                userType = "recent";
+                username = item.name;
+                const welcomeMessage = `🎉 등록된 고객 ${username}님! 특별 혜택을 준비했어요!`;
+                const menuOptions = [
+                    "📅 날짜로 예약",
+                    "🛏️ 상품으로 예약"
+                ];
+    
+                updateHeaderNickname(username, userphone);
+                appendMessage(welcomeMessage);
+                showQuickMenuWith(menuOptions);
+    
+                // 입력창 비우기
+                const inputBox = document.getElementById("customInput");
+                if (inputBox) inputBox.innerHTML = "";
+    
+                // curHandler를 예약 관련 handler로 변경
+                curHandler = null; // 전화번호 입력 후에는 반복 안내 방지
+    
+                // 닉네임 할당 후 로그 전송
+                onNicknameAssigned(username, userphone);
+            }
+        })
+    })
+
+    if(isRegistered) return;
 
     fetch(`/recentReserve?phone=${userphone}`).then(res => res.json()).then(data => {
 			console.log("데이터 조회 결과:", data);
+
 
             username = data.username || generateRandomNickname();
             recentRoomType = data.room || null;
@@ -217,6 +249,18 @@ function phoneHandler(input)
             if (!recentEndDate) {
                 userType = "first";
                 welcomeMessage = `🎉 첫방문하신 ${username}님! 반값할인을 준비했어요!`;
+                fetch(`/api/customers`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        id: null,
+                        name: username,
+                        phone: userphone,
+                        memo: ""
+                    })
+                });
             }
             else if (recentEndDate >= threeMonthsAgo) {
                 userType = "recent";
@@ -226,7 +270,6 @@ function phoneHandler(input)
                 welcomeMessage = `👋 오랜만이에요 ${username}님! 새로운 혜택을 확인해보세요!`;
             }
 
-            // 통일된 메뉴 (고객 타입 구분 없음)
             const menuOptions = [
                 "📅 날짜로 예약",
                 "🛏️ 상품으로 예약"
