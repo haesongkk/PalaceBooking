@@ -1,0 +1,79 @@
+.reserve-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.reserve-list-top-container {
+    text-align: center;
+    margin-bottom: 18px;
+}
+
+.reserve-list-top-container button {
+    margin: 0 4px;
+    padding: 7px 18px;
+    border: none;
+    border-radius: 6px;
+    background: #f0f2f7;
+    color: #333;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+.reserve-list-top-container button.active {
+    background: #3b82f6;
+    color: #fff;
+}
+
+.reserve-list-bottom-container  {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.reserve-list-bottom-container table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    font-size: 0.97rem;
+}
+.reserve-list-bottom-container table th, .reserve-list-bottom-container table td {
+    border: 1px solid #e5e7eb;
+    padding: 8px 6px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* 테이블 셀 안의 버튼 스타일 */
+.reserve-list-bottom-container table td button {
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    margin: 0 2px;
+    transition: background-color 0.2s;
+}
+
+.reserve-list-bottom-container table td button.confirm {
+    background-color: #3b82f6;
+}
+.reserve-list-bottom-container table td button.confirm:hover {
+    background-color: #2563eb;
+}
+
+.reserve-list-bottom-container table td button.cancel {
+    background-color: #dc3545;
+}
+.reserve-list-bottom-container table td button.cancel:hover {
+    background-color: #c82333;
+}
+
+.reserve-list-bottom-container table td button:disabled {
+    background-color: #9ca3af;
+}
+
+
+

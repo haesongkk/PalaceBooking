@@ -159,44 +159,15 @@ class PalaceBookingAPI {
      * @returns {Promise<Array>} 객실 목록
      */
     async getRooms() {
-        try {
-            const response = await fetch(`${this.baseURL}/api/admin/rooms`);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('객실 목록 조회 실패:', error);
-            return []; // 실패 시 빈 배열 반환
-        }
-    }
-
-    /**
-     * 객실 재고 조회
-     * @param {string} date - 날짜 (YYYY-MM-DD)
-     * @returns {Promise<Array>} 객실 재고 정보
-     */
-    async getRoomStock(date) {
-        console.log('[API] getRoomStock 호출:', date);
-        try {
-            const url = `${this.baseURL}/api/admin/roomStock?date=${date}`;
-            console.log('[API] 요청 URL:', url);
-            const response = await fetch(url);
-            
-            console.log('[API] 응답 상태:', response.status);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            console.log('[API] getRoomStock 결과:', data);
-            return data;
-        } catch (error) {
-            console.error('[API] 객실 재고 조회 실패:', error);
-            return []; // 실패 시 빈 배열 반환
-        }
+        const response = await fetch(`${this.baseURL}/api/defaultSettings`);
+        const result = await response.json();
+        const rooms = [];
+        result.data.forEach(room => {
+            rooms.push({
+                name: room.roomType
+            });
+        });
+        return rooms;
     }
 
     /**
@@ -206,6 +177,26 @@ class PalaceBookingAPI {
      * @returns {Promise<Array>} 날짜별 가격 정보
      */
     async getDailyPrices(date, roomType = 'daily') {
+        const {year, month, day} = date.split('-');
+        const dayOfWeek = new Date(year, month - 1, day).getDay();
+        const isOvernight = roomType === 'overnight'? 1 : 0;
+        const map = {};
+
+        const res1 = await fetch(`${this.baseURL}/api/defaultSettings`).then(res => res.json());
+        res1.data.forEach(room => {
+            map[room.roomType] = roomType === 'overnight'? JSON.parse(room.overnightPrice)[dayOfWeek] : JSON.parse(room.dailyPrice)[dayOfWeek];
+        });
+
+        const res = await fetch(`${this.baseURL}/api/dailySettings/${month}/${year}/${isOvernight}`).then(res => res.json());
+        res.data.forEach(p => {
+            if(p.dateId % 100 === day) {
+                map[p.roomId] = p.price;
+            }
+        });
+
+        return map;
+
+
         console.log('[API] getDailyPrices 호출:', { date, roomType });
         try {
             const url = `${this.baseURL}/api/admin/dailyPrices?date=${date}&roomType=${roomType}`;

@@ -1,0 +1,104 @@
+.customer-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.customer-list-top-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.customer-list-top-search-input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    flex: 1;
+    min-width: 0;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.customer-list-top-search-input:focus {
+    border-color: #007bff;
+}
+
+.customer-list-top-search-input:blur {
+    border-color: #ddd;
+}
+
+.customer-list-top-search-button {
+    padding: 12px 20px;
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-left: 8px;
+}
+
+.customer-list-top-search-button:hover {
+    background-color: #2563eb;
+}
+
+.customer-list-top-register-button {
+    padding: 12px 20px;
+    background-color: #10b981;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-left: 8px;
+}
+
+.customer-list-top-register-button:hover {    
+    background-color: #059669;
+}
+
+/* 고객 목록 테이블 스타일 */
+.customer-table-container {
+    margin-top: 20px;
+    overflow-x: auto;
+}
+
+.customer-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    background-color: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.customer-table th {
+    background-color: #f8fafc;
+    color: #374151;
+    font-weight: 600;
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.customer-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #374151;
+}
+
+.customer-table tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+.customer-table tbody tr:last-child td {
+    border-bottom: none;
+}
