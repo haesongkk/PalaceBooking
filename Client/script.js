@@ -1,3 +1,4 @@
+
 let calendarYear = new Date().getFullYear();
 let calendarMonth = new Date().getMonth();
 let calendarEnabled = true;
@@ -11,11 +12,9 @@ let selectedProduct = "";
 
 let logBuffer = [];
 let userNick = null; // ex: "몽글몽글한 젤리(1234)"
+let finalAmount = 0; // 전역 변수로 선언
 
 function sendLogToServer(log) {
-    palaceAPI.saveLog(log).catch(error => {
-        console.error('로그 저장 실패:', error);
-    });
 }
 
 function appendMessage(text, sender = "bot", type = "text") {
@@ -201,8 +200,8 @@ function phoneHandler(input)
     palaceAPI.connectSocket(userphone);
     // Socket 이벤트 리스너 설정
     setupSocketEventListeners();
-    palaceAPI.getRecentReservation(userphone)
-        .then(data => {
+
+    fetch(`/recentReserve?phone=${userphone}`).then(res => res.json()).then(data => {
 			console.log("데이터 조회 결과:", data);
 
             username = data.username || generateRandomNickname();
@@ -341,21 +340,11 @@ async function showRoomButtons() {
 
     // 서버에서 객실 목록 가져오기
     let rooms = [];
-    try {
-        const roomData = await palaceAPI.getRooms();
-        rooms = roomData.map(room => room.name);
-        console.log('[객실목록] 서버에서 가져온 객실:', rooms);
-    } catch (error) {
-        console.error('[객실목록] 서버 조회 실패, 기본 객실 사용:', error);
-        // 서버 조회 실패 시 기본 객실 목록 사용
-        rooms = [
-            "🖥️ 2PC",
-            "🎥 멀티플렉스",
-            "🎤 노래방",
-            "🛏️ 스탠다드",
-            "🛌 트윈"
-        ];
-    }
+    const data = await fetch('/api/defaultSettings').then(res => res.json()).then(data => data.data);
+    data.forEach(room => {
+        rooms.push(room.roomType);
+    });
+
 
 
 
@@ -530,8 +519,8 @@ function showReservationList() {
     const container = document.createElement("div");
     container.className = "message bot";
 
-    palaceAPI.getReservationList(userphone)
-        .then(data => {
+    fetch(`/reservationList?phone=${encodeURIComponent(userphone)}`).then(res => res.json()).then(data => {
+        console.log(data);
             console.log("[예약내역] 서버 응답:", data);
             let html = `<div class=\"room-list\">`;
             if (Array.isArray(data) && data.length > 0) {
@@ -561,8 +550,7 @@ function showReservationList() {
 }
 
 function cancelReservation(id) {
-    palaceAPI.cancelReservation(id)
-    .then(data => {
+    fetch(`/api/cancel?id=${id}`).then(res => res.json()).then(data => {
         if (data.success) {
             appendMessage(`🗑️ 예약이 취소되었습니다.`);
             appendMessage(`💸 결제된 금액은 며칠내로 환불됩니다.`);
@@ -647,21 +635,10 @@ async function showProductList() {
 
     // 서버에서 객실 목록 가져오기
     let products = [];
-    try {
-        const roomData = await palaceAPI.getRooms();
-        products = roomData.map(room => room.name);
-        console.log('[상품목록] 서버에서 가져온 상품:', products);
-    } catch (error) {
-        console.error('[상품목록] 서버 조회 실패, 기본 상품 사용:', error);
-        // 서버 조회 실패 시 기본 상품 목록 사용
-        products = [
-            "🖥️ 2PC",
-            "🎥 멀티플렉스",
-            "🎤 노래방",
-            "🛏️ 스탠다드",
-            "🛌 트윈"
-        ];
-    }
+    const roomData = await fetch('/api/defaultSettings').then(res => res.json()).then(data => data.data);
+        roomData.forEach(room => {
+            products.push(room.roomType);
+        });
 
     products.forEach(p => {
         const btn = document.createElement("button");
@@ -764,156 +741,97 @@ function getDayOfWeek(date) {
 
 // 선택한 날짜 범위에서 객실 판매/마감 상태 확인
 async function checkRoomAvailability(startDate, endDate, roomName) {
-    console.log('[재고확인] 시작:', { startDate, endDate, roomName });
-    try {
-        const isOvernight = endDate && new Date(endDate) > new Date(startDate);
-        const roomType = isOvernight ? 'overnight' : 'daily';
-        console.log('[재고확인] 예약 타입:', { isOvernight, roomType });
-        
-        if (isOvernight) {
-            // 숙박 예약 (이틀 이상) - 모든 날짜가 숙박 판매 상태여야 함
-            console.log('[재고확인] 숙박 예약 확인');
-            let isAvailable = true;
-            for (let dt = new Date(startDate); dt < new Date(endDate); dt.setDate(dt.getDate() + 1)) {
-                const dateStr = formatDateYMD(dt);
-                console.log('[재고확인] 날짜 확인:', dateStr);
-                
-                // 1. daily_prices 테이블에서 숙박 상태 우선 확인
-                const dailyPrices = await palaceAPI.getDailyPrices(dateStr, 'overnight');
-                const roomDailyPrice = dailyPrices.find(p => 
-                    p.room_id === roomName || 
-                    p.room_type === roomName ||
-                    p.room_id === roomName.replace('객실 ', 'room').toLowerCase() ||
-                    p.room_id === roomName.replace('객실 ', 'room') ||
-                    p.room_id === roomName.replace('객실 ', 'room').toUpperCase()
-                );
-                
-                if (roomDailyPrice) {
-                    // daily_prices에 데이터가 있으면 해당 상태 사용
-                    if (roomDailyPrice.status !== 1) {
-                        console.log('[재고확인] daily_prices 숙박 마감 발견:', { roomName, dateStr, status: roomDailyPrice.status });
-                        isAvailable = false;
-                        break;
-                    }
-                } else {
-                    // 2. rooms 테이블에서 숙박 상태 확인
-                    const roomInfo = await palaceAPI.getRoomInfo(roomName);
-                    if (roomInfo && roomInfo.status) {
-                        const dayOfWeek = getDayOfWeek(dt);
-                        const statusArray = JSON.parse(roomInfo.status);
-                        if (statusArray && statusArray[dayOfWeek] !== undefined && statusArray[dayOfWeek] !== 1) {
-                            console.log('[재고확인] rooms 테이블 숙박 마감 발견:', { roomName, dateStr, dayOfWeek, status: statusArray[dayOfWeek] });
-                            isAvailable = false;
-                            break;
-                        }
-                    }
-                }
-            }
-            console.log('[재고확인] 숙박 최종 결과:', isAvailable);
-            return isAvailable;
-        } else {
-            // 대실 예약 (하루) - 해당 날짜가 대실 판매 상태여야 함
-            console.log('[재고확인] 대실 예약 확인');
-            const dateStr = formatDateYMD(startDate);
-            console.log('[재고확인] 날짜 확인:', dateStr);
-            
-            // 1. daily_prices 테이블에서 대실 상태 우선 확인
-            const dailyPrices = await palaceAPI.getDailyPrices(dateStr, 'daily');
-            const roomDailyPrice = dailyPrices.find(p => 
-                p.room_id === roomName || 
-                p.room_type === roomName ||
-                p.room_id === roomName.replace('객실 ', 'room').toLowerCase() ||
-                p.room_id === roomName.replace('객실 ', 'room') ||
-                p.room_id === roomName.replace('객실 ', 'room').toUpperCase()
-            );
-            
-            if (roomDailyPrice) {
-                // daily_prices에 데이터가 있으면 해당 상태 사용
-                const result = roomDailyPrice.status === 1;
-                console.log('[재고확인] daily_prices 대실 결과:', { roomName, dateStr, status: roomDailyPrice.status, result });
-                return result;
-            } else {
-                // 2. rooms 테이블에서 대실 상태 확인
-                const roomInfo = await palaceAPI.getRoomInfo(roomName);
-                if (roomInfo && roomInfo.rentalStatus) {
-                    const dayOfWeek = getDayOfWeek(startDate);
-                    const rentalStatusArray = JSON.parse(roomInfo.rentalStatus);
-                    const result = rentalStatusArray && rentalStatusArray[dayOfWeek] !== undefined ? rentalStatusArray[dayOfWeek] === 1 : true;
-                    console.log('[재고확인] rooms 테이블 대실 결과:', { roomName, dateStr, dayOfWeek, status: rentalStatusArray?.[dayOfWeek], result });
-                    return result;
-                }
-            }
-            
-            // 기본값: 예약 가능
-            console.log('[재고확인] 대실 기본값: 예약 가능');
-            return true;
-        }
-    } catch (error) {
-        console.error('[재고확인] 오류:', error);
-        return true; // 오류 시 예약 가능한 것으로 처리
+    console.log('객실 판매/마감 상태 확인:', roomName, 'startDate:', startDate, 'endDate:', endDate);
+    let status = 1;
+    const isOvernight = endDate && new Date(endDate) > new Date(startDate);
+    if(!isOvernight) {
+        endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 1);
     }
+    for(let dt = new Date(startDate); dt < new Date(endDate); dt.setDate(dt.getDate() + 1)) {
+        const dayOfWeek = getDayOfWeek(dt);
+        const year = dt.getFullYear();
+        const month = dt.getMonth() + 1;
+        const date = dt.getDate();
+        const dateId = year*10000 + month*100 + date;
+        let roomId;
+
+        console.log(year, '년', month, '월', date, '일', 'isOvernight:', isOvernight);
+
+        const defaultSettings = await fetch('/api/defaultSettings').then(res => res.json()).then(data => data.data);
+        defaultSettings.forEach(room => {
+            if(room.roomType === roomName) {
+                roomId = room.id;
+                status = isOvernight ? JSON.parse(room.overnightStatus)[dayOfWeek] : JSON.parse(room.dailyStatus)[dayOfWeek];
+            }
+        });
+        console.log("요일별 조회 결과: ", status);
+
+        if(roomId === null) {
+            console.log('일어날 수 없는 일 발생!');
+            return false;
+        }
+
+        const dailySettings = await fetch(`/api/dailySettings/${month}/${year}/${isOvernight?1:0}`).then(res => res.json()).then(data => data.data);
+        console.log("dateId: ", dateId);
+        dailySettings.forEach(setting => {
+            if(setting.roomId === roomId && setting.dateId === dateId) {
+                status = JSON.parse(setting.status);
+                console.log("날짜별 조회 결과: ", status);
+            }
+        });
+
+        if(status != 1) return false;
+
+
+    }
+    return status ===1;
 }
 
 // 객실 가격 조회 (daily_price 우선, 없으면 rooms 테이블에서 요일별 가격)
 async function getRoomPrice(startDate, endDate, roomName) {
-    console.log('[가격조회] 시작:', { startDate, endDate, roomName });
-    try {
-        const isOvernight = endDate && new Date(endDate) > new Date(startDate);
-        const roomType = isOvernight ? 'overnight' : 'daily';
-        console.log('[가격조회] 예약 타입:', { isOvernight, roomType });
-        
-        // 1. daily_prices 테이블에서 우선 조회
-        const startDateStr = formatDateYMD(startDate);
-        console.log('[가격조회] daily_prices 조회:', { date: startDateStr, roomType });
-        const dailyPrices = await palaceAPI.getDailyPrices(startDateStr, roomType);
-        console.log('[가격조회] daily_prices 결과:', dailyPrices);
-        const roomDailyPrice = dailyPrices.find(p => 
-            p.room_id === roomName || 
-            p.room_type === roomName ||
-            p.room_id === roomName.replace('객실 ', 'room').toLowerCase() || // 객실 A -> roomA 매칭
-            p.room_id === roomName.replace('객실 ', 'room') || // 객실 A -> roomA 매칭 (대소문자 유지)
-            p.room_id === roomName.replace('객실 ', 'room').toUpperCase() // 객실 A -> ROOMA 매칭
-        );
-        console.log('[가격조회] 해당 객실 daily_price:', roomDailyPrice);
-        
-        if (roomDailyPrice && roomDailyPrice.status === 1) {
-            console.log('[가격조회] daily_prices 사용:', roomDailyPrice);
-            return roomDailyPrice.price;
-        }
-        
-        // 2. daily_prices에 없으면 rooms 테이블에서 요일별 가격 조회
-        console.log('[가격조회] rooms 테이블 조회:', roomName);
-        const roomInfo = await palaceAPI.getRoomInfo(roomName);
-        console.log('[가격조회] roomInfo 결과:', roomInfo);
-        if (roomInfo) {
-            const dayOfWeek = getDayOfWeek(startDate);
-            console.log('[가격조회] 요일:', dayOfWeek);
-            let priceArray;
-            
-            if (isOvernight) {
-                // 숙박 가격
-                priceArray = JSON.parse(roomInfo.price || '[]');
-                console.log('[가격조회] 숙박 가격 배열:', priceArray);
-            } else {
-                // 대실 가격
-                priceArray = JSON.parse(roomInfo.rentalPrice || '[]');
-                console.log('[가격조회] 대실 가격 배열:', priceArray);
-            }
-            
-            if (priceArray && priceArray[dayOfWeek] !== undefined) {
-                console.log('[가격조회] rooms 테이블 사용:', { roomName, dayOfWeek, price: priceArray[dayOfWeek] });
-                return priceArray[dayOfWeek];
-            }
-        }
-        
-        // 3. 가격 정보를 찾을 수 없음 - 통신 오류로 처리
-        console.log('[가격조회] 가격 정보를 찾을 수 없음:', { roomName, isOvernight });
-        throw new Error('가격 정보를 찾을 수 없습니다. 잠시 후 다시 시도해주세요.');
-        
-    } catch (error) {
-        console.error('[가격조회] 오류:', error);
-        throw new Error('가격 조회 중 통신 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    let totalPrice = 0;
+    const isOvernight = endDate && new Date(endDate) > new Date(startDate);
+    if(!isOvernight) {
+        endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 1);
     }
+    for(let dt = new Date(startDate); dt < new Date(endDate); dt.setDate(dt.getDate() + 1)) {
+        const dayOfWeek = getDayOfWeek(dt);
+        const year = dt.getFullYear();
+        const month = dt.getMonth() + 1;
+        const date = dt.getDate();
+        const dateId = year*10000 + month*100 + date;
+        let roomId;
+        let price = 0;
+
+        const defaultSettings = await fetch('/api/defaultSettings').then(res => res.json()).then(data => data.data);
+        defaultSettings.forEach(room => {
+            if(room.roomType === roomName) {
+                roomId = room.id;
+                price = isOvernight ? JSON.parse(room.overnightPrice)[dayOfWeek] : JSON.parse(room.dailyPrice)[dayOfWeek];
+            }
+        });
+
+        console.log("요일별 가격 조회 결과: ", price);
+
+        if(roomId === null) {
+            console.log('일어날 수 없는 일 발생!');
+            return false;
+        }
+
+        const dailySettings = await fetch(`/api/dailySettings/${month}/${year}/${isOvernight?1:0}`).then(res => res.json()).then(data => data.data);
+        dailySettings.forEach(setting => {
+            if(setting.roomId === roomId && setting.dateId === dateId) {
+                price = JSON.parse(setting.price);
+                console.log("날짜별 가격 조회 결과: ", price);
+            }
+        });
+
+        totalPrice += price;
+        
+    }
+    return totalPrice;
 }
 
 async function showPaymentButton() {
@@ -964,7 +882,7 @@ async function showPaymentButton() {
 
     // 고객 타입별 할인 적용
     let discountMsg = "";
-    let finalAmount = amount;
+    finalAmount = amount; // 전역 변수에 할당
     if (userType === "first") {
         finalAmount = Math.round(amount * 0.5);
         discountMsg = `🎉 첫방문 고객 반값 할인 적용!\n원래 가격: ${amount.toLocaleString()}원 → 할인 가격: ${finalAmount.toLocaleString()}원`;
@@ -991,6 +909,13 @@ async function showPaymentButton() {
 function processPayment(paymentMethod) {
     appendMessage('⚠️ 테스트 페이지이므로 결제 과정 없이 예약이 바로 진행됩니다.', 'user');
     appendMessage("예약을 진행합니다...", "bot");
+    
+    // finalAmount가 정의되지 않은 경우를 대비한 안전장치
+    if (typeof finalAmount === 'undefined') {
+        appendMessage("❌ 가격 계산에 오류가 발생했습니다. 다시 시도해주세요.", "bot");
+        return;
+    }
+    
     // 서버에 예약 정보 요청 (결제 없이 바로 예약)
     const payload = {
         username: username,
@@ -1000,90 +925,31 @@ function processPayment(paymentMethod) {
         endDate: rangeEnd?.toISOString().split('T')[0] || null,
         amount: finalAmount // 계산된 최종 가격 전송
     };
-    palaceAPI.createReservation(payload)
+    
+    console.log('예약 요청 데이터:', payload);
+    
+    fetch(`/api/reserve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
     .then(data => {
+        console.log('예약 응답:', data);
         if (data.success) {
             appendMessage('✅ 예약이 접수되었습니다! 예약 확정 대기 중입니다.', 'bot');
-            // 필요하다면 예약 내역 새로고침 함수 호출
-            // showReservationList();
-        } else {
+        } 
+        else {
             appendMessage("❌ 예약 처리 중 오류가 발생했습니다.", "bot");
         }
     })
     .catch(err => {
+        console.error('예약 생성 오류:', err);
         appendMessage("❌ 서버 통신 오류가 발생했습니다.", "bot");
     });
 }
 
-function requestTossPayment(paymentData, paymentMethod) {
-    const clientKey = "test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq";
-    const payType = getTossPayType(paymentMethod);
 
-    console.log("결제 팝업 오픈 시도");
-    const popupWidth = 700;
-    const popupHeight = 900;
-    const left = window.screenX + (window.outerWidth - popupWidth) / 2;
-    const top = window.screenY + (window.outerHeight - popupHeight) / 2;
-    const popup = window.open('', 'tossPopup', `width=${popupWidth},height=${popupHeight},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`);
-    if (!popup) {
-        alert('팝업 차단을 해제해주세요!');
-        return;
-    }
-    console.log("팝업 오픈 성공");
-
-    // 1. HTML만 먼저 작성 (script 태그 없이)
-    popup.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset=\"UTF-8\">
-            <title>결제창</title>
-        </head>
-        <body>
-            <p>결제창을 불러오는 중입니다...</p>
-        </body>
-        </html>
-    `);
-    popup.document.close(); // ★ 반드시 호출!
-
-    // 2. 약간의 딜레이 후 script 삽입
-    setTimeout(() => {
-        console.log("팝업에 TossPayments 스크립트 삽입 시도");
-        const script = popup.document.createElement('script');
-        script.src = "https://js.tosspayments.com/v1/payment";
-        script.onload = function() {
-            console.log("[팝업] TossPayments 스크립트 로드됨");
-            try {
-                popup.TossPayments(clientKey)
-                    .requestPayment(payType, {
-                        amount: paymentData.amount,
-                        orderId: paymentData.orderId,
-                        orderName: paymentData.orderName,
-                        customerName: paymentData.customerName,
-                        customerEmail: paymentData.customerEmail,
-                        successUrl: window.location.origin + "/success",
-                        failUrl: window.location.origin + "/fail"
-                    });
-                console.log("[팝업] 결제 함수 호출됨");
-            } catch (e) {
-                console.error("[팝업] 결제 함수 에러:", e);
-                popup.alert && popup.alert("[팝업] 결제 함수 에러: " + e.message);
-            }
-        };
-        script.onerror = function() {
-            console.error("[팝업] TossPayments 스크립트 로드 실패");
-            popup.alert && popup.alert("[팝업] TossPayments 스크립트 로드 실패");
-        };
-        popup.document.body.appendChild(script);
-    }, 100); // 100ms 딜레이
-
-    function getTossPayType(method) {
-        if (method.includes('카카오페이')) return '카카오페이';
-        if (method.includes('네이버페이')) return '네이버페이';
-        if (method.includes('계좌이체')) return '계좌이체';
-        return '카드';
-    }
-}
 
 // renderCalendar 함수 - 선택된 상품이 마감된 날짜들을 비활성화
 async function renderCalendar(selectedStart = null, selectedEnd = null) {

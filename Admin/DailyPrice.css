@@ -1,0 +1,368 @@
+/* 판매캘린더 관련 스타일 */
+
+.daily-price-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.sales-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 0 20px;
+}
+
+.floating-room-type-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.room-type-btn {
+    padding: 8px 16px;
+    border: 2px solid #d1d5db;
+    background: #fff;
+    color: #6b7280;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.room-type-btn:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+.room-type-btn.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+}
+
+.sales-calendar-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    max-height: calc(100vh - 120px);
+    padding-right: 10px;
+    padding-bottom: 40px;
+}
+
+.calendar-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+}
+
+.calendar-controls h3 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: #374151;
+    min-width: 120px;
+    text-align: center;
+}
+
+.calendar-nav {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+}
+
+.calendar-nav:hover {
+    background: #2563eb;
+}
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: 40px repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 10px;
+    padding: 0 20px;
+}
+
+.weekday-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: #374151;
+    font-size: 0.875rem;
+}
+
+.weekday-header input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.weekday-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: #374151;
+    font-size: 0.875rem;
+    gap: 4px;
+}
+
+.weekday-cell input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+.weekday-cell span {
+    font-weight: 600;
+    color: #374151;
+}
+
+.date-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.checkbox-column {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    min-height: 28px;
+    height: 28px;
+}
+
+.sales-calendar-days {
+    display: grid;
+    grid-template-columns: 40px repeat(7, 1fr);
+    gap: 4px;
+    align-items: start;
+    padding: 0 20px;
+}
+
+.sales-calendar-day {
+    aspect-ratio: auto;
+    height: auto;
+    min-height: 28px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 6px;
+    cursor: default;
+    box-sizing: border-box;
+    border-radius: 6px;
+    transition: all 0.2s;
+    font-weight: 500;
+    position: relative;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+}
+
+.sales-calendar-day.has-data {
+    aspect-ratio: auto;
+    height: auto;
+    min-height: 28px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 6px;
+    cursor: default;
+    box-sizing: border-box;
+    gap: 4px;
+}
+
+.date-number {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: #374151;
+    text-align: center;
+    width: 100%;
+    flex-shrink: 0;
+    margin-bottom: 4px;
+    order: 1;
+}
+
+.room-data-box {
+    width: 100%;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    color: #374151;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    order: 2;
+    min-height: 0;
+}
+
+.room-data-item {
+    background: #fff !important;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: 4px 6px;
+    margin-bottom: 2px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 0;
+    flex-shrink: 0;
+}
+
+.room-data-item:last-child {
+    margin-bottom: 0;
+}
+
+.room-status {
+    display: inline-block;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    font-weight: 600;
+    align-self: flex-start;
+    margin-bottom: 1px;
+    flex-shrink: 0;
+}
+
+.room-status.sale {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.room-status.closed {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.room-status.soldout {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.room-name {
+    font-weight: 600;
+    font-size: 0.7rem;
+    color: #374151;
+    line-height: 1.2;
+    margin-bottom: 1px;
+    flex-shrink: 0;
+}
+
+.room-details {
+    font-size: 0.6rem;
+    color: #6b7280;
+    line-height: 1.2;
+    margin-bottom: 1px;
+    flex-shrink: 0;
+}
+
+.room-price {
+    font-weight: 600;
+    color: #059669;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    flex-shrink: 0;
+}
+
+.sales-calendar-day:hover {
+    background: #e3f2fd;
+    border-color: #3b82f6;
+}
+
+.sales-calendar-day.selected {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.sales-calendar-day.past-date {
+    min-height: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+    color: #d1d5db;
+    background-color: #f9fafb;
+    pointer-events: none;
+    cursor: not-allowed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 6px;
+}
+
+.floating-selection-ui {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 1000;
+}
+
+.floating-selection-ui span {
+    font-weight: 600;
+    color: #374151;
+    font-size: 0.875rem;
+}
+
+.btn-cancel {
+    background: #f3f4f6;
+    color: #6b7280;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.btn-sales {
+    background: #3b82f6;
+    color: white;
+    border: 1px solid #3b82f6;
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.btn-sales:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+}
+
+/* 스크롤바 숨기기 */
+.sales-calendar-content::-webkit-scrollbar {
+    display: none;
+}

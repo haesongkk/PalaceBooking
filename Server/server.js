@@ -7,6 +7,9 @@ const Database = require("better-sqlite3");
 const db = new Database("data.db");
 const roomDb = new Database("room.db");
 
+// 고객 관리 모듈 추가
+const customersModule = require("./customers");
+
 
 const http = require("http");
 const { Server: SocketIOServer } = require("socket.io");
@@ -15,12 +18,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 최초 실행 시 테이블 생성
-// 'confirmed' 컬럼(예약 확정 여부) 추가
-try {
-    db.prepare(`ALTER TABLE reservations ADD COLUMN confirmed INTEGER DEFAULT 0`).run();
-} catch (e) {
-    // 이미 컬럼이 있으면 무시
-}
 db.prepare(`
   CREATE TABLE IF NOT EXISTS reservations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,10 +26,11 @@ db.prepare(`
     room TEXT,
     start_date TEXT,
     end_date TEXT,
-    cancelled INTEGER DEFAULT 0,
-    confirmed INTEGER DEFAULT 0
+    state INTEGER DEFAULT 0
   )
 `).run();
+
+
 
 
 app.use(cors());
@@ -98,45 +96,23 @@ app.post("/api/reserve", (req, res) => {
         return res.status(400).json({ error: "필수 정보 누락" });
     }
 
-    const stmt = db.prepare(`
-        INSERT INTO reservations (username, phone, room, start_date, end_date)
-        VALUES (?, ?, ?, ?, ?)
-    `);
-    const info = stmt.run(username, phone, room, startDate, endDate);
+    try {
+        const stmt = db.prepare(`
+            INSERT INTO reservations (username, phone, room, start_date, end_date)
+            VALUES (?, ?, ?, ?, ?)
+        `);
+        const info = stmt.run(username, phone, room, startDate, endDate);
 
-    // 관리자에게 실시간 알림
-    if (io) io.to("admin").emit("reservation-updated");
-
-    res.json({ success: true, id: info.lastInsertRowid });
-});
-
-app.post("/api/cancel", (req, res) => {
-    const { id } = req.body;
-    if (!id) {
-        return res.status(400).json({ error: "예약 ID가 필요합니다." });
-    }
-
-    // 예약자 전화번호 조회 (삭제 전에)
-    const row = db.prepare('SELECT phone FROM reservations WHERE id = ?').get(id);
-    const phone = row ? row.phone : null;
-
-    // 완전 삭제로 변경
-    const stmt = db.prepare(`
-        DELETE FROM reservations
-        WHERE id = ?
-    `);
-    const info = stmt.run(id);
-
-    if (info.changes > 0) {
         // 관리자에게 실시간 알림
         if (io) io.to("admin").emit("reservation-updated");
-        // 해당 예약자에게 실시간 취소 알림
-        if (phone) io.to(`user_${phone}`).emit("reservation-cancelled", { id });
-        res.json({ success: true });
-    } else {
-        res.status(404).json({ error: "예약을 찾을 수 없습니다." });
+
+        res.json({ success: true, id: info.lastInsertRowid });
+    } catch (error) {
+        console.error('예약 생성 오류:', error);
+        res.status(500).json({ error: "예약 생성 중 오류가 발생했습니다." });
     }
 });
+
 
 // 결제 후 예약 추가도 동일하게 알림
 app.post("/api/payment", (req, res) => {
@@ -153,62 +129,37 @@ app.post("/api/payment", (req, res) => {
         return res.status(400).json({ error: "유효한 가격 정보가 필요합니다." });
     }
     
-    // 예약 정보를 DB에 저장
-    const stmt = db.prepare(`
-        INSERT INTO reservations (username, phone, room, start_date, end_date)
-        VALUES (?, ?, ?, ?, ?)
-    `);
-    const info = stmt.run(username, phone, room, startDate, endDate);
+    try {
+        // 예약 정보를 DB에 저장
+        const stmt = db.prepare(`
+            INSERT INTO reservations (username, phone, room, start_date, end_date)
+            VALUES (?, ?, ?, ?, ?)
+        `);
+        const info = stmt.run(username, phone, room, startDate, endDate);
 
-    // 관리자에게 실시간 알림
-    if (io) io.to("admin").emit("reservation-updated");
+        // 관리자에게 실시간 알림
+        if (io) io.to("admin").emit("reservation-updated");
 
-    // 결제 정보 응답
-    res.json({
-        success: true,
-        reservationId: info.lastInsertRowid,
-        amount: amount,
-        orderId: `order_${Date.now()}_${info.lastInsertRowid}`,
-        orderName: `${room} 예약`,
-        customerName: username,
-        customerEmail: `${phone}@palace.com`
-    });
-});
-
-app.get("/recentReserve", (req, res) => {
-    const { phone } = req.query;
-    if (!phone) {
-        return res.status(400).json({ error: "전화번호가 필요합니다." });
-    }
-
-    const stmt = db.prepare(`
-        SELECT *
-        FROM reservations
-        WHERE phone = ? AND cancelled = 0
-        ORDER BY end_date DESC
-        LIMIT 1
-    `);
-
-    const row = stmt.get(phone);
-
-    if (row) {
-        res.json(row);
-    } else {
+        // 결제 정보 응답
         res.json({
-            id: null,
-            username: null,
-            phone: null,
-            room: null,
-            start_date: null,
-            end_date: null,
-            cancelled: null
+            success: true,
+            reservationId: info.lastInsertRowid,
+            amount: amount,
+            orderId: `order_${Date.now()}_${info.lastInsertRowid}`,
+            orderName: `${room} 예약`,
+            customerName: username,
+            customerEmail: `${phone}@palace.com`
         });
+    } catch (error) {
+        console.error('결제 예약 생성 오류:', error);
+        res.status(500).json({ error: "결제 예약 생성 중 오류가 발생했습니다." });
     }
 });
 
 // 전체 예약 내역 조회 (배열 반환)
 app.get("/reservationList", (req, res) => {
     const { phone } = req.query;
+    console.log(phone);
     if (!phone) {
         return res.status(400).json({ error: "전화번호가 필요합니다." });
     }
@@ -216,7 +167,7 @@ app.get("/reservationList", (req, res) => {
     const stmt = db.prepare(`
         SELECT *
         FROM reservations
-        WHERE phone = ? AND cancelled = 0
+        WHERE phone = ? AND state != -1
         ORDER BY end_date DESC
     `);
 
@@ -235,25 +186,7 @@ app.get('/api/admin/reservations', (req, res) => {
 
 // 관리자용 예약 확정 API
 // 예약 확정 시 관리자+해당 예약자에게 실시간 알림
-app.post('/api/admin/confirm', (req, res) => {
-    const { id } = req.body;
-    if (!id) {
-        return res.status(400).json({ error: '예약 ID가 필요합니다.' });
-    }
-    const stmt = db.prepare(`UPDATE reservations SET confirmed = 1 WHERE id = ?`);
-    const info = stmt.run(id);
-    if (info.changes > 0) {
-        // 예약자 전화번호 조회
-        const row = db.prepare('SELECT phone FROM reservations WHERE id = ?').get(id);
-        // 관리자에게 실시간 알림
-        if (io) io.to("admin").emit("reservation-updated");
-        // 해당 예약자에게 실시간 확정 알림
-        if (row && row.phone) io.to(`user_${row.phone}`).emit("reservation-confirmed", { id });
-        res.json({ success: true });
-    } else {
-        res.status(404).json({ error: '예약을 찾을 수 없습니다.' });
-    }
-});
+
 
 // 2. 서버 시작 시 특가 상품 디폴트 등록
 // 특가 상품 테이블에 stock(수량) 컬럼 추가
@@ -314,7 +247,7 @@ app.get('/api/admin/roomCounts', (req, res) => {
         "🛌 트윈 (50,000원)": 6
     };
     // 예약된 객실 수 집계
-    const rows = db.prepare('SELECT room, COUNT(*) as cnt FROM reservations WHERE cancelled=0 AND confirmed=1 GROUP BY room').all();
+    const rows = db.prepare('SELECT room, COUNT(*) as cnt FROM reservations WHERE state=1 GROUP BY room').all();
     const used = {};
     rows.forEach(r => { used[r.room] = r.cnt; });
     // 남은 객실 수 계산
@@ -464,7 +397,7 @@ app.get('/api/admin/roomInfo', (req, res) => {
 // 객실 관리 테이블 생성
 roomDb.prepare(`
   CREATE TABLE IF NOT EXISTS rooms (
-    id TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY,
     name TEXT,
     checkInOut TEXT,
     price TEXT, -- JSON 배열 형태: [월요일가격, 화요일가격, 수요일가격, 목요일가격, 금요일가격, 토요일가격, 일요일가격]
@@ -475,6 +408,62 @@ roomDb.prepare(`
     rentalStatus TEXT
   )
 `).run();
+
+// id 컬럼을 TEXT에서 INTEGER로 마이그레이션
+try {
+    // 기존 테이블이 TEXT id를 사용하는지 확인
+    const tableInfo = roomDb.prepare("PRAGMA table_info(rooms)").all();
+    const idColumn = tableInfo.find(col => col.name === 'id');
+    
+    if (idColumn && idColumn.type === 'TEXT') {
+        console.log('id 컬럼을 INTEGER로 마이그레이션 중...');
+        
+        // 임시 테이블 생성
+        roomDb.prepare(`
+            CREATE TABLE rooms_temp (
+                id INTEGER PRIMARY KEY,
+                name TEXT,
+                checkInOut TEXT,
+                price TEXT,
+                status TEXT,
+                usageTime TEXT,
+                openClose TEXT,
+                rentalPrice TEXT,
+                rentalStatus TEXT
+            )
+        `).run();
+        
+        // 기존 데이터를 임시 테이블로 복사 (id를 정수로 변환)
+        const rooms = roomDb.prepare('SELECT * FROM rooms').all();
+        rooms.forEach(room => {
+            const roomId = parseInt(room.id) || Date.now(); // 기존 id를 정수로 변환, 실패하면 현재 시간 사용
+            roomDb.prepare(`
+                INSERT INTO rooms_temp (id, name, checkInOut, price, status, usageTime, openClose, rentalPrice, rentalStatus)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(
+                roomId,
+                room.name,
+                room.checkInOut,
+                room.price,
+                room.status,
+                room.usageTime,
+                room.openClose,
+                room.rentalPrice,
+                room.rentalStatus
+            );
+        });
+        
+        // 기존 테이블 삭제
+        roomDb.prepare('DROP TABLE rooms').run();
+        
+        // 임시 테이블을 새 테이블로 이름 변경
+        roomDb.prepare('ALTER TABLE rooms_temp RENAME TO rooms').run();
+        
+        console.log('id 컬럼 마이그레이션이 완료되었습니다.');
+    }
+} catch (e) {
+    console.error('id 컬럼 마이그레이션 오류:', e);
+}
 
 // 기존 테이블에서 사용되지 않는 컬럼들 제거 (마이그레이션)
 try { roomDb.prepare('ALTER TABLE rooms DROP COLUMN extraPerson').run(); } catch (e) {}
@@ -700,6 +689,12 @@ try {
     const dailyPrices = roomDb.prepare('SELECT * FROM daily_prices').all();
     dailyPrices.forEach(row => {
         try {
+            // rooms_data가 null이거나 undefined인 경우 건너뛰기
+            if (!row.rooms_data) {
+                console.log(`daily_prices ${row.id} rooms_data가 null이므로 건너뜀`);
+                return;
+            }
+            
             const roomsData = JSON.parse(row.rooms_data);
             let needsUpdate = false;
             
@@ -881,13 +876,49 @@ app.get('/api/admin/rooms', (req, res) => {
     }
 });
 
-// 객실 저장/수정 (upsert)
+// 새 객실 추가 (디폴트 값으로)
+app.post('/api/admin/rooms/add', (req, res) => {
+    try {
+        // 디폴트 값 설정
+        const roomId = Date.now();
+        const roomName = `객실`;
+        const defaultCheckInOut = JSON.stringify(Array(7).fill([16, 13]));
+        const defaultPrice = JSON.stringify(Array(7).fill(50000));
+        const defaultStatus = JSON.stringify(Array(7).fill(1));
+        const defaultUsageTime = JSON.stringify(Array(7).fill(5));
+        const defaultOpenClose = JSON.stringify(Array(7).fill([14, 22]));
+        const defaultRentalPrice = JSON.stringify(Array(7).fill(30000));
+        const defaultRentalStatus = JSON.stringify(Array(7).fill(1));
+        
+        roomDb.prepare(`
+            INSERT INTO rooms (id, name, checkInOut, price, status, usageTime, openClose, rentalPrice, rentalStatus)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+            roomId, 
+            roomName, 
+            defaultCheckInOut, 
+            defaultPrice, 
+            defaultStatus, 
+            defaultUsageTime, 
+            defaultOpenClose, 
+            defaultRentalPrice, 
+            defaultRentalStatus
+        );
+        
+        res.json({ success: true, id: roomId, name: roomName });
+    } catch (error) {
+        console.error('객실 추가 오류:', error);
+        res.status(500).json({ error: '객실 추가 실패' });
+    }
+});
+
+// 객실 수정
 app.post('/api/admin/rooms', (req, res) => {
     try {
         const { id, name, checkInOut, price, status, usageTime, openClose, rentalPrice, rentalStatus } = req.body;
-        
-        if (!id || !name) {
-            return res.status(400).json({ error: '객실 ID와 이름은 필수입니다.' });
+
+        if (!id) {
+            return res.status(400).json({ error: '객실 ID는 필수입니다.' });
         }
 
         // 가격 배열을 JSON 문자열로 변환
@@ -897,26 +928,57 @@ app.post('/api/admin/rooms', (req, res) => {
         // 기존 객실 확인
         const existingRoom = roomDb.prepare('SELECT id FROM rooms WHERE id = ?').get(id);
         
-        if (existingRoom) {
-            // 기존 객실 수정
-            roomDb.prepare(`
-                UPDATE rooms 
-                SET name = ?, checkInOut = ?, price = ?, status = ?, usageTime = ?, 
-                    openClose = ?, rentalPrice = ?, rentalStatus = ?
-                WHERE id = ?
-            `).run(name, checkInOut, priceJson, status, usageTime, openClose, rentalPriceJson, rentalStatus, id);
-        } else {
-            // 새 객실 생성
-            roomDb.prepare(`
-                INSERT INTO rooms (id, name, checkInOut, price, status, usageTime, openClose, rentalPrice, rentalStatus)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(id, name, checkInOut, priceJson, status, usageTime, openClose, rentalPriceJson, rentalStatus);
+        if (!existingRoom) {
+            return res.status(404).json({ error: '객실을 찾을 수 없습니다.' });
         }
+
+        // 기존 객실 수정
+        roomDb.prepare(`
+            UPDATE rooms 
+            SET name = ?, checkInOut = ?, price = ?, status = ?, usageTime = ?, 
+                openClose = ?, rentalPrice = ?, rentalStatus = ?
+            WHERE id = ?
+        `).run(name, checkInOut, priceJson, status, usageTime, openClose, rentalPriceJson, rentalStatus, id);
         
         res.json({ success: true, id });
     } catch (error) {
-        console.error('객실 저장 오류:', error);
-        res.status(500).json({ error: '객실 저장 실패' });
+        console.error('객실 수정 오류:', error);
+        res.status(500).json({ error: '객실 수정 실패' });
+    }
+});
+
+// 객실 수정
+app.put('/api/admin/rooms/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const roomData = req.body;
+        
+        // 객실 데이터 업데이트
+        const info = roomDb.prepare(`
+            UPDATE rooms 
+            SET name = ?, checkInOut = ?, price = ?, status = ?, 
+                usageTime = ?, openClose = ?, rentalPrice = ?, rentalStatus = ?
+            WHERE id = ?
+        `).run(
+            roomData.name,
+            JSON.stringify(roomData.checkInOut),
+            JSON.stringify(roomData.price),
+            JSON.stringify(roomData.status),
+            JSON.stringify(roomData.usageTime),
+            JSON.stringify(roomData.openClose),
+            JSON.stringify(roomData.rentalPrice),
+            JSON.stringify(roomData.rentalStatus),
+            id
+        );
+        
+        if (info.changes > 0) {
+            res.json({ success: true, message: '객실 수정 완료' });
+        } else {
+            res.status(404).json({ error: '객실을 찾을 수 없습니다.' });
+        }
+    } catch (error) {
+        console.error('객실 수정 오류:', error);
+        res.status(500).json({ error: '객실 수정 실패' });
     }
 });
 
@@ -1295,9 +1357,252 @@ function getDbIcon(fileName) {
     case 'data': return '📊';
     case 'room': return '🏠';
     case 'closure': return '🔒';
+    case 'customers': return '👥';
     default: return '🗄️';
   }
 }
+
+// 고객 관리 API !!!!!
+
+app.post('/api/customers', (req, res) => {
+    const { id, name, phone, memo } = req.body;
+    const result = customersModule.updateCustomer(id,  name, phone, memo);
+    
+    res.status(result.status).json({
+        msg: result.msg,
+    });
+});
+
+app.delete('/api/customers/:id', (req, res) => {
+    const { id } = req.params;
+    const result = customersModule.deleteCustomer(id);
+    res.status(result.status).json({
+        msg: result.msg,
+    });
+});
+
+app.get('/api/customers', (req, res) => {
+    const result = customersModule.getAllCustomers();
+    console.log('getAllCustomers - result:', result);
+    
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.customers
+    });     
+});
+
+
+app.get("/recentReserve", (req, res) => {
+    const { phone } = req.query;
+    if (!phone) {
+        return res.status(400).json({ error: "전화번호가 필요합니다." });
+    }
+
+    const stmt = db.prepare(`
+        SELECT *
+        FROM reservations
+        WHERE phone = ? AND state != -1
+        ORDER BY end_date DESC
+        LIMIT 1
+    `);
+
+    const row = stmt.get(phone);
+
+    if (row) {
+        res.json(row);
+    } else {
+        res.json({
+            id: null,
+            username: null,
+            phone: null,
+            room: null,
+            start_date: null,
+            end_date: null,
+            cancelled: null
+        });
+    }
+});
+
+
+
+// 기본 설정 관리 API !!!!!
+
+const defaultSettingsModule = require('./defaultSettings'); 
+
+app.get('/api/defaultSettings', (req, res) => {
+    const result = defaultSettingsModule.getAllDefaultSettings();
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.data
+    });
+});
+
+app.post('/api/defaultSettings/create', (req, res) => {
+    const result = defaultSettingsModule.createDefaultSettings();
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.data
+    });
+});
+
+app.post('/api/defaultSettings/update', (req, res) => {
+    const { 
+        id, 
+        roomType, 
+        overnightStatus, 
+        overnightPrice, 
+        overnightOpenClose, 
+        dailyStatus, 
+        dailyPrice,
+        dailyOpenClose, 
+        dailyUsageTime 
+    } = req.body;
+
+    console.log(req.body);
+    const result = defaultSettingsModule.updateDefaultSettings(
+        id, 
+        roomType, 
+        overnightStatus, 
+        overnightPrice, 
+        overnightOpenClose, 
+        dailyStatus, 
+        dailyPrice, 
+        dailyOpenClose, 
+        dailyUsageTime
+    );
+    
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.data
+    });
+});
+
+app.delete('/api/defaultSettings/:id', (req, res) => {
+    const { id } = req.params;
+    const result = defaultSettingsModule.deleteDefaultSettings(id);
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.data
+    });
+});
+
+
+// 예약 관리 API !!!!!
+
+app.post('/api/admin/confirm', (req, res) => {
+    const { id } = req.body;
+    if (!id) {
+        return res.status(400).json({ error: '예약 ID가 필요합니다.' });
+    }
+    const stmt = db.prepare(`UPDATE reservations SET state = 1 WHERE id = ? AND state = 0`);
+    const info = stmt.run(id);
+    if (info.changes > 0) {
+        // 예약자 전화번호 조회
+        const row = db.prepare('SELECT phone FROM reservations WHERE id = ?').get(id);
+        // 관리자에게 실시간 알림
+        if (io) io.to("admin").emit("reservation-updated");
+        // 해당 예약자에게 실시간 확정 알림
+        if (row && row.phone) io.to(`user_${row.phone}`).emit("reservation-confirmed", { id });
+        res.json({ success: true });
+    } else {
+        res.status(404).json({ error: '예약을 찾을 수 없거나 이미 처리된 예약입니다.' });
+    }
+});
+
+
+
+app.post("/api/cancel", (req, res) => {
+    const { id } = req.body;
+    if (!id) {
+        return res.status(400).json({ error: "예약 ID가 필요합니다." });
+    }
+
+    // 예약자 전화번호 조회
+    const row = db.prepare('SELECT phone FROM reservations WHERE id = ?').get(id);
+    const phone = row ? row.phone : null;
+
+    // 취소 상태로 변경 (삭제하지 않고 기록 보존)
+    const stmt = db.prepare(`
+        UPDATE reservations SET state = -1 WHERE id = ? AND state != -1
+    `);
+    const info = stmt.run(id);
+
+    if (info.changes > 0) {
+        // 관리자에게 실시간 알림
+        if (io) io.to("admin").emit("reservation-updated");
+        // 해당 예약자에게 실시간 취소 알림
+        if (phone) io.to(`user_${phone}`).emit("reservation-cancelled", { id });
+        res.json({ success: true });
+    } else {
+        res.status(404).json({ error: "예약을 찾을 수 없거나 이미 취소된 예약입니다." });
+    }
+});
+
+
+// 날짜별 판매 설정 API !!!!!
+
+const dailySettingsModule = require('./DailySettings');
+
+app.get('/api/dailySettings/:month/:year/:isOvernight', (req, res) => {
+    const { month, year, isOvernight } = req.params;
+    console.log(month, year, isOvernight);
+    const result = dailySettingsModule.getMonthlyDailySettings(year, month, isOvernight);
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.data
+    });
+    console.log("month: ", month, "year: ", year, "isOvernight: ", isOvernight);
+    console.log("dailySettings: ", result);
+});
+
+app.post('/api/dailySettings', (req, res) => {
+    const result = dailySettingsModule.updateDailySettings(req.body);
+    res.status(result.status).json({
+        msg: result.msg,
+    });
+});
+
+// 기타...
+
+app.get('/api/date/:dateId', (req, res) => {
+    const { dateId } = req.params;
+    const result = dailySettingsModule.getDate(dateId);
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.data
+    });
+});
+
+app.get('/api/roomType/:roomId', (req, res) => {
+    const { roomId } = req.params;
+    const result = defaultSettingsModule.getRoomType(roomId);
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.data
+    });
+});
+
+
+// 비밀번호 확인 API !!!!!
+const loginIpMap = new Map();
+app.get('/api/admin/login/:password', (req, res) => {
+    // 무차별 대입 방어 필요
+    const { password } = req.params;
+
+    if(password === '123') {
+        res.json({
+            msg: 'success',
+        });
+    } else {
+        res.json({
+            msg: 'fail',
+        });
+    }
+});
+
+
+
+
 
 
 const os = require("os");
