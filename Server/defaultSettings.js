@@ -122,9 +122,21 @@ function deleteDefaultSettings(id) {
 
 }
 
+function getRoomType(roomId) {
+    const roomType = defaultSettingsDb.prepare(`
+        SELECT roomType FROM defaultSettings
+        WHERE id = ?
+    `).get(roomId);
+    return {
+        status: 200,
+        msg: '기본 설정 조회 성공',
+        data: roomType
+    }
+}
 module.exports = {
     getAllDefaultSettings,
     updateDefaultSettings,
     createDefaultSettings,
-    deleteDefaultSettings
+    deleteDefaultSettings,
+    getRoomType
 };

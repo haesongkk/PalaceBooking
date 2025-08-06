@@ -1,16 +1,21 @@
 class DailyPrice {
     constructor() {
-        this.currentDate = new Date();
+        const currentDate = new Date();
+        this.curYear = currentDate.getFullYear();
+        this.curMonth = currentDate.getMonth();
+
         this.selectedDates = [];
-        this.currentRoomType = 'overnight';
+        this.isOvernight = true;
         this.dailyPricesCache = {};
         this.roomData = {}; // 자체적으로 관리
         this.cells = [];
         
         this.container = this.createContainer();
+        console.log('DailyPrice: container:', this.container);
         
-        // 자체적으로 데이터 로드
         this.loadData();
+        //this.updateMonthDisplay();
+        //this.updateSettingsButton();
     }
 
     createContainer() {
@@ -29,12 +34,12 @@ class DailyPrice {
         const dailyBtn = document.createElement('button');
         dailyBtn.className = 'room-type-btn';
         dailyBtn.textContent = '대실';
-        dailyBtn.onclick = () => this.switchRoomType('daily');
+        dailyBtn.onclick = () => this.switchRoomType(false);
         
         const overnightBtn = document.createElement('button');
         overnightBtn.className = 'room-type-btn active';
         overnightBtn.textContent = '숙박';
-        overnightBtn.onclick = () => this.switchRoomType('overnight');
+        overnightBtn.onclick = () => this.switchRoomType(true);
         
         floatingRoomTypeButtons.appendChild(dailyBtn);
         floatingRoomTypeButtons.appendChild(overnightBtn);
@@ -46,18 +51,16 @@ class DailyPrice {
         const prevBtn = document.createElement('button');
         prevBtn.className = 'calendar-nav';
         prevBtn.innerHTML = '&lt;';
-        prevBtn.title = '과거 월로는 이동할 수 없습니다';
-        prevBtn.style.cssText = 'background-color: rgb(156, 163, 175); cursor: not-allowed;';
+        //prevBtn.style.cssText = 'background-color: rgb(156, 163, 175); cursor: not-allowed;';
+        prevBtn.style.cssText = 'background-color: rgb(59, 130, 246); cursor: pointer;';
         prevBtn.onclick = () => this.previousMonth();
         
         const currentMonth = document.createElement('h3');
         currentMonth.id = 'sales-current-month';
-        currentMonth.textContent = '2025년 8월';
         
         const nextBtn = document.createElement('button');
         nextBtn.className = 'calendar-nav';
         nextBtn.innerHTML = '&gt;';
-        nextBtn.title = '다음 월';
         nextBtn.style.cssText = 'background-color: rgb(59, 130, 246); cursor: pointer;';
         nextBtn.onclick = () => this.nextMonth();
         
@@ -83,6 +86,7 @@ class DailyPrice {
         const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
         const weekdayIds = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
         
+        this.topCells = [];
         weekdays.forEach((day, index) => {
             const weekdayCell = document.createElement('div');
             weekdayCell.className = 'weekday-cell';
@@ -90,7 +94,7 @@ class DailyPrice {
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.id = `select-${weekdayIds[index]}`;
-            checkbox.onchange = (e) => this.toggleWeekday(weekdayIds[index], e.target);
+            checkbox.onchange = (e) => this.onToggleTopCheckbox(index, e.target);
             
             const span = document.createElement('span');
             span.textContent = day;
@@ -98,6 +102,7 @@ class DailyPrice {
             weekdayCell.appendChild(checkbox);
             weekdayCell.appendChild(span);
             calendarWeekdays.appendChild(weekdayCell);
+            this.topCells.push(weekdayCell);
         });
         
         calendarWeekdays.insertBefore(weekdayHeader, calendarWeekdays.firstChild);
@@ -106,283 +111,334 @@ class DailyPrice {
         const salesCalendarContent = document.createElement('div');
         salesCalendarContent.className = 'sales-calendar-content';
         
-        const salesCalendarDays = document.createElement('div');
-        salesCalendarDays.className = 'sales-calendar-days';
-        salesCalendarDays.id = 'sales-calendar-days';
+        this.salesCalendarDays = document.createElement('div');
+        this.salesCalendarDays.className = 'sales-calendar-days';
+        this.salesCalendarDays.id = 'sales-calendar-days';
         
-        salesCalendarContent.appendChild(salesCalendarDays);
+        salesCalendarContent.appendChild(this.salesCalendarDays);
         
         // 선택된 날짜 플로팅 UI
-        const floatingSelectionUI = document.createElement('div');
-        floatingSelectionUI.className = 'floating-selection-ui';
-        floatingSelectionUI.id = 'floating-selection-ui';
-        floatingSelectionUI.style.display = 'none';
-        
-        const selectedCount = document.createElement('span');
-        selectedCount.id = 'selected-count';
-        selectedCount.textContent = '0개 선택됨';
+        this.floatingSelectionUI = document.createElement('div');
+        this.floatingSelectionUI.className = 'floating-selection-ui';
+        this.floatingSelectionUI.id = 'floating-selection-ui';
+        this.floatingSelectionUI.style.display = 'none';
         
         const cancelBtn = document.createElement('button');
         cancelBtn.className = 'btn btn-cancel';
         cancelBtn.textContent = '선택 취소';
-        cancelBtn.onclick = () => this.clearAllSelections();
+        cancelBtn.onclick = () => this.onClickCancelButton();
         
         const salesBtn = document.createElement('button');
         salesBtn.className = 'btn btn-sales';
         salesBtn.textContent = '판매 설정';
-        salesBtn.onclick = () => this.openSettings();
+        salesBtn.onclick = () => this.onClickSalesButton();
         
-        floatingSelectionUI.appendChild(selectedCount);
-        floatingSelectionUI.appendChild(cancelBtn);
-        floatingSelectionUI.appendChild(salesBtn);
+        this.floatingSelectionUI.appendChild(cancelBtn);
+        this.floatingSelectionUI.appendChild(salesBtn);
         
         container.appendChild(salesHeader);
         container.appendChild(calendarWeekdays);
         container.appendChild(salesCalendarContent);
-        container.appendChild(floatingSelectionUI);
+        container.appendChild(this.floatingSelectionUI);
         
         return container;
     }
 
-    async loadRoomsFirst() {
-        console.log('DailyPrice: loadRoomsFirst 시작');
-        await this.loadRoomsFromServer();
-        await this.loadData();
+    onClickCancelButton() {
+        this.dateCells.forEach(row => {
+            row.forEach(cell => {
+                cell.classList.remove('selected');
+            });
+        });
+        this.selectedDates = [];
+        this.floatingSelectionUI.style.display = 'none';
     }
 
-    async loadRoomsFromServer() {
-        try {
-            console.log('DailyPrice: 서버에서 객실 데이터 로드 시작');
-            const response = await fetch('/api/admin/rooms');
-            const rooms = await response.json();
-            
-            console.log('DailyPrice: 서버에서 받은 원본 데이터:', rooms);
-            
-            // 객실 데이터를 this.roomData에 저장
-            this.roomData = {};
-            rooms.forEach(room => {
-                // 서버 데이터 구조에 따라 변환
-                if (room.data) {
-                    // 이미 data 속성이 있는 경우
-                    this.roomData[room.id] = room;
-                } else {
-                    // data 속성이 없는 경우 기본 구조로 변환
-                    console.log(`DailyPrice: room ${room.id} 데이터 변환 필요`);
-                    this.roomData[room.id] = {
-                        id: room.id,
-                        name: room.name || `객실 ${room.id}`,
-                        data: {
-                            checkInOut: Array(7).fill([16, 13]),
-                            price: Array(7).fill(50000),
-                            status: Array(7).fill(1),
-                            usageTime: Array(7).fill(5),
-                            openClose: Array(7).fill([14, 22]),
-                            rentalPrice: Array(7).fill(30000),
-                            rentalStatus: Array(7).fill(1)
-                        }
-                    };
-                }
-            });
-            
-            console.log('DailyPrice: 서버에서 객실 데이터 로드 완료:', this.roomData);
-        } catch (error) {
-            console.error('DailyPrice: 객실 데이터 로드 실패:', error);
-            
-            // 서버에서 데이터를 가져오지 못하면 테스트 데이터 사용
-            console.log('DailyPrice: 테스트 데이터 사용');
-            this.roomData = {
-                'test-room-1': {
-                    id: 'test-room-1',
-                    name: '객실 A',
-                    data: {
-                        checkInOut: Array(7).fill([16, 13]),
-                        price: Array(7).fill(50000),
-                        status: Array(7).fill(1),
-                        usageTime: Array(7).fill(5),
-                        openClose: Array(7).fill([14, 22]),
-                        rentalPrice: Array(7).fill(30000),
-                        rentalStatus: Array(7).fill(1)
-                    }
-                },
-                'test-room-2': {
-                    id: 'test-room-2',
-                    name: '객실 B',
-                    data: {
-                        checkInOut: Array(7).fill([16, 13]),
-                        price: Array(7).fill(50000),
-                        status: Array(7).fill(1),
-                        usageTime: Array(7).fill(5),
-                        openClose: Array(7).fill([14, 22]),
-                        rentalPrice: Array(7).fill(30000),
-                        rentalStatus: Array(7).fill(1)
-                    }
-                }
-            };
-        }
+    onClickSalesButton() {
+        window.popupCanvas.append('판매 설정', new DailyPricePopup(
+            this.selectedDates,
+            this.lastSelectedCell.querySelector('.room-data-box'),
+            this.isOvernight,
+            () => {
+                // 저장 후 캐시 갱신 및 캘린더 재렌더링
+                this.loadData();
+            }
+        ));
     }
 
     async loadData() {
-        console.log('DailyPrice: loadData 시작');
-        
-        // 객실 데이터가 없으면 서버에서 로드
-        if (!this.roomData || Object.keys(this.roomData).length === 0) {
-            await this.loadRoomsFromServer();
-        }
-        
-        console.log('DailyPrice: roomData:', this.roomData);
-        
-        await this.loadDailyPricesForMonth();
-        this.renderCalendar();
-        this.updateMonthDisplay();
-        this.updateSettingsButton();
-        
-        console.log('DailyPrice: loadData 완료');
-    }
+        const res1 = await fetch('/api/defaultSettings');
+        const data1 = await res1.json();
+        this.defaultSettings = data1.data;
 
-    async loadDailyPricesForMonth() {
-        try {
-            const year = this.currentDate.getFullYear();
-            const month = this.currentDate.getMonth();
-            
-            // 캐시 초기화
-            const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
-            Object.keys(this.dailyPricesCache).forEach(key => {
-                if (key.startsWith(monthKey)) {
-                    delete this.dailyPricesCache[key];
-                }
-            });
-            
-            // 해당 월의 모든 날짜에 대해 요금 데이터 조회
-            const startDate = new Date(year, month, 1);
-            const endDate = new Date(year, month + 1, 0);
-            
-            for (let day = 1; day <= endDate.getDate(); day++) {
-                const date = new Date(year, month, day);
-                const dateString = this.formatDate(date);
-                
-                try {
-                    const response = await fetch(`/api/admin/daily-prices?date=${dateString}&room_type=${this.currentRoomType}`);
-                    const prices = await response.json();
-                    
-                    // 캐시에 저장
-                    prices.forEach(price => {
-                        const cacheKey = `${dateString}_${price.room_id}_${price.room_type}`;
-                        this.dailyPricesCache[cacheKey] = price;
-                    });
-                } catch (error) {
-                    console.error(`${dateString} 요금 데이터 로드 실패:`, error);
-                }
-            }
-            
-            console.log(`${year}년 ${month + 1}월 요금 데이터 로드 완료`);
-        } catch (error) {
-            console.error('월별 요금 데이터 로드 실패:', error);
-        }
+
+        const res2 = await fetch(`/api/dailySettings/${this.curMonth+1}/${this.curYear}/${this.isOvernight? 1 : 0}`);
+        const data2 = await res2.json();
+        this.dailySettings = data2.data;
+        console.log('DailyPrice: loadData 완료', this.dailySettings);
+
+        this.renderCalendar();
+
+        // dailyData 조회도 해야함
     }
 
     renderCalendar() {
-        const calendarDays = document.getElementById('sales-calendar-days');
-        calendarDays.innerHTML = '';
-        this.cells = []; // cells 배열 다시 추가
-        
-        const year = this.currentDate.getFullYear();
-        const month = this.currentDate.getMonth();
+        this.salesCalendarDays.innerHTML = '';
+        this.cells = []; 
+
+        document.getElementById('sales-current-month').textContent = `${this.curYear}년 ${this.curMonth + 1}월`;
         
         // 해당 월의 첫 번째 날과 마지막 날 계산
-        const firstDay = new Date(year, month, 1);
-        const lastDay = new Date(year, month + 1, 0);
+        const firstDay = new Date(this.curYear, this.curMonth, 1);
+        const lastDay = new Date(this.curYear, this.curMonth + 1, 0);
         
         // 첫 번째 날의 요일 (0: 일요일, 1: 월요일, ...)
-        const firstDayOfWeek = firstDay.getDay();
+        this.firstDayOfWeek = firstDay.getDay();
         
         // 달력 시작 날짜 (이전 달의 날짜부터)
-        const startDate = new Date(firstDay);
-        startDate.setDate(startDate.getDate() - firstDayOfWeek);
+        const startDate = new Date(this.curYear, this.curMonth, 1);
+        startDate.setDate(startDate.getDate() - this.firstDayOfWeek);
         
         // 현재 날짜 (과거 날짜 판별용)
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
-        // 행별로 높이를 추적하기 위한 배열
-        const rowHeights = [];
-        let currentRow = 0;
-        
-        console.log('DailyPrice: renderCalendar 시작, roomData:', this.roomData);
+        let tmp = today.getDate();
+        if(this.curMonth != today.getMonth() 
+            || this.curYear != today.getFullYear()) {
+            tmp = 1;
+        }
         
         // 6주 × 7일 = 42개 셀 생성
-        for (let week = 0; week < 6; week++) {
-            const weekRow = [];
-            
-            for (let dayOfWeek = 0; dayOfWeek < 8; dayOfWeek++) {
-                const currentDate = new Date(startDate);
-                currentDate.setDate(startDate.getDate() + (week * 7) + dayOfWeek);
-                
-                const dayElement = document.createElement('div');
-                
-                if (dayOfWeek === 0) {
-                    // 체크박스 열
-                    dayElement.className = 'sales-calendar-day checkbox-column';
+        this.leftCells = [];
+        this.dateCells = [];
+        for (let row = 0; row < 6; row++) {
+            this.dateCells[row] = [];
+            for(let col = 0; col < 8; col++) {
+                const cell = document.createElement('div');
+                this.salesCalendarDays.appendChild(cell); 
+
+                if(col === 0) {
+                    cell.className = 'sales-calendar-day checkbox-column';
                     const checkbox = document.createElement('input');
                     checkbox.type = 'checkbox';
                     checkbox.className = 'date-checkbox';
-                    checkbox.dataset.date = this.formatDate(currentDate);
-                    checkbox.onchange = (e) => this.toggleDateSelection(e.target);
-                    dayElement.appendChild(checkbox);
-                    weekRow.push(dayElement);
-                } else {
-                    // 날짜 셀
-                    const isCurrentMonth = currentDate.getMonth() === month;
-                    const isPastDate = currentDate < today;
-                    
-                    if (isCurrentMonth) {
-                        if (isPastDate) {
-                            // 과거 날짜
-                            dayElement.className = 'sales-calendar-day past-date';
-                            dayElement.textContent = currentDate.getDate();
-                        } else {
-                            // 현재 월의 미래 날짜
-                            dayElement.className = 'sales-calendar-day has-data';
-                            
-                            // 날짜 번호
-                            const dateNumber = document.createElement('div');
-                            dateNumber.className = 'date-number';
-                            dateNumber.textContent = currentDate.getDate();
-                            dayElement.appendChild(dateNumber);
-                            
-                            // 객실 데이터 박스
-                            const roomDataBox = document.createElement('div');
-                            roomDataBox.className = 'room-data-box';
-                            
-                            const cell = new DailyPriceCell(currentDate, this.roomData, this.currentRoomType, this.dailyPricesCache);
-                            this.cells.push(cell); // cells 배열에 추가
-                            roomDataBox.innerHTML = cell.generateRoomData();
-                            dayElement.appendChild(roomDataBox);
-                            
-                            // 선택된 날짜인지 확인
-                            if (this.selectedDates.includes(this.formatDate(currentDate))) {
-                                dayElement.classList.add('selected');
-                            }
-                            
-                            // 클릭 이벤트
-                            const clickDate = new Date(currentDate);
-                            dayElement.onclick = () => this.selectDate(clickDate);
-                        }
-                        weekRow.push(dayElement);
-                    } else {
-                        // 다른 월의 날짜는 빈 셀로
-                        dayElement.style.visibility = 'hidden';
-                        weekRow.push(dayElement);
+                    checkbox.onchange = (e) => this.onToggleLeftCheckbox(row, e.target);
+                    cell.appendChild(checkbox);
+                    this.leftCells.push(cell);
+                }
+                else {
+                    cell.className = 'sales-calendar-day';
+                    cell.style.visibility = 'hidden';
+                    this.dateCells[row][col-1] = cell;
+                }
+            }
+        }
+        for(let i = 1; i < tmp; i++) {
+            const date = new Date(this.curYear, this.curMonth, i);
+            const {row, col} = this.getCalendarCoord(i);
+            this.dateCells[row][col].style.visibility = 'visible';
+            this.dateCells[row][col].className = 'sales-calendar-day past-date';
+
+            const dateNumber = document.createElement('div');
+            dateNumber.className = 'date-number';
+            dateNumber.textContent = date.getDate();
+            this.dateCells[row][col].appendChild(dateNumber);
+
+            const roomDataBox = document.createElement('div');
+            roomDataBox.className = 'room-data-box';
+            this.dateCells[row][col].appendChild(roomDataBox);
+        }
+        for(let i = tmp; i <= lastDay.getDate(); i++) {
+            const date = new Date(this.curYear, this.curMonth, i);
+            const {row, col} = this.getCalendarCoord(i);
+
+            this.dateCells[row][col].id = date;
+            this.dateCells[row][col].style.visibility = 'visible';
+            this.dateCells[row][col].className = 'sales-calendar-day has-data';
+
+            const dateNumber = document.createElement('div');
+            dateNumber.className = 'date-number';
+            dateNumber.textContent = date.getDate();
+            this.dateCells[row][col].appendChild(dateNumber);
+
+            const roomDataBox = document.createElement('div');
+            roomDataBox.className = 'room-data-box';
+            this.dateCells[row][col].appendChild(roomDataBox);
+
+            this.dateCells[row][col].onclick = () => this.selectDate(this.dateCells[row][col]);
+
+        }
+
+        this.defaultSettings.forEach(defaultSetting => {
+
+            const overnightStatus = JSON.parse(defaultSetting.overnightStatus);
+            const overnightPrice = JSON.parse(defaultSetting.overnightPrice);
+            const overnightOpenClose = JSON.parse(defaultSetting.overnightOpenClose);
+
+            const dailyStatus = JSON.parse(defaultSetting.dailyStatus);
+            const dailyPrice = JSON.parse(defaultSetting.dailyPrice);
+            const dailyOpenClose = JSON.parse(defaultSetting.dailyOpenClose);
+            const dailyUsageTime = JSON.parse(defaultSetting.dailyUsageTime);
+
+            for(let i = 0; i< 7; i++) {
+                this.dateCells.forEach(row => {
+                    this.setCellData(
+                        row[i],
+                        defaultSetting.id, defaultSetting.roomType, 
+                        overnightStatus[i], overnightPrice[i], overnightOpenClose[i], 
+                        dailyStatus[i], dailyPrice[i], dailyOpenClose[i], dailyUsageTime[i]
+                    );
+                });
+            }
+        });
+
+        // 모든 데이터를 병렬로 로드
+
+        this.dailySettings.forEach(async setting => {
+            const {
+                dateId, roomId, isOvernight, 
+                status, price, openClose, usageTime
+            } = setting;
+
+            const date = await fetch(`/api/date/${dateId}`).then(res => res.json()).then(data => data.data);
+
+
+            const roomType = await fetch(`/api/roomType/${roomId}`).then(res => res.json()).then(data => data.data);
+
+
+            const {row, col} = this.getCalendarCoord(date.date);
+            this.setCellData(
+                this.dateCells[row][col],
+                JSON.parse(roomId), 
+                roomType.roomType,
+                JSON.parse(status),
+                JSON.parse(price),
+                JSON.parse(openClose),
+                JSON.parse(status),
+                JSON.parse(price),
+                JSON.parse(openClose),
+                JSON.parse(usageTime)
+            );
+        });
+
+    }
+
+    onToggleTopCheckbox(colIndex, checkbox) {
+        if(checkbox.checked) {
+            this.dateCells.forEach(row => {
+                const cell = row[colIndex];
+                if(cell.classList.contains('has-data') && !cell.classList.contains('selected')) {
+                    cell.classList.add('selected');
+                    this.selectedDates.push(cell.id);
+                    this.floatingSelectionUI.style.display = 'flex';
+                    this.lastSelectedCell = cell;
+                }
+            });
+        }
+        else {
+            this.dateCells.forEach(row => {
+                const cell = row[colIndex];
+                if(cell.classList.contains('has-data') && cell.classList.contains('selected')) {
+                    cell.classList.remove('selected');
+                    this.selectedDates = this.selectedDates.filter(date => date !== cell.id);
+                    if(this.selectedDates.length === 0) {
+                        this.floatingSelectionUI.style.display = 'none';
                     }
                 }
-                
-                calendarDays.appendChild(dayElement);
-            }
-            
-            // 현재 행의 높이 계산 및 체크박스 셀 높이 조정
-            setTimeout(() => {
-                this.adjustCheckboxHeight(weekRow);
-            }, 0);
+            });
         }
+       
+    }
+
+    onToggleLeftCheckbox(rowIndex, checkbox) {
+        if(checkbox.checked) {
+            this.dateCells[rowIndex].forEach(cell => {
+                if(cell.classList.contains('has-data') && !cell.classList.contains('selected')) {
+                    cell.classList.add('selected');
+                    this.selectedDates.push(cell.id);
+                    this.floatingSelectionUI.style.display = 'flex';
+                    this.lastSelectedCell = cell;
+                }
+            });
+        }
+        else {
+            this.dateCells[rowIndex].forEach(cell => {
+                if(cell.classList.contains('has-data') && cell.classList.contains('selected')) {
+                    cell.classList.remove('selected');
+                    this.selectedDates = this.selectedDates.filter(date => date !== cell.id);
+                    if(this.selectedDates.length === 0) {
+                        this.floatingSelectionUI.style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        
+    }
+
+    getCalendarCoord(date) {
+        const offset = this.firstDayOfWeek - 1 ;
+        const convert = offset + date;
+        const row = Math.floor(convert / 7);
+        const col = convert % 7;
+        return { row, col };
+    }
+
+    setCellData(cell, id, roomType, overnightStatus, overnightPrice, overnightOpenClose, dailyStatus, dailyPrice, dailyOpenClose, dailyUsageTime) {
+        if(cell.className !== 'sales-calendar-day has-data') return;
+
+        const dataBox = cell.querySelector('.room-data-box');
+        dataBox.querySelectorAll('.room-data-items').forEach(item => {
+            if(item.id === JSON.stringify(id)) {
+                // item.querySelector('.room-status').textContent = parseInt(this.isOvernight ? overnightStatus : dailyStatus) ? '판매' : '마감';
+                // item.querySelector('.room-price').textContent = `${this.isOvernight ? overnightPrice : dailyPrice}원`;
+                // item.querySelector('.room-details').textContent = `${this.isOvernight ? overnightOpenClose[0] : dailyOpenClose[0]}시~${this.isOvernight ? overnightOpenClose[1] : dailyOpenClose[1]}시`;
+                // if(!this.isOvernight) {
+                //     item.querySelector('.room-details').textContent = `${dailyUsageTime}시간`;
+                // }
+                // return;
+                item.remove();
+            }
+        });
+
+        const dataItems = document.createElement('div');
+        dataItems.className = 'room-data-items';
+        dataItems.id = id;
+
+        const status = this.isOvernight ? overnightStatus : dailyStatus;
+        const price = this.isOvernight ? overnightPrice : dailyPrice;
+        const openClose = this.isOvernight ? overnightOpenClose : dailyOpenClose;
+        const usageTime = this.isOvernight ? null : dailyUsageTime;
+
+        const roomstatus = document.createElement('span');
+        roomstatus.className = `room-status ${status? 'sale' : 'closed'}`;
+        roomstatus.textContent = parseInt(status) ? '판매' : '마감';
+        dataItems.appendChild(roomstatus);
+
+        const roomName = document.createElement('div');
+        roomName.className = 'room-name';
+        roomName.textContent = roomType;
+        dataItems.appendChild(roomName);
+
+        const roomDetails = document.createElement('div');
+        roomDetails.className = 'room-details';
+        roomDetails.textContent = `${openClose[0]}시~${openClose[1]}시`;
+        dataItems.appendChild(roomDetails);
+
+        if(usageTime) {
+            const usageTimeText = document.createElement('span');
+            usageTimeText.className = 'room-details';
+            usageTimeText.textContent = `${usageTime}시간`;
+            dataItems.appendChild(usageTimeText);
+        }
+
+        const roomPrice = document.createElement('div');
+        roomPrice.className = 'room-price';
+        roomPrice.textContent = `${price}원`;
+        dataItems.appendChild(roomPrice);
+
+        dataBox.appendChild(dataItems);
+
     }
 
     adjustCheckboxHeight(weekRow) {
@@ -407,12 +463,6 @@ class DailyPrice {
         }
     }
 
-    formatDate(date) {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    }
 
     updateMonthDisplay() {
         const year = this.currentDate.getFullYear();
@@ -433,39 +483,59 @@ class DailyPrice {
     }
 
     async previousMonth() {
-        this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+        if(this.curMonth === new Date().getMonth() 
+            && this.curYear === new Date().getFullYear()) {
+            return;
+        }
+        else if(--this.curMonth < 0) {
+            this.curYear--;
+            this.curMonth = 11;
+        }
         this.selectedDates = [];
         await this.loadData();
     }
 
     async nextMonth() {
-        this.currentDate.setMonth(this.currentDate.getMonth() + 1);
-        this.selectedDates = [];
-        await this.loadData();
-    }
-
-    async switchRoomType(type) {
-        this.currentRoomType = type;
-        this.selectedDates = [];
-        
-        // 버튼 상태 업데이트
-        document.querySelectorAll('.room-type-btn').forEach(btn => btn.classList.remove('active'));
-        event.target.classList.add('active');
-        
-        await this.loadData();
-    }
-
-    selectDate(date) {
-        const dateString = this.formatDate(date);
-        
-        if (this.selectedDates.includes(dateString)) {
-            this.selectedDates = this.selectedDates.filter(d => d !== dateString);
-        } else {
-            this.selectedDates.push(dateString);
+        if(++this.curMonth > 11) {
+            this.curYear++;
+            this.curMonth = 0;
         }
+        this.selectedDates = [];
+        await this.loadData();
+    }
+
+    async switchRoomType(isOvernight) {
+        this.isOvernight = isOvernight;
+        this.selectedDates = [];
+        // 버튼 상태 업데이트
+        document.querySelectorAll('.room-type-btn').forEach(btn => {
+            if(btn.classList.contains('active')) {
+                btn.classList.remove('active');
+            }
+            else {
+                btn.classList.add('active');
+            }
+        });
         
-        this.updateSettingsButton();
-        this.updateCellSelections();
+        await this.loadData();
+    }
+
+    selectDate(cell) {
+        if(cell.classList.contains('selected')) {
+            cell.classList.remove('selected');
+            this.selectedDates = this.selectedDates.filter(d => d !== cell.id);
+
+            if(this.selectedDates.length === 0) {
+                this.floatingSelectionUI.style.display = 'none';
+            }
+        }
+        else {
+            cell.classList.add('selected');
+            this.selectedDates.push(cell.id);
+            this.floatingSelectionUI.style.display = 'flex';
+            this.lastSelectedCell = cell;
+        }
+
     }
 
     toggleDateSelection(checkbox) {
@@ -483,71 +553,6 @@ class DailyPrice {
         this.updateCellSelections();
     }
 
-    updateCellSelections() {
-        // 선택된 날짜에 따라 셀의 selected 클래스 업데이트
-        const dayElements = document.querySelectorAll('.sales-calendar-day.has-data');
-        dayElements.forEach(element => {
-            const dateNumber = element.querySelector('.date-number');
-            if (dateNumber) {
-                const day = parseInt(dateNumber.textContent);
-                const year = this.currentDate.getFullYear();
-                const month = this.currentDate.getMonth();
-                const date = new Date(year, month, day);
-                const dateString = this.formatDate(date);
-                
-                if (this.selectedDates.includes(dateString)) {
-                    element.classList.add('selected');
-                } else {
-                    element.classList.remove('selected');
-                }
-            }
-        });
-    }
-
-    toggleAllDates(checkbox) {
-        if (checkbox.checked) {
-            // 모든 날짜 선택
-            this.cells.forEach(cell => {
-                const dateString = this.formatDate(cell.date);
-                if (!this.selectedDates.includes(dateString)) {
-                    this.selectedDates.push(dateString);
-                }
-            });
-        } else {
-            // 모든 선택 해제
-            this.selectedDates = [];
-        }
-        
-        this.updateSettingsButton();
-        this.updateCellSelections();
-        
-        // 체크박스 상태 업데이트
-        document.querySelectorAll('.date-checkbox').forEach(cb => {
-            cb.checked = checkbox.checked;
-        });
-    }
-
-    toggleWeekday(weekday, checkbox) {
-        const weekdayIndex = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].indexOf(weekday);
-        
-        this.cells.forEach(cell => {
-            const dayOfWeek = cell.date.getDay();
-            if (dayOfWeek === weekdayIndex) {
-                const dateString = this.formatDate(cell.date);
-                
-                if (checkbox.checked) {
-                    if (!this.selectedDates.includes(dateString)) {
-                        this.selectedDates.push(dateString);
-                    }
-                } else {
-                    this.selectedDates = this.selectedDates.filter(d => d !== dateString);
-                }
-            }
-        });
-        
-        this.updateSettingsButton();
-        this.updateCellSelections();
-    }
 
     clearAllSelections() {
         this.selectedDates = [];
@@ -568,17 +573,19 @@ class DailyPrice {
 
     openSettings() {
         if (this.selectedDates.length === 0) return;
+        console.log('DailyPrice openSettings - this.isOvernight:', this.isOvernight);
+        console.log('DailyPrice openSettings - typeof this.isOvernight:', typeof this.isOvernight);
+        console.log('DailyPrice openSettings - this.lastSelectedCell:', this.lastSelectedCell);
+        console.log('DailyPrice openSettings - room-data-box:', this.lastSelectedCell?.querySelector('.room-data-box'));
         
-        window.popupCanvas.append('판매 설정', new DailyPricePopup(
+        const popup = new DailyPricePopup(
             this.selectedDates,
-            this.currentRoomType,
-            this.roomData || {},
-            this.dailyPricesCache,
-            () => {
-                // 저장 후 캐시 갱신 및 캘린더 재렌더링
-                this.loadData();
-            }
-        ));
+            this.lastSelectedCell.querySelector('.room-data-box'),
+            this.isOvernight,
+            () => this.loadData()
+        );
+        
+        window.popupCanvas.append('판매 설정', popup);
     }
 
     getRootElement() {

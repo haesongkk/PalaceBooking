@@ -214,7 +214,7 @@
 }
 
 .room-data-item {
-    background: #fff;
+    background: #fff !important;
     border: 1px solid #e5e7eb;
     border-radius: 4px;
     padding: 4px 6px;

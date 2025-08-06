@@ -1,15 +1,17 @@
+
 class DailyPricePopup {
-    constructor(selectedDates, currentRoomType, roomData, dailyPricesCache, onSave) {
+    constructor(selectedDates, dataBox, isOvernight, onSaveCallback) {
         this.selectedDates = selectedDates;
-        this.currentRoomType = currentRoomType;
-        this.roomData = roomData;
-        this.dailyPricesCache = dailyPricesCache;
-        this.onSave = onSave;
+        this.dataBox = dataBox;
+        this.onSaveCallback = onSaveCallback;
+        this.isOvernight = isOvernight;
         
         this.modal = this.createModal();
         this.initialValues = {};
+
+        this.updateInfo();
+        this.generateForm();
         
-        this.show();
     }
 
     createModal() {
@@ -24,20 +26,11 @@ class DailyPricePopup {
                 </div>
             </div>
             <table class="sales-form-table">
-                <thead>
-                    <tr>
-                        <th>객실명</th>
-                        <th>상태</th>
-                        <th>가격</th>
-                        <th id="details-header">시간</th>
-                    </tr>
-                </thead>
                 <tbody id="form-rows">
                 </tbody>
             </table>
         `;
         
-        // 팝업 인스턴스를 모달에 저장
         modal.appendChild(document.createElement('div'));
         modal.querySelector('div:last-child').className = 'daily-price-popup';
         modal.querySelector('div:last-child').popupInstance = this;
@@ -45,211 +38,199 @@ class DailyPricePopup {
         return modal;
     }
 
-    show() {
-        this.updateInfo();
-        this.generateForm();
-        this.setupEventListeners();
-    }
 
     updateInfo() {
-        const formattedDates = this.selectedDates.sort().map(dateString => {
+        
+        const selectedDatesInfo = this.modal.querySelector('#selected-dates-info');
+        console.log(this.selectedDates);
+        const datesString = this.selectedDates.sort().map(dateString => {
             const date = new Date(dateString);
             return `${date.getMonth() + 1}/${date.getDate()}`;
         }).join(', ');
-        
-        const selectedDatesInfo = this.modal.querySelector('#selected-dates-info');
-        const currentRoomType = this.modal.querySelector('#current-room-type');
-        const detailsHeader = this.modal.querySelector('#details-header');
-        
-        if (selectedDatesInfo) {
-            selectedDatesInfo.textContent = `선택한 날짜: ${formattedDates} (총 ${this.selectedDates.length}개)`;
-        }
-        
-        if (currentRoomType) {
-            currentRoomType.textContent = `현재 모드: ${this.currentRoomType === 'daily' ? '대실' : '숙박'}`;
-        }
-        
-        // 헤더 업데이트
-        if (detailsHeader) {
-            if (this.currentRoomType === 'daily') {
-                detailsHeader.className = 'split-header';
-                detailsHeader.innerHTML = `
-                    <div>개시/마감 시각</div>
-                    <div>이용시간</div>
-                `;
-            } else {
-                detailsHeader.className = '';
-                detailsHeader.textContent = '입실/퇴실 시각';
-            }
+        console.log(datesString);
+        selectedDatesInfo.textContent = `선택한 날짜: ${datesString} (총 ${this.selectedDates.length}개)` + `현재 모드: ${this.isOvernight ? '숙박' : '대실'}`;
+
+
+        // const currentRoomType = this.modal.querySelector('#current-room-type');
+        // currentRoomType.textContent = `현재 모드: ${this.currentRoomType === 'daily' ? '대실' : '숙박'}`;
+
+        const table = this.modal.querySelector('.sales-form-table');
+
+        const thead = document.createElement('thead');
+        table.appendChild(thead);
+
+        const tr = document.createElement('tr');
+        thead.appendChild(tr);
+
+        const th1 = document.createElement('th');
+        th1.textContent = '객실명';
+        tr.appendChild(th1);
+
+        const th2 = document.createElement('th');
+        th2.textContent = '상태';
+        tr.appendChild(th2);
+
+        const th3 = document.createElement('th');
+        th3.textContent = '가격';
+        tr.appendChild(th3);
+
+        console.log(this.isOvernight);
+        if (!this.isOvernight) {
+            const th4 = document.createElement('th');
+            th4.textContent = '개시/마감 시각';
+            tr.appendChild(th4);
+
+            const th5 = document.createElement('th');
+            th5.textContent = '이용시간';
+            tr.appendChild(th5);
+
+        } 
+        else {
+            const th4 = document.createElement('th');
+            th4.textContent = '입실/퇴실 시각';
+            tr.appendChild(th4);
         }
     }
 
-    async generateForm() {
+    generateForm() {
         const formRows = this.modal.querySelector('#form-rows');
-        const roomIds = Object.keys(this.roomData);
-        
-        if (!formRows) {
-            console.error('form-rows 요소를 찾을 수 없습니다.');
-            return;
-        }
-        
-        if (roomIds.length === 0) {
-            formRows.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 40px;">등록된 객실이 없습니다.</td></tr>';
-            return;
-        }
-        
-        // 선택된 날짜들의 기존 요금 정보 불러오기
-        let existingPrices = {};
-        if (this.selectedDates.length > 0) {
-            const lastSelectedDate = this.selectedDates[0];
-            roomIds.forEach(roomId => {
-                const dailyPriceKey = `${lastSelectedDate}_${roomId}_${this.currentRoomType}`;
-                const dailyPrice = this.dailyPricesCache[dailyPriceKey];
-                if (dailyPrice) {
-                    existingPrices[roomId] = dailyPrice;
-                }
-            });
-        }
-        
-        formRows.innerHTML = '';
-        
-        roomIds.forEach(roomId => {
-            const room = this.roomData[roomId];
-            const existingPrice = existingPrices[roomId];
-            
+        console.log(this.dataBox);
+        this.rows = [];
+        this.dataBox.querySelectorAll('.room-data-items').forEach(item => {
             const row = document.createElement('tr');
-            row.className = 'form-row';
-            
+            row.id = item.id;
+            //row.className = 'form-row';
+            formRows.appendChild(row);
+            this.rows.push(row);
+
             // 객실명
             const nameCell = document.createElement('td');
-            nameCell.textContent = room.name;
+            nameCell.textContent = item.querySelector('.room-name').textContent;
             row.appendChild(nameCell);
+
+            // 판매 상태 
+            const status = item.querySelector('.room-status').textContent === '판매' ? 1 : 0;
             
-            // 상태 버튼
             const statusCell = document.createElement('td');
-            const statusBtn = document.createElement('button');
-            statusBtn.className = 'status-btn';
-            statusBtn.textContent = '판매';
-            statusBtn.dataset.roomId = roomId;
-            statusBtn.onclick = () => this.changeStatus(roomId, '판매');
-            
-            const stoppedBtn = document.createElement('button');
-            stoppedBtn.className = 'status-btn stopped';
-            stoppedBtn.textContent = '판매중지';
-            stoppedBtn.dataset.roomId = roomId;
-            stoppedBtn.onclick = () => this.changeStatus(roomId, '판매중지');
-            
-            // 기존 상태 설정
-            if (existingPrice) {
-                if (existingPrice.status === 1) {
-                    statusBtn.classList.add('active');
-                } else {
-                    stoppedBtn.classList.add('active');
-                }
-            } else {
-                statusBtn.classList.add('active');
-            }
-            
-            statusCell.appendChild(statusBtn);
-            statusCell.appendChild(stoppedBtn);
             row.appendChild(statusCell);
+
+            const statusBtn1 = document.createElement('button');
+            statusBtn1.className = 'status-btn';
+            statusBtn1.textContent = '판매';
+            statusBtn1.onclick = () => this.onClickStatusBtn(statusCell);
+            statusCell.appendChild(statusBtn1);
+
+            const statusBtn2 = document.createElement('button');
+            statusBtn2.className = 'status-btn stopped';
+            statusBtn2.textContent = '마감';
+            statusBtn2.onclick = () => this.onClickStatusBtn(statusCell);
+            statusCell.appendChild(statusBtn2);
+
+            if(status) statusBtn1.classList.add('active');
+            else statusBtn2.classList.add('active');
             
-            // 가격 입력
+            const price = item.querySelector('.room-price').textContent.split('원')[0];
+
             const priceCell = document.createElement('td');
+            row.appendChild(priceCell);
+
             const priceContainer = document.createElement('div');
             priceContainer.className = 'price-input-container';
+            priceCell.appendChild(priceContainer);
             
             const priceInput = document.createElement('input');
             priceInput.type = 'text';
             priceInput.className = 'price-input';
-            priceInput.dataset.roomId = roomId;
             priceInput.maxLength = 8;
             priceInput.oninput = (e) => {
                 e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 8);
             };
-            
-            if (existingPrice) {
-                priceInput.value = existingPrice.price || 0;
-            } else {
-                const dayOfWeek = new Date(this.selectedDates[0]).getDay();
-                if (this.currentRoomType === 'daily') {
-                    priceInput.value = room.data.rentalPrice[dayOfWeek] || 30000;
-                } else {
-                    priceInput.value = room.data.price[dayOfWeek] || 50000;
-                }
-            }
-            
+            priceInput.value = price;
+            priceContainer.appendChild(priceInput);
+
             const priceUnit = document.createElement('span');
             priceUnit.textContent = '원';
             priceUnit.style.marginLeft = '2px';
             priceUnit.style.fontSize = '0.75rem';
-            
-            priceContainer.appendChild(priceInput);
             priceContainer.appendChild(priceUnit);
-            priceCell.appendChild(priceContainer);
-            row.appendChild(priceCell);
-            
-            // 시간 설정
-            const timeCell = document.createElement('td');
-            if (this.currentRoomType === 'daily') {
-                // 대실: 개시/마감 시각 + 이용시간
-                const openHourDropdown = this.createTimeDropdown(
-                    `sales-open-hour-${roomId}`, 6, 23, 
-                    existingPrice ? JSON.parse(existingPrice.details)[0] : 14,
-                    'open'
-                );
-                const closeHourDropdown = this.createTimeDropdown(
-                    `sales-close-hour-${roomId}`, 6, 23,
-                    existingPrice ? JSON.parse(existingPrice.details)[1] : 22,
-                    'close'
-                );
-                const usageHourDropdown = this.createTimeDropdown(
-                    `sales-usage-hour-${roomId}`, 1, 12,
-                    existingPrice ? parseInt(existingPrice.usage_time) : 5,
-                    'usage'
-                );
-                
+
+            const details = item.querySelectorAll('.room-details');
+            if(!this.isOvernight) {
+                const match = [
+                    details[0].textContent.match(/(\d+)시~(\d+)시/),
+                    details[1].textContent.match(/(\d+)시/)
+                ]
+
+                const timeCell = document.createElement('td');
+                row.appendChild(timeCell);
+
                 const timeInputs1 = document.createElement('div');
                 timeInputs1.className = 'time-inputs';
                 timeInputs1.style.justifyContent = 'center';
+                timeCell.appendChild(timeInputs1);
                 
+                const openHourDropdown = this.createTimeDropdown(
+                    `sales-open-hour-${item.id}`, 6, 23, 
+                    match[0][1],
+                    'open'
+                );
+                timeInputs1.appendChild(openHourDropdown);
+
                 const timeSeparator1 = document.createElement('span');
                 timeSeparator1.className = 'time-separator';
                 timeSeparator1.textContent = '시~';
+                timeInputs1.appendChild(timeSeparator1);
+
+                const closeHourDropdown = this.createTimeDropdown(
+                    `sales-close-hour-${item.id}`, 6, 23,
+                    match[0][2],
+                    'close'
+                );
+                timeInputs1.appendChild(closeHourDropdown);
                 
                 const timeSeparator2 = document.createElement('span');
                 timeSeparator2.className = 'time-separator';
                 timeSeparator2.textContent = '시';
+                timeInputs1.appendChild(timeSeparator2);
+
+
+                const usageTimeCell = document.createElement('td');
+                row.appendChild(usageTimeCell);
+
+                const timeInputs2 = document.createElement('div');
+                timeInputs2.className = 'time-inputs';
+                timeInputs2.style.justifyContent = 'center';
+                usageTimeCell.appendChild(timeInputs2);
+
+                const usageHourDropdown = this.createTimeDropdown(
+                    `sales-usage-hour-${item.id}`, 1, 12,
+                    match[1][1],
+                    'usage'
+                );
+                timeInputs2.appendChild(usageHourDropdown);
+
                 
                 const timeSeparator3 = document.createElement('span');
                 timeSeparator3.className = 'time-separator';
                 timeSeparator3.textContent = '시간';
-                
-                timeInputs1.appendChild(openHourDropdown);
-                timeInputs1.appendChild(timeSeparator1);
-                timeInputs1.appendChild(closeHourDropdown);
-                timeInputs1.appendChild(timeSeparator2);
-                
-                const timeInputs2 = document.createElement('div');
-                timeInputs2.className = 'time-inputs';
-                timeInputs2.style.justifyContent = 'center';
-                timeInputs2.style.marginTop = '4px';
-                
-                timeInputs2.appendChild(usageHourDropdown);
                 timeInputs2.appendChild(timeSeparator3);
                 
-                timeCell.appendChild(timeInputs1);
-                timeCell.appendChild(timeInputs2);
-            } else {
-                // 숙박: 입실/퇴실 시각
+            }
+            else {
+                const match = details[0].textContent.match(/(\d+)시~(\d+)시/);
+
+                const timeCell = document.createElement('td');
+                row.appendChild(timeCell);
+
                 const checkinHourDropdown = this.createTimeDropdown(
-                    `sales-checkin-hour-${roomId}`, 0, 23,
-                    existingPrice ? JSON.parse(existingPrice.details)[0] : 16,
+                    `sales-checkin-hour-${item.id}`, 0, 23,
+                    match[1],
                     'checkin'
                 );
+
                 const checkoutHourDropdown = this.createTimeDropdown(
-                    `sales-checkout-hour-${roomId}`, 0, 23,
-                    existingPrice ? JSON.parse(existingPrice.details)[1] : 13,
+                    `sales-checkout-hour-${item.id}`, 0, 23,
+                    match[2],
                     'checkout'
                 );
                 
@@ -272,15 +253,21 @@ class DailyPricePopup {
                 
                 timeCell.appendChild(timeInputs);
             }
+
             
-            row.appendChild(timeCell);
-            formRows.appendChild(row);
         });
-        
-        // DOM 요소 생성 후 초기값 저장 (다음 틱에서 실행)
-        setTimeout(() => {
-            this.saveInitialValues();
-        }, 0);
+    }
+
+    onClickStatusBtn(statusCell) {
+        const statusBtns = statusCell.querySelectorAll('.status-btn');
+        statusBtns.forEach(btn => {
+            if(btn.classList.contains('active')) {
+                btn.classList.remove('active');
+            }
+            else {
+                btn.classList.add('active');
+            }
+        });
     }
 
     createTimeDropdown(id, min, max, currentValue, type) {
@@ -330,11 +317,7 @@ class DailyPricePopup {
         const options = dropdown.querySelector('.dropdown-options');
         options.style.display = 'none';
     }
-
-    toggleInputMode(dropdown, currentValue) {
-        // 드롭다운 토글 기능 (필요시 구현)
-    }
-
+    
     changeStatus(roomId, status) {
         const statusBtns = this.modal.querySelectorAll(`.status-btn[data-room-id="${roomId}"]`);
         statusBtns.forEach(btn => btn.classList.remove('active'));
@@ -342,194 +325,82 @@ class DailyPricePopup {
         const clickedBtn = event.target;
         clickedBtn.classList.add('active');
     }
-
-    saveInitialValues() {
-        const roomIds = Object.keys(this.roomData);
-        
-        roomIds.forEach(roomId => {
-            const priceInput = this.modal.querySelector(`.price-input[data-room-id="${roomId}"]`);
-            const statusBtn = this.modal.querySelector(`.status-btn[data-room-id="${roomId}"]`);
-            
-            // DOM 요소가 존재하지 않으면 기본값 사용
-            if (!priceInput || !statusBtn) {
-                console.warn(`DailyPricePopup: room ${roomId}의 DOM 요소를 찾을 수 없습니다. 기본값 사용.`);
-                this.initialValues[roomId] = {
-                    status: 1,
-                    price: this.currentRoomType === 'daily' ? 30000 : 50000,
-                    details: this.currentRoomType === 'daily' ? [14, 22] : [16, 13],
-                    usage_time: this.currentRoomType === 'daily' ? '5시간' : ''
-                };
-                return;
-            }
-            
-            const initialStatus = statusBtn.classList.contains('active') ? 1 : 0;
-            const initialPrice = parseInt(priceInput.value) || 0;
-            
-            let initialDetails, initialUsageTime;
-            
-            if (this.currentRoomType === 'daily') {
-                const openHour = parseInt(this.modal.querySelector(`#sales-open-hour-${roomId} .dropdown-display`)?.textContent || '14');
-                const closeHour = parseInt(this.modal.querySelector(`#sales-close-hour-${roomId} .dropdown-display`)?.textContent || '22');
-                const usageHours = this.modal.querySelector(`#sales-usage-hour-${roomId} .dropdown-display`)?.textContent || '5';
-                
-                initialDetails = [openHour, closeHour];
-                initialUsageTime = `${usageHours}시간`;
-            } else {
-                const checkInHour = parseInt(this.modal.querySelector(`#sales-checkin-hour-${roomId} .dropdown-display`)?.textContent || '16');
-                const checkOutHour = parseInt(this.modal.querySelector(`#sales-checkout-hour-${roomId} .dropdown-display`)?.textContent || '13');
-                
-                initialDetails = [checkInHour, checkOutHour];
-                initialUsageTime = '';
-            }
-            
-            this.initialValues[roomId] = {
-                status: initialStatus,
-                price: initialPrice,
-                details: initialDetails,
-                usage_time: initialUsageTime
-            };
-        });
-    }
-
-    async saveSettings() {
-        try {
-            const roomIds = Object.keys(this.roomData);
-            const savePromises = [];
-            
-            for (const dateString of this.selectedDates) {
-                for (const roomId of roomIds) {
-                    const priceInput = this.modal.querySelector(`.price-input[data-room-id="${roomId}"]`);
-                    const statusBtn = this.modal.querySelector(`.status-btn[data-room-id="${roomId}"]`);
-                    
-                    // DOM 요소가 존재하지 않으면 기본값 사용
-                    if (!priceInput || !statusBtn) {
-                        console.warn(`DailyPricePopup: room ${roomId}의 DOM 요소를 찾을 수 없습니다. 기본값 사용.`);
-                        const status = 1;
-                        const price = this.currentRoomType === 'daily' ? 30000 : 50000;
-                        let details, usageTime;
-                        
-                        if (this.currentRoomType === 'daily') {
-                            details = JSON.stringify([14, 22]);
-                            usageTime = '5시간';
-                        } else {
-                            details = JSON.stringify([16, 13]);
-                            usageTime = '';
-                        }
-                        
-                        const priceData = {
-                            date: dateString,
-                            room_id: roomId,
-                            room_type: this.currentRoomType,
-                            status: status,
-                            price: price,
-                            details: details,
-                            usage_time: usageTime
-                        };
-                        
-                        // API 호출
-                        const response = await fetch('/api/admin/daily-prices', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(priceData)
-                        });
-                        
-                        if (!response.ok) {
-                            throw new Error(`Failed to save price data for ${dateString} ${roomId}`);
-                        }
-                        continue;
-                    }
-                    
-                    const status = statusBtn.classList.contains('active') ? 1 : 0;
-                    const price = parseInt(priceInput.value);
-                    
-                    let details, usageTime;
-                    
-                    if (this.currentRoomType === 'daily') {
-                        const openHour = parseInt(this.modal.querySelector(`#sales-open-hour-${roomId} .dropdown-display`)?.textContent || '14');
-                        const closeHour = parseInt(this.modal.querySelector(`#sales-close-hour-${roomId} .dropdown-display`)?.textContent || '22');
-                        const usageHours = this.modal.querySelector(`#sales-usage-hour-${roomId} .dropdown-display`)?.textContent || '5';
-                        
-                        details = JSON.stringify([openHour, closeHour]);
-                        usageTime = `${usageHours}시간`;
-                    } else {
-                        const checkInHour = parseInt(this.modal.querySelector(`#sales-checkin-hour-${roomId} .dropdown-display`)?.textContent || '16');
-                        const checkOutHour = parseInt(this.modal.querySelector(`#sales-checkout-hour-${roomId} .dropdown-display`)?.textContent || '13');
-                        
-                        details = JSON.stringify([checkInHour, checkOutHour]);
-                        usageTime = '';
-                    }
-                    
-                    const priceData = {
-                        date: dateString,
-                        room_id: roomId,
-                        room_type: this.currentRoomType,
-                        status: status,
-                        price: price,
-                        details: details,
-                        usage_time: usageTime
-                    };
-                    
-                    // API 호출
-                    const response = await fetch('/api/admin/daily-prices', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(priceData)
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`Failed to save price data for ${dateString} ${roomId}`);
-                    }
-                }
-            }
-            
-            console.log('판매 설정 저장 완료');
-            
-            if (this.onSave) {
-                this.onSave();
-            }
-            
-            // PopupCanvas 닫기
-            if (window.popupCanvas) {
-                window.popupCanvas.close();
-            }
-            
-        } catch (error) {
-            console.error('판매 설정 저장 실패:', error);
-            alert('판매 설정 저장에 실패했습니다.');
-        }
-    }
-
-    setupEventListeners() {
-        // 마우스 호버 방식이므로 별도의 이벤트 리스너가 필요 없음
-    }
     
-    cleanupEventListeners() {
-        // 마우스 호버 방식이므로 별도의 정리가 필요 없음
+    // 저장 기능 구현 중...
+    // 캔버스에서 정보 받아오기 구현 중...
+    async submit() {
+        const days = [];
+        this.selectedDates.forEach(dateString => {
+            const date = new Date(dateString);
+            days.push({
+                year: date.getFullYear(),
+                month: date.getMonth() + 1,
+                date: date.getDate(),
+            });
+        });
+
+        const settings = [];
+        const rows = this.modal.querySelector('#form-rows').querySelectorAll('tr');
+        
+        rows.forEach(row => { 
+            // 행별로 데이터 파싱해서 Db 저장하기
+            const statusBtn = row.querySelector('.status-btn:first-child');
+            const status = statusBtn.classList.contains('active')? 1 : 0;
+
+            const price = row.querySelector('.price-input').value;
+
+
+            const timeRange = row.querySelectorAll('.dropdown-display');
+            const openClose = [ JSON.parse(timeRange[0].textContent), JSON.parse(timeRange[1].textContent) ];
+
+
+
+            const usageTime = this.isOvernight ? '0' : timeRange[2].textContent;
+
+
+
+
+            // const rowData = this.getRowData(row);
+            settings.push({
+                roomId: row.id,
+                isOvernight: this.isOvernight? 1 : 0,
+
+                status: status,
+                price: price,
+                openClose: JSON.stringify(openClose),
+                usageTime: usageTime    
+            });
+        });
+
+        const data = {
+            days: days,
+            settings: settings
+        }
+
+        console.log(data);
+
+        const res = await fetch('/api/dailySettings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if(res.ok) {
+            console.log(result.msg);
+            this.onSaveCallback();
+            return true;
+        }
+        else {
+            console.error(result.msg);
+            return false;
+        }
     }
 
-    close() {
-        // DOM 요소 제거
-        if (this.modal && this.modal.parentNode) {
-            this.modal.parentNode.removeChild(this.modal);
-        }
-        
-        // 이벤트 리스너 정리
-        this.cleanupEventListeners();
-        
-        // 인스턴스 정리
-        this.modal = null;
-        this.initialValues = {};
-        this.selectedDates = [];
-        this.roomData = {};
-        this.dailyPricesCache = {};
-        this.onSave = null;
+    remove() {
+        this.modal.remove();
     }
 
     getRootElement() {
         return this.modal;
-    }
-
-    remove() {
-        this.close();
     }
 } 

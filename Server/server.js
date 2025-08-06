@@ -30,39 +30,7 @@ db.prepare(`
   )
 `).run();
 
-// 기존 테이블 구조를 새로운 구조로 마이그레이션
-try {
-    // cancelled, confirmed 컬럼이 있는지 확인
-    const columns = db.prepare("PRAGMA table_info(reservations)").all();
-    const hasCancelled = columns.some(col => col.name === 'cancelled');
-    const hasConfirmed = columns.some(col => col.name === 'confirmed');
-    const hasState = columns.some(col => col.name === 'state');
-    
-    if (hasCancelled || hasConfirmed) {
-        // state 컬럼이 없으면 추가
-        if (!hasState) {
-            db.prepare(`ALTER TABLE reservations ADD COLUMN state INTEGER DEFAULT 0`).run();
-            console.log('state 컬럼이 추가되었습니다.');
-        }
-        
-        // 기존 데이터를 새로운 state 값으로 변환
-        const reservations = db.prepare('SELECT id, cancelled, confirmed FROM reservations').all();
-        reservations.forEach(reservation => {
-            let newState = 0; // 기본값
-            if (reservation.cancelled === 1) {
-                newState = -1; // 취소
-            } else if (reservation.confirmed === 1) {
-                newState = 1; // 확정
-            }
-            
-            db.prepare('UPDATE reservations SET state = ? WHERE id = ?').run(newState, reservation.id);
-        });
-        
-        console.log('예약 상태 마이그레이션이 완료되었습니다.');
-    }
-} catch (e) {
-    console.log('마이그레이션 중 오류:', e);
-}
+
 
 
 app.use(cors());
@@ -145,32 +113,6 @@ app.post("/api/reserve", (req, res) => {
     }
 });
 
-app.post("/api/cancel", (req, res) => {
-    const { id } = req.body;
-    if (!id) {
-        return res.status(400).json({ error: "예약 ID가 필요합니다." });
-    }
-
-    // 예약자 전화번호 조회
-    const row = db.prepare('SELECT phone FROM reservations WHERE id = ?').get(id);
-    const phone = row ? row.phone : null;
-
-    // 취소 상태로 변경 (삭제하지 않고 기록 보존)
-    const stmt = db.prepare(`
-        UPDATE reservations SET state = -1 WHERE id = ? AND state != -1
-    `);
-    const info = stmt.run(id);
-
-    if (info.changes > 0) {
-        // 관리자에게 실시간 알림
-        if (io) io.to("admin").emit("reservation-updated");
-        // 해당 예약자에게 실시간 취소 알림
-        if (phone) io.to(`user_${phone}`).emit("reservation-cancelled", { id });
-        res.json({ success: true });
-    } else {
-        res.status(404).json({ error: "예약을 찾을 수 없거나 이미 취소된 예약입니다." });
-    }
-});
 
 // 결제 후 예약 추가도 동일하게 알림
 app.post("/api/payment", (req, res) => {
@@ -274,25 +216,7 @@ app.get('/api/admin/reservations', (req, res) => {
 
 // 관리자용 예약 확정 API
 // 예약 확정 시 관리자+해당 예약자에게 실시간 알림
-app.post('/api/admin/confirm', (req, res) => {
-    const { id } = req.body;
-    if (!id) {
-        return res.status(400).json({ error: '예약 ID가 필요합니다.' });
-    }
-    const stmt = db.prepare(`UPDATE reservations SET state = 1 WHERE id = ? AND state = 0`);
-    const info = stmt.run(id);
-    if (info.changes > 0) {
-        // 예약자 전화번호 조회
-        const row = db.prepare('SELECT phone FROM reservations WHERE id = ?').get(id);
-        // 관리자에게 실시간 알림
-        if (io) io.to("admin").emit("reservation-updated");
-        // 해당 예약자에게 실시간 확정 알림
-        if (row && row.phone) io.to(`user_${row.phone}`).emit("reservation-confirmed", { id });
-        res.json({ success: true });
-    } else {
-        res.status(404).json({ error: '예약을 찾을 수 없거나 이미 처리된 예약입니다.' });
-    }
-});
+
 
 // 2. 서버 시작 시 특가 상품 디폴트 등록
 // 특가 상품 테이블에 stock(수량) 컬럼 추가
@@ -1558,6 +1482,120 @@ app.delete('/api/defaultSettings/:id', (req, res) => {
         data: result.data
     });
 });
+
+
+// 예약 관리 API !!!!!
+
+app.post('/api/admin/confirm', (req, res) => {
+    const { id } = req.body;
+    if (!id) {
+        return res.status(400).json({ error: '예약 ID가 필요합니다.' });
+    }
+    const stmt = db.prepare(`UPDATE reservations SET state = 1 WHERE id = ? AND state = 0`);
+    const info = stmt.run(id);
+    if (info.changes > 0) {
+        // 예약자 전화번호 조회
+        const row = db.prepare('SELECT phone FROM reservations WHERE id = ?').get(id);
+        // 관리자에게 실시간 알림
+        if (io) io.to("admin").emit("reservation-updated");
+        // 해당 예약자에게 실시간 확정 알림
+        if (row && row.phone) io.to(`user_${row.phone}`).emit("reservation-confirmed", { id });
+        res.json({ success: true });
+    } else {
+        res.status(404).json({ error: '예약을 찾을 수 없거나 이미 처리된 예약입니다.' });
+    }
+});
+
+
+
+app.post("/api/cancel", (req, res) => {
+    const { id } = req.body;
+    if (!id) {
+        return res.status(400).json({ error: "예약 ID가 필요합니다." });
+    }
+
+    // 예약자 전화번호 조회
+    const row = db.prepare('SELECT phone FROM reservations WHERE id = ?').get(id);
+    const phone = row ? row.phone : null;
+
+    // 취소 상태로 변경 (삭제하지 않고 기록 보존)
+    const stmt = db.prepare(`
+        UPDATE reservations SET state = -1 WHERE id = ? AND state != -1
+    `);
+    const info = stmt.run(id);
+
+    if (info.changes > 0) {
+        // 관리자에게 실시간 알림
+        if (io) io.to("admin").emit("reservation-updated");
+        // 해당 예약자에게 실시간 취소 알림
+        if (phone) io.to(`user_${phone}`).emit("reservation-cancelled", { id });
+        res.json({ success: true });
+    } else {
+        res.status(404).json({ error: "예약을 찾을 수 없거나 이미 취소된 예약입니다." });
+    }
+});
+
+
+// 날짜별 판매 설정 API !!!!!
+
+const dailySettingsModule = require('./DailySettings');
+
+app.get('/api/dailySettings/:month/:year/:isOvernight', (req, res) => {
+    const { month, year, isOvernight } = req.params;
+    console.log(month, year, isOvernight);
+    const result = dailySettingsModule.getMonthlyDailySettings(year, month, isOvernight);
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.data
+    });
+});
+
+app.post('/api/dailySettings', (req, res) => {
+    const result = dailySettingsModule.updateDailySettings(req.body);
+    res.status(result.status).json({
+        msg: result.msg,
+    });
+});
+
+// 기타...
+
+app.get('/api/date/:dateId', (req, res) => {
+    const { dateId } = req.params;
+    const result = dailySettingsModule.getDate(dateId);
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.data
+    });
+});
+
+app.get('/api/roomType/:roomId', (req, res) => {
+    const { roomId } = req.params;
+    const result = defaultSettingsModule.getRoomType(roomId);
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.data
+    });
+});
+
+
+// 비밀번호 확인 API !!!!!
+const loginIpMap = new Map();
+app.get('/api/admin/login/:password', (req, res) => {
+    // 무차별 대입 방어 필요
+    const { password } = req.params;
+
+    if(password === '123') {
+        res.json({
+            msg: 'success',
+        });
+    } else {
+        res.json({
+            msg: 'fail',
+        });
+    }
+});
+
+
 
 
 
