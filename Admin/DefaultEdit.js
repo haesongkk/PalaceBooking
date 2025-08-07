@@ -1,7 +1,8 @@
 class DefaultEdit {
-    constructor(onSubmitCallback, defaultData = null) {
+    constructor(onSubmitCallback, defaultData = null, isOvernight = false) {
         this.defaultData = defaultData;
         this.onSubmitCallback = onSubmitCallback;
+        this.isOvernight = isOvernight;
 
         this.container = document.createElement('div');
         this.container.className = 'price-table-inner-container';
@@ -44,15 +45,21 @@ class DefaultEdit {
         table.appendChild(tbody);
 
         let rows = [];
-        rows = [
-            { label: '판매/마감', data: JSON.parse(this.defaultData.overnightStatus) },
-            { label: '판매가', data: JSON.parse(this.defaultData.overnightPrice) },
-            { label: '입실/퇴실 시각', data: JSON.parse(this.defaultData.overnightOpenClose) },
-            { label: '판매/마감', data: JSON.parse(this.defaultData.dailyStatus) },
-            { label: '판매가', data: JSON.parse(this.defaultData.dailyPrice) },
-            { label: '개시/마감 시각', data: JSON.parse(this.defaultData.dailyOpenClose) },
-            { label: '이용시간', data: JSON.parse(this.defaultData.dailyUsageTime) }
-        ];
+        if(this.isOvernight) {
+            rows = [
+                { label: '판매/마감', data: JSON.parse(this.defaultData.overnightStatus) },
+                { label: '판매가', data: JSON.parse(this.defaultData.overnightPrice) },
+                { label: '입실/퇴실 시각', data: JSON.parse(this.defaultData.overnightOpenClose) },
+            ];
+        } 
+        else {
+            rows = [
+                { label: '판매/마감', data: JSON.parse(this.defaultData.dailyStatus) },
+                { label: '판매가', data: JSON.parse(this.defaultData.dailyPrice) },
+                { label: '개시/마감 시각', data: JSON.parse(this.defaultData.dailyOpenClose) },
+                { label: '이용시간', data: JSON.parse(this.defaultData.dailyUsageTime) }
+            ];
+        }
 
         let dataCells = [];
         rows.forEach((row, rowIndex) => {
@@ -81,22 +88,11 @@ class DefaultEdit {
             this.createDropdownCell2(item.cell, item.value, 'overnightDropdown' + cellIndex);
         });
 
-
-        dataCells[3].forEach((item, cellIndex) => {
-            this.createToggleCell(item.cell, item.value, 'dailyToggle' + cellIndex);
-        });
-
-        dataCells[4].forEach((item, cellIndex) => {
-            this.createInputCell(item.cell, item.value, 'dailyInput' + cellIndex);
-        });
-
-        dataCells[5].forEach((item, cellIndex) => {
-            this.createDropdownCell2(item.cell, item.value, 'dailyDropdown' + cellIndex);
-        });
-
-        dataCells[6].forEach((item, cellIndex) => {
-            this.createDropdownCell(item.cell, item.value, 'dailyDropdown' + cellIndex);
-        });
+        if(!this.isOvernight) {
+            dataCells[3].forEach((item, cellIndex) => {
+                this.createDropdownCell(item.cell, item.value, 'dailyDropdown' + cellIndex);
+            });
+        }
     }
 
     createToggleCell(cellContainer, data, id) {
@@ -265,63 +261,79 @@ class DefaultEdit {
         const id = this.defaultData.id;
         const roomType = this.container.querySelector('.room-name-input').value;
 
-        const dailyStatus = [];
-        const dailyPrice = [];
-        const dailyOpenClose = [];
-        const dailyUsageTime = [];
-        const overnightStatus = [];
-        const overnightPrice = [];
-        const overnightOpenClose = [];
-        const rows = this.container.querySelectorAll('tbody tr');
-        rows.forEach((row, rowIndex) => {
-            const cells = row.querySelectorAll('td:not(:first-child)'); 
-            cells.forEach((cell, cellIndex) => {
-                
-                if (rowIndex === 0) {
-                    const activeCell =cell.querySelector('.status-btn.active');
-                    if(activeCell.textContent === '판매') {
-                        overnightStatus[cellIndex] = 1;
+        let dailyStatus = [];
+        let dailyPrice = [];
+        let dailyOpenClose = [];
+        let dailyUsageTime = [];
+        let overnightStatus = [];
+        let overnightPrice = [];
+        let overnightOpenClose = [];
+        if(this.isOvernight) {
+            dailyStatus = JSON.parse(this.defaultData.dailyStatus);
+            dailyPrice = JSON.parse(this.defaultData.dailyPrice);
+            dailyOpenClose = JSON.parse(this.defaultData.dailyOpenClose);
+            dailyUsageTime = JSON.parse(this.defaultData.dailyUsageTime);
+            const rows = this.container.querySelectorAll('tbody tr');
+            rows.forEach((row, rowIndex) => {
+                const cells = row.querySelectorAll('td:not(:first-child)'); 
+                cells.forEach((cell, cellIndex) => {
+                    if (rowIndex === 0) {
+                        const activeCell =cell.querySelector('.status-btn.active');
+                        if(activeCell.textContent === '판매') {
+                            overnightStatus[cellIndex] = 1;
+                        } 
+                        else {
+                            overnightStatus[cellIndex] = 0;
+                        }
                     } 
-                    else {
-                        overnightStatus[cellIndex] = 0;
-                    }
-                } 
-                else if (rowIndex === 1) {
-                    const price = cell.querySelector('.price-input').value;
-                    overnightPrice[cellIndex] = parseInt(price);    
-                } 
-                else if (rowIndex === 2) {
-                    const dropdowns = cell.querySelectorAll('.dropdown-display');
-                    const openTime = parseInt(dropdowns[0].textContent);
-                    const closeTime = parseInt(dropdowns[1].textContent);
-                    overnightOpenClose[cellIndex] = [openTime, closeTime];
-                }
-                
-                else if (rowIndex === 3) {
-                    const activeCell =cell.querySelector('.status-btn.active');
-                    if(activeCell.textContent === '판매') {
-                        dailyStatus[cellIndex] = 1;
+                    else if (rowIndex === 1) {
+                        const price = cell.querySelector('.price-input').value;
+                        overnightPrice[cellIndex] = parseInt(price);    
                     } 
-                    else {
-                        dailyStatus[cellIndex] = 0;
+                    else if (rowIndex === 2) {
+                        const dropdowns = cell.querySelectorAll('.dropdown-display');
+                        const openTime = parseInt(dropdowns[0].textContent);
+                        const closeTime = parseInt(dropdowns[1].textContent);
+                        overnightOpenClose[cellIndex] = [openTime, closeTime];
                     }
-                } 
-                else if (rowIndex === 4) {
-                    const price = cell.querySelector('.price-input').value;
-                    dailyPrice[cellIndex] = parseInt(price);    
-                } 
-                else if (rowIndex === 5) {
-                    const dropdowns = cell.querySelectorAll('.dropdown-display');
-                    const openTime = parseInt(dropdowns[0].textContent);
-                    const closeTime = parseInt(dropdowns[1].textContent);
-                    dailyOpenClose[cellIndex] = [openTime, closeTime];
-                }
-                else if (rowIndex === 6) {
-                    const usageTime = parseInt(cell.querySelector('.dropdown-display').textContent);
-                    dailyUsageTime[cellIndex] = usageTime;
-                } 
+                });
             });
-        });
+        }
+        else {
+            const rows = this.container.querySelectorAll('tbody tr');
+            rows.forEach((row, rowIndex) => {
+                const cells = row.querySelectorAll('td:not(:first-child)'); 
+                cells.forEach((cell, cellIndex) => {
+                    overnightStatus = JSON.parse(this.defaultData.overnightStatus);
+                    overnightPrice = JSON.parse(this.defaultData.overnightPrice);
+                    overnightOpenClose = JSON.parse(this.defaultData.overnightOpenClose);
+
+                    if (rowIndex === 0) {
+                        const activeCell =cell.querySelector('.status-btn.active');
+                        if(activeCell.textContent === '판매') {
+                            dailyStatus[cellIndex] = 1;
+                        } 
+                        else {
+                            dailyStatus[cellIndex] = 0;
+                        }
+                    } 
+                    else if (rowIndex === 1) {
+                        const price = cell.querySelector('.price-input').value;
+                        dailyPrice[cellIndex] = parseInt(price);    
+                    } 
+                    else if (rowIndex === 2) {
+                        const dropdowns = cell.querySelectorAll('.dropdown-display');
+                        const openTime = parseInt(dropdowns[0].textContent);
+                        const closeTime = parseInt(dropdowns[1].textContent);
+                        dailyOpenClose[cellIndex] = [openTime, closeTime];
+                    }
+                    else if (rowIndex === 3) {
+                        const usageTime = parseInt(cell.querySelector('.dropdown-display').textContent);
+                        dailyUsageTime[cellIndex] = usageTime;
+                    } 
+                });
+            });
+        }
 
         const data = {
             id: id,

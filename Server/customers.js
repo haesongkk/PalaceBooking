@@ -130,8 +130,21 @@ function updateCustomer(id, name, phone, memo) {
     }
 }
 
+function searchCustomer(number) {
+    const customers = customersDb.prepare(
+        'SELECT * FROM customers WHERE phone LIKE ?'
+    ).all(`%${number}%`);
+
+    return {
+        status: 200,
+        msg: '고객 검색 성공',
+        customers: customers
+    };
+}
+
 module.exports = {
     getAllCustomers,
     deleteCustomer,
-    updateCustomer
+    updateCustomer,
+    searchCustomer
 };
