@@ -3,8 +3,10 @@ class CustomerList {
         this.container = document.createElement('div');
         this.container.className = 'customer-list-container';
 
-        this.createToolbar();
-        this.createCustomerTable();
+        this.getCustomers().then(() => {
+            this.createToolbar();
+            this.createCustomerTable();
+        });
     }
 
     createToolbar() {
@@ -12,10 +14,15 @@ class CustomerList {
         container.className = 'customer-list-top-container';
         this.container.appendChild(container);
 
-        const searchInput = document.createElement('input');
-        searchInput.className = 'customer-list-top-search-input';
-        searchInput.placeholder = '(검색 기능 구현 예정)';
-        container.appendChild(searchInput);
+        this.searchInput = document.createElement('input');
+        this.searchInput.className = 'customer-list-top-search-input';
+        this.searchInput.placeholder = '연락처를 검색하세요!';
+        this.searchInput.addEventListener('keydown', (e) => {
+            if(e.key === 'Enter' && this.searchInput.value.length > 0) {
+                this.onSearchButtonClick();
+            }
+        });
+        container.appendChild(this.searchInput);
 
         const searchButton = document.createElement('button');
         searchButton.className = 'customer-list-top-search-button';
@@ -62,7 +69,7 @@ class CustomerList {
         const tbody = document.createElement('tbody');
         customerTable.appendChild(tbody);
 
-        const customers = await this.getCustomers();
+        const customers = this.customers;
         if(customers.length > 0) {
             customers.forEach(customer => {
                 console.log(customer);
@@ -123,20 +130,15 @@ class CustomerList {
     }
 
     async getCustomers() {
-        const res = await fetch('/api/customers');
-        const result = await res.json();
-        if(!res.ok) {
-            console.error(result.msg);
-            return [];
-        }
-        else {
-            console.log(result.msg);
-            return result.data;
-        }
+        const res = await fetch('/api/customers').then(res => res.json());
+        this.customers = res.data;
+        return this.customers;
     }
 
-    onSearchButtonClick() {
-        console.log('검색 버튼 클릭');
+    async onSearchButtonClick() {
+        const res = await fetch(`/api/customers/search/${this.searchInput.value}`).then(res => res.json());
+        this.customers = res.data;
+        this.createCustomerTable();
     }
 
     onRegisterButtonClick() {
@@ -166,7 +168,10 @@ class CustomerList {
     }
 
     async reload() {
-        this.createCustomerTable();
+        this.searchInput.value = '';
+        this.getCustomers().then(() => {
+            this.createCustomerTable();
+        });
     }
 
     getRootElement() {

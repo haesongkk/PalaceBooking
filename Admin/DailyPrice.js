@@ -306,21 +306,24 @@ class DailyPrice {
 
 
             const roomType = await fetch(`/api/roomType/${roomId}`).then(res => res.json()).then(data => data.data);
+            if(roomType) {
+                const {row, col} = this.getCalendarCoord(date.date);
+                this.setCellData(
+                    this.dateCells[row][col],
+                    JSON.parse(roomId), 
+                    roomType.roomType,
+                    JSON.parse(status),
+                    JSON.parse(price),
+                    JSON.parse(openClose),
+                    JSON.parse(status),
+                    JSON.parse(price),
+                    JSON.parse(openClose),
+                    JSON.parse(usageTime)
+                );
+            }
 
 
-            const {row, col} = this.getCalendarCoord(date.date);
-            this.setCellData(
-                this.dateCells[row][col],
-                JSON.parse(roomId), 
-                roomType.roomType,
-                JSON.parse(status),
-                JSON.parse(price),
-                JSON.parse(openClose),
-                JSON.parse(status),
-                JSON.parse(price),
-                JSON.parse(openClose),
-                JSON.parse(usageTime)
-            );
+            
         });
 
     }

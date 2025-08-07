@@ -1033,6 +1033,16 @@ app.get('/api/customers', (req, res) => {
     });     
 });
 
+app.get('/api/customers/search/:number', (req, res) => {
+    const { number } = req.params;
+    const result = customersModule.searchCustomer(number);
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.customers
+    });
+
+});
+
 
 app.get("/recentReserve", (req, res) => {
     const { phone } = req.query;
