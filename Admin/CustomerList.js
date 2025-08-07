@@ -168,13 +168,17 @@ class CustomerList {
 
     onRegisterButtonClick() {
         window.popupCanvas.append('고객 등록', new CustomerInfo(() => {
-            this.createCustomerTable();
+            this.getCustomers().then(() => {
+                this.createCustomerTable();
+            });
         }));
     }
 
     async onEditButtonClick(customer) {
         window.popupCanvas.append('고객 수정', new CustomerInfo(() => {
-            this.createCustomerTable();
+            this.getCustomers().then(() => {
+                this.createCustomerTable();
+            });
         }, customer));
     }
 
