@@ -26,57 +26,11 @@ app.use(cors());
 app.use(bodyParser.json());
 
 app.use(express.static(path.join(__dirname, "../Client")));
-// Serve Admin page (case-sensitive path)
 app.use('/admin', express.static(path.join(__dirname, '../Admin')));
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, '../Admin/index.html'));
 });
 
-// 결제 성공 페이지
-app.get("/success", (req, res) => {
-    res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>결제 성공</title>
-            <meta charset="UTF-8">
-            <style>
-                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-                .success { color: green; font-size: 24px; }
-                .btn { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px; }
-            </style>
-        </head>
-        <body>
-            <div class="success">✅ 결제가 성공했습니다!</div>
-            <p>예약이 접수되었습니다. 관리자 승인 후 확정됩니다.</p>
-            <button class="btn" onclick="if(window.opener){window.opener.postMessage('payment-success','*');window.close();}else{window.location.href='/';}">메인으로 돌아가기</button>
-        </body>
-        </html>
-    `);
-});
-
-// 결제 실패 페이지
-app.get("/fail", (req, res) => {
-    res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>결제 실패</title>
-            <meta charset="UTF-8">
-            <style>
-                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-                .fail { color: red; font-size: 24px; }
-                .btn { background: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px; }
-            </style>
-        </head>
-        <body>
-            <div class="fail">❌ 결제에 실패했습니다.</div>
-            <p>다시 시도해주세요.</p>
-            <button class="btn" onclick="if(window.opener){window.opener.postMessage('payment-fail','*');window.close();}else{window.location.href='/';}">메인으로 돌아가기</button>
-        </body>
-        </html>
-    `);
-});
 
 // 예약 추가 시 관리자에게 실시간 알림
 app.post("/api/reserve", (req, res) => {
@@ -1075,6 +1029,34 @@ app.get("/recentReserve", (req, res) => {
     }
 });
 
+// 모든 고객의 최근 예약 정보를 한 번에 가져오는 엔드포인트
+app.get("/api/customers/recentReserves", (req, res) => {
+    try {
+        const stmt = db.prepare(`
+            SELECT r.phone, r.end_date
+            FROM reservations r
+            INNER JOIN (
+                SELECT phone, MAX(end_date) as max_end_date
+                FROM reservations
+                WHERE state != -1
+                GROUP BY phone
+            ) latest ON r.phone = latest.phone AND r.end_date = latest.max_end_date
+        `);
+        
+        const rows = stmt.all();
+        const recentReserves = {};
+        
+        rows.forEach(row => {
+            recentReserves[row.phone] = row.end_date;
+        });
+        
+        res.json({ data: recentReserves });
+    } catch (error) {
+        console.error('Error fetching recent reserves:', error);
+        res.status(500).json({ error: "최근 예약 정보를 가져오는 중 오류가 발생했습니다." });
+    }
+});
+
 
 
 // 기본 설정 관리 API !!!!!
@@ -1201,17 +1183,7 @@ app.post("/api/cancel", (req, res) => {
     }
 });
 
-app.get('/api/reserve/recent/:phone', (req, res) => {
-    const { phone } = req.params;
-    const result = db.prepare(`
-        SELECT *
-        FROM reservations
-        WHERE phone = ? AND state != -1
-        ORDER BY end_date DESC
-    `).all(phone);
-    console.log(result);
-    res.json(result);
-});
+
 
 
 // 날짜별 판매 설정 API !!!!!

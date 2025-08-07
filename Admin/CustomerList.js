@@ -132,15 +132,21 @@ class CustomerList {
         const res = await fetch('/api/customers').then(res => res.json());
         this.customers = res.data;
         
-        // 모든 최근 예약 데이터를 병렬로 가져오기
-        const recentReservePromises = this.customers.map(customer => 
-            this.getRecentReserve(customer.phone).then(recentReserve => {
-                customer.recentReserve = recentReserve;
-                return customer;
-            })
-        );
+        // 모든 고객의 최근 예약 데이터를 한 번에 가져오기
+        try {
+            const recentReservesRes = await fetch('/api/customers/recentReserves').then(res => res.json());
+            const recentReserves = recentReservesRes.data;
+            
+            this.customers.forEach(customer => {
+                customer.recentReserve = recentReserves[customer.phone] || null;
+            });
+        } catch (error) {
+            console.error('최근 예약 정보를 가져오는 중 오류:', error);
+            this.customers.forEach(customer => {
+                customer.recentReserve = null;
+            });
+        }
         
-        await Promise.all(recentReservePromises);
         console.log(this.customers);
     }
 
@@ -154,15 +160,21 @@ class CustomerList {
         const res = await fetch(`/api/customers/search/${this.searchInput.value}`).then(res => res.json());
         this.customers = res.data;
         
-        // 모든 최근 예약 데이터를 병렬로 가져오기
-        const recentReservePromises = this.customers.map(customer => 
-            this.getRecentReserve(customer.phone).then(recentReserve => {
-                customer.recentReserve = recentReserve;
-                return customer;
-            })
-        );
+        // 모든 고객의 최근 예약 데이터를 한 번에 가져오기
+        try {
+            const recentReservesRes = await fetch('/api/customers/recentReserves').then(res => res.json());
+            const recentReserves = recentReservesRes.data;
+            
+            this.customers.forEach(customer => {
+                customer.recentReserve = recentReserves[customer.phone] || null;
+            });
+        } catch (error) {
+            console.error('최근 예약 정보를 가져오는 중 오류:', error);
+            this.customers.forEach(customer => {
+                customer.recentReserve = null;
+            });
+        }
         
-        await Promise.all(recentReservePromises);
         this.createCustomerTable();
     }
 
@@ -190,7 +202,9 @@ class CustomerList {
         if(!res.ok) {
         }
         else {
-            this.createCustomerTable();
+            this.getCustomers().then(() => {
+                this.createCustomerTable();
+            });
         }
     }
 
