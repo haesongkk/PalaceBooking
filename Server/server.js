@@ -1201,6 +1201,18 @@ app.post("/api/cancel", (req, res) => {
     }
 });
 
+app.get('/api/reserve/recent/:phone', (req, res) => {
+    const { phone } = req.params;
+    const result = db.prepare(`
+        SELECT *
+        FROM reservations
+        WHERE phone = ? AND state != -1
+        ORDER BY end_date DESC
+    `).all(phone);
+    console.log(result);
+    res.json(result);
+});
+
 
 // 날짜별 판매 설정 API !!!!!
 
