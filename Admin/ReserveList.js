@@ -229,6 +229,10 @@ class ReserveList {
         });
     }
 
+    async reload() {
+        await this.updateTable();
+    }
+
     getRootElement() {
         return this.container;
     }

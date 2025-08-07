@@ -165,6 +165,10 @@ class CustomerList {
         }
     }
 
+    async reload() {
+        this.createCustomerTable();
+    }
+
     getRootElement() {
         return this.container;
     }

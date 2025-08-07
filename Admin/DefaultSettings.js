@@ -186,6 +186,10 @@ class DefaultSettings {
         this.createDefaultTable();
     }
 
+    async reload() {
+        await this.createDefaultTable();
+    }
+
     getRootElement() {
         return this.container;
     }
