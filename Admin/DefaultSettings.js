@@ -168,12 +168,12 @@ class DefaultSettings {
         }
         else {
             console.log(result.msg);
-            window.popupCanvas.append('객실 추가', new DefaultEdit(() => this.createDefaultTable(), result.data));
+            window.popupCanvas.append('객실 추가', new DefaultEdit(() => this.createDefaultTable(), result.data, this.currentRoomType === 'overnight'));
         }
     }
 
     async onEditButtonClick(room) {
-        window.popupCanvas.append('객실 수정', new DefaultEdit(() => this.createDefaultTable(), room));
+        window.popupCanvas.append('객실 수정', new DefaultEdit(() => this.createDefaultTable(), room, this.currentRoomType === 'overnight'));
     }
 
     async onDeleteButtonClick(room) {
@@ -184,6 +184,10 @@ class DefaultSettings {
         if(!response.ok) console.error(result.msg);
         else console.log(result.msg);
         this.createDefaultTable();
+    }
+
+    async reload() {
+        await this.createDefaultTable();
     }
 
     getRootElement() {

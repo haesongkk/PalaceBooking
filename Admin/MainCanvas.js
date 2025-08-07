@@ -5,6 +5,10 @@ class MainCanvas {
 
         this.title = document.createElement('h2');
         this.title.textContent = null;
+        this.title.onclick = async () => {
+            await this.onClickTitle();
+        }
+        this.title.style.cursor = 'pointer';
 
         this.mainCanvas.appendChild(this.title);
 
@@ -16,6 +20,10 @@ class MainCanvas {
         this.content?.remove();
         this.content = content;
         this.mainCanvas.appendChild(content.getRootElement());
+    }
+
+    async onClickTitle() {
+        await this.content.reload();  
     }
 
 }

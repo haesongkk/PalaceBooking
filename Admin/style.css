@@ -122,13 +122,7 @@
 .popup-canvas-middle {
     padding: 24px;
     flex: 1;
-    overflow: visible;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-}
-
-.popup-canvas-middle::-webkit-scrollbar {
-    display: none;
+    overflow: auto;
 }
 
 .popup-canvas-bottom {

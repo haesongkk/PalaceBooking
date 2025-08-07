@@ -185,6 +185,8 @@ class DailyPrice {
     renderCalendar() {
         this.salesCalendarDays.innerHTML = '';
         this.cells = []; 
+        this.selectedDates = [];
+        this.floatingSelectionUI.style.display = 'none';
 
         document.getElementById('sales-current-month').textContent = `${this.curYear}년 ${this.curMonth + 1}월`;
         
@@ -304,21 +306,24 @@ class DailyPrice {
 
 
             const roomType = await fetch(`/api/roomType/${roomId}`).then(res => res.json()).then(data => data.data);
+            if(roomType) {
+                const {row, col} = this.getCalendarCoord(date.date);
+                this.setCellData(
+                    this.dateCells[row][col],
+                    JSON.parse(roomId), 
+                    roomType.roomType,
+                    JSON.parse(status),
+                    JSON.parse(price),
+                    JSON.parse(openClose),
+                    JSON.parse(status),
+                    JSON.parse(price),
+                    JSON.parse(openClose),
+                    JSON.parse(usageTime)
+                );
+            }
 
 
-            const {row, col} = this.getCalendarCoord(date.date);
-            this.setCellData(
-                this.dateCells[row][col],
-                JSON.parse(roomId), 
-                roomType.roomType,
-                JSON.parse(status),
-                JSON.parse(price),
-                JSON.parse(openClose),
-                JSON.parse(status),
-                JSON.parse(price),
-                JSON.parse(openClose),
-                JSON.parse(usageTime)
-            );
+            
         });
 
     }
@@ -586,6 +591,10 @@ class DailyPrice {
         );
         
         window.popupCanvas.append('판매 설정', popup);
+    }
+
+    async reload() {
+        await this.loadData();
     }
 
     getRootElement() {

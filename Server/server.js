@@ -1033,6 +1033,16 @@ app.get('/api/customers', (req, res) => {
     });     
 });
 
+app.get('/api/customers/search/:number', (req, res) => {
+    const { number } = req.params;
+    const result = customersModule.searchCustomer(number);
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.customers
+    });
+
+});
+
 
 app.get("/recentReserve", (req, res) => {
     const { phone } = req.query;
@@ -1189,6 +1199,18 @@ app.post("/api/cancel", (req, res) => {
     } else {
         res.status(404).json({ error: "예약을 찾을 수 없거나 이미 취소된 예약입니다." });
     }
+});
+
+app.get('/api/reserve/recent/:phone', (req, res) => {
+    const { phone } = req.params;
+    const result = db.prepare(`
+        SELECT *
+        FROM reservations
+        WHERE phone = ? AND state != -1
+        ORDER BY end_date DESC
+    `).all(phone);
+    console.log(result);
+    res.json(result);
 });
 
 

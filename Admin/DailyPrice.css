@@ -213,7 +213,7 @@
     min-height: 0;
 }
 
-.room-data-item {
+.room-data-items {
     background: #fff !important;
     border: 1px solid #e5e7eb;
     border-radius: 4px;
@@ -227,7 +227,7 @@
     flex-shrink: 0;
 }
 
-.room-data-item:last-child {
+.room-data-items:last-child {
     margin-bottom: 0;
 }
 
@@ -249,13 +249,9 @@
 
 .room-status.closed {
     background: #f3f4f6;
-    color: #6b7280;
-}
-
-.room-status.soldout {
-    background: #fef2f2;
     color: #dc2626;
 }
+
 
 .room-name {
     font-weight: 600;

@@ -3,8 +3,10 @@ class CustomerList {
         this.container = document.createElement('div');
         this.container.className = 'customer-list-container';
 
-        this.createToolbar();
-        this.createCustomerTable();
+        this.getCustomers().then(() => {
+            this.createToolbar();
+            this.createCustomerTable();
+        });
     }
 
     createToolbar() {
@@ -12,10 +14,15 @@ class CustomerList {
         container.className = 'customer-list-top-container';
         this.container.appendChild(container);
 
-        const searchInput = document.createElement('input');
-        searchInput.className = 'customer-list-top-search-input';
-        searchInput.placeholder = '(검색 기능 구현 예정)';
-        container.appendChild(searchInput);
+        this.searchInput = document.createElement('input');
+        this.searchInput.className = 'customer-list-top-search-input';
+        this.searchInput.placeholder = '연락처를 검색하세요!';
+        this.searchInput.addEventListener('keydown', (e) => {
+            if(e.key === 'Enter' && this.searchInput.value.length > 0) {
+                this.onSearchButtonClick();
+            }
+        });
+        container.appendChild(this.searchInput);
 
         const searchButton = document.createElement('button');
         searchButton.className = 'customer-list-top-search-button';
@@ -52,7 +59,7 @@ class CustomerList {
         const headerRow = document.createElement('tr');
         thead.appendChild(headerRow);
         
-        const headers = ['고객명', '연락처', '메모', '최근방문일', '수정'];
+        const headers = ['고객명', '연락처', '메모', '최근예약일', '수정'];
         headers.forEach(headerText => {
             const th = document.createElement('th');
             th.textContent = headerText;
@@ -62,10 +69,9 @@ class CustomerList {
         const tbody = document.createElement('tbody');
         customerTable.appendChild(tbody);
 
-        const customers = await this.getCustomers();
+        const customers = this.customers;
         if(customers.length > 0) {
             customers.forEach(customer => {
-                console.log(customer);
                 const row = document.createElement('tr');
                 
                 const nameCell = document.createElement('td');
@@ -81,7 +87,7 @@ class CustomerList {
                 row.appendChild(memoCell);
                 
                 const lastVisitCell = document.createElement('td');
-                lastVisitCell.textContent = '(최근 방문일 불러오기 구현 예정)';
+                lastVisitCell.textContent = customer.recentReserve ? new Date(customer.recentReserve).toLocaleDateString() : '-';
                 row.appendChild(lastVisitCell);
                 
                 const editCell = document.createElement('td');
@@ -123,20 +129,41 @@ class CustomerList {
     }
 
     async getCustomers() {
-        const res = await fetch('/api/customers');
-        const result = await res.json();
-        if(!res.ok) {
-            console.error(result.msg);
-            return [];
-        }
-        else {
-            console.log(result.msg);
-            return result.data;
-        }
+        const res = await fetch('/api/customers').then(res => res.json());
+        this.customers = res.data;
+        
+        // 모든 최근 예약 데이터를 병렬로 가져오기
+        const recentReservePromises = this.customers.map(customer => 
+            this.getRecentReserve(customer.phone).then(recentReserve => {
+                customer.recentReserve = recentReserve;
+                return customer;
+            })
+        );
+        
+        await Promise.all(recentReservePromises);
+        console.log(this.customers);
     }
 
-    onSearchButtonClick() {
-        console.log('검색 버튼 클릭');
+    async getRecentReserve(phone) {
+        // 나중에는 id로 불러오도록 DB 수정
+        const recentReserve = await fetch(`/recentReserve?phone=${phone}`).then(res => res.json());
+        return recentReserve.end_date;
+    }
+
+    async onSearchButtonClick() {
+        const res = await fetch(`/api/customers/search/${this.searchInput.value}`).then(res => res.json());
+        this.customers = res.data;
+        
+        // 모든 최근 예약 데이터를 병렬로 가져오기
+        const recentReservePromises = this.customers.map(customer => 
+            this.getRecentReserve(customer.phone).then(recentReserve => {
+                customer.recentReserve = recentReserve;
+                return customer;
+            })
+        );
+        
+        await Promise.all(recentReservePromises);
+        this.createCustomerTable();
     }
 
     onRegisterButtonClick() {
@@ -157,12 +184,17 @@ class CustomerList {
         });
         const result = await res.json();
         if(!res.ok) {
-            console.error(result.msg);
         }
         else {
-            console.log(result.msg);
             this.createCustomerTable();
         }
+    }
+
+    async reload() {
+        this.searchInput.value = '';
+        this.getCustomers().then(() => {
+            this.createCustomerTable();
+        });
     }
 
     getRootElement() {

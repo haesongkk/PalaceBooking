@@ -14,6 +14,35 @@ let logBuffer = [];
 let userNick = null; // ex: "몽글몽글한 젤리(1234)"
 let finalAmount = 0; // 전역 변수로 선언
 
+const botMessages = {
+    welcome: [
+        "팔레스 호텔 팀이 함께 인사드립니다!",
+        "(단체 사진 이미지)",
+        "더 빠른 예약 안내를 위해 연락처를 남겨주시면 입력하신 번호는 예약 안내에만 안전하게 사용됩니다. 😊"
+    ],
+    firstVisit: [
+        "🙏 nickname님, 팔레스 호텔을 찾아주셔서 감사합니다.",
+        "첫 방문 고객님께는 야놀자보다 5,000원 더 저렴하게 안내해드립니다."
+    ],
+    recentVisit: [
+        "🙌 nickname님, 다시 찾아주셔서 감사합니다.",
+        "단골 고객님께는 야놀자보다 5,000원 더 저렴하게 안내해드립니다."
+    ],
+    reserveConfirm: [
+        "객실 상황에 따라 예약 가능 여부를 먼저 확인한 뒤, 문자로 안내드립니다.",
+        "결제는 체크인 시, ‘현장’에서 진행됩니다."
+    ],
+
+    // 고객 등록한 고객만 첫 방문이 가능한건지?
+    registeredVisit: [
+        "🙏 등록된 고객 nickname님, 팔레스 호텔을 찾아주셔서 감사합니다.",
+    ],
+    oldVisit: [
+        "👋 오랜만이에요 nickname님! 새로운 혜택을 확인해보세요!",
+    ],
+}
+
+
 function sendLogToServer(log) {
 }
 
@@ -67,7 +96,6 @@ function disablePreviousBotMessages() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-	console.log("엔터 처리?");
 	
     const input = document.getElementById("customInput");
     input.addEventListener("keydown", (e) => {
@@ -115,8 +143,10 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 window.onload = () => {
-    appendMessage("안녕하세요. 예약을 도와드릴게요.");
-    appendMessage("예약을 위해 전화번호를 입력해주세요.");
+    botMessages.welcome.forEach(msg => {
+        appendMessage(msg, "bot");
+    });
+    
     
     curHandler = phoneHandler;
 };
@@ -201,20 +231,23 @@ async function phoneHandler(input)
     // Socket 이벤트 리스너 설정
     setupSocketEventListeners();
     let isRegistered = false;
+    let welcomeMessages = [];
     await fetch(`/api/customers`).then(res => res.json()).then(data => data.data).then(data => {
         data.forEach(item => {
             if(item.phone === userphone){
                 isRegistered = true;
                 userType = "recent";
                 username = item.name;
-                const welcomeMessage = `🎉 등록된 고객 ${username}님! 특별 혜택을 준비했어요!`;
+                welcomeMessages = botMessages.registeredVisit.map(msg => msg.replace("nickname", username));
                 const menuOptions = [
                     "📅 날짜로 예약",
                     "🛏️ 상품으로 예약"
                 ];
     
                 updateHeaderNickname(username, userphone);
-                appendMessage(welcomeMessage);
+                welcomeMessages.forEach(msg => {
+                    appendMessage(msg, "bot");
+                });
                 showQuickMenuWith(menuOptions);
     
                 // 입력창 비우기
@@ -245,10 +278,9 @@ async function phoneHandler(input)
             threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
             // 고객 타입별 환영 메시지 및 userType 세팅
-            let welcomeMessage;
             if (!recentEndDate) {
                 userType = "first";
-                welcomeMessage = `🎉 첫방문하신 ${username}님! 반값할인을 준비했어요!`;
+                welcomeMessages = botMessages.firstVisit.map(msg => msg.replace("nickname", username));
                 fetch(`/api/customers`, {
                     method: "POST",
                     headers: {
@@ -264,10 +296,10 @@ async function phoneHandler(input)
             }
             else if (recentEndDate >= threeMonthsAgo) {
                 userType = "recent";
-                welcomeMessage = `💰 재방문하신 ${username}님! 특별한 할인 혜택을 드려요!`;
+                welcomeMessages = botMessages.recentVisit.map(msg => msg.replace("nickname", username));
             } else {
                 userType = "old";
-                welcomeMessage = `👋 오랜만이에요 ${username}님! 새로운 혜택을 확인해보세요!`;
+                welcomeMessages = botMessages.oldVisit.map(msg => msg.replace("nickname", username));
             }
 
             const menuOptions = [
@@ -276,7 +308,9 @@ async function phoneHandler(input)
             ];
 
             updateHeaderNickname(username, userphone);
-            appendMessage(welcomeMessage);
+            welcomeMessages.forEach(msg => {
+                appendMessage(msg, "bot");
+            });
             showQuickMenuWith(menuOptions);
 
             // 입력창 비우기
@@ -938,14 +972,17 @@ async function showPaymentButton() {
 
     // 결제 버튼 위에 할인 안내 메시지 출력
     appendMessage(discountMsg, "bot");
+    botMessages.reserveConfirm.forEach(msg => {
+        appendMessage(msg, "bot");
+    });
 
-    const btn = document.createElement("button");
-    btn.className = "bot-option";
-    btn.textContent = `${finalAmount.toLocaleString()}원 결제하기`;
-    btn.onclick = () => processPayment("자동"); // 결제수단은 의미 없음
+    // const btn = document.createElement("button");
+    // btn.className = "bot-option";
+    // btn.textContent = `${finalAmount.toLocaleString()}원 결제하기`;
+    // btn.onclick = () => processPayment("자동"); // 결제수단은 의미 없음
 
-    container.appendChild(btn);
-    chatBox.appendChild(container);
+    // container.appendChild(btn);
+    // chatBox.appendChild(container);
 }
 
 // 토스페이먼츠 결제 처리
