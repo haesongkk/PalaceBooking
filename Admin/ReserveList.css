@@ -29,6 +29,8 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
+    max-height: calc(100vh - 300px);
+    overflow: auto;
 }
 
 .reserve-list-bottom-container table {
@@ -37,6 +39,7 @@
     margin-top: 8px;
     font-size: 0.97rem;
 }
+
 .reserve-list-bottom-container table th, .reserve-list-bottom-container table td {
     border: 1px solid #e5e7eb;
     padding: 8px 6px;
