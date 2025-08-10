@@ -491,6 +491,10 @@ async function checkReservation(){
         }
         else{
             appendMessage("선택하신 날짜에 해당 객실이 마감되었습니다. 다른 날짜나 객실을 선택해주세요.", "bot");
+            reservationInfo.startDate = null;
+            reservationInfo.endDate = null;
+            reservationInfo.roomType = null;
+            reservationInfo.price = null;
             curHandler = defaultHandler;
             setFloating(["날짜 변경하기", "객실 변경하기", "취소하기"]);
             return false;
@@ -524,13 +528,13 @@ function askPhoneHandler(text){
     curHandler = defaultHandler;
 }
 
-async function handleMenu(type) {
+async function handleMenu(type, bAppend = true) {
     disableLastBotMessage();
 
 
     
         
-    appendMessage(type, "user");
+    if(bAppend) appendMessage(type, "user");
     let menu = type;
     if(type.includes(".")){
         menu = '객실 선택하기';
@@ -614,6 +618,10 @@ async function handleMenu(type) {
             appendMessage("🏰 팔레스 소개\n- 팔레스는 프리미엄 게스트하우스/모텔로 쾌적한 환경과 다양한 부대시설을 제공합니다.", "bot");
             break;
         case '취소하기':
+            reservationInfo.startDate = null;
+            reservationInfo.endDate = null;
+            reservationInfo.roomType = null;
+            reservationInfo.price = null;
             curHandler = defaultHandler;
             appendMessage("무엇을 도와드릴까요?");
             setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
@@ -621,11 +629,11 @@ async function handleMenu(type) {
         case '날짜 변경하기':
             reservationInfo.startDate = null;
             reservationInfo.endDate = null;
-            handleMenu('날짜 선택하기');
+            handleMenu('날짜 선택하기', false);
             break;
         case '객실 변경하기':
             reservationInfo.roomType = null;
-            handleMenu('객실 선택하기');
+            handleMenu('객실 선택하기', false);
             break;
 
         case '취소하기':
