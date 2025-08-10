@@ -142,9 +142,51 @@ function searchCustomer(number) {
     };
 }
 
+function registerCustomer(phone) {
+    const customer = customersDb.prepare(
+        'SELECT * FROM customers WHERE phone = ?'
+    ).get(phone);
+    if(customer) 
+        return {
+            status: 400, 
+            msg: '이미 등록된 고객입니다.',
+        };
+
+    const id = Date.now();
+    const name = '익명';
+    const memo = '';
+    customersDb.prepare(
+        'INSERT INTO customers (id, name, phone, memo) VALUES (?, ?, ?, ?)'
+    ).run(id, name, phone, memo);
+    return {
+        status: 200, 
+        msg: '고객 등록 성공',
+    };
+}
+
+function getCustomer(phone) {
+    const customer = customersDb.prepare(
+        'SELECT * FROM customers WHERE phone = ?'
+    ).get(phone);
+
+    if(!customer) return {
+        status: 404,
+        msg: '고객 정보가 존재하지 않습니다.',
+        data: null
+    };
+
+    return {
+        status: 200,
+        msg: '고객 조회 성공',
+        data: customer
+    };
+}
+
 module.exports = {
     getAllCustomers,
     deleteCustomer,
     updateCustomer,
-    searchCustomer
+    searchCustomer,
+    registerCustomer,
+    getCustomer
 };

@@ -18,13 +18,27 @@
     <div class="app">
         <!-- 상단 헤더바 -->
         <div class="chat-header">
-            <!-- <button class="menu-btn" onclick="toggleSettings()">☰</button> -->
-            <span class="chat-title">user</span>
-            <button class="search-btn" onclick="toggleSettings()">⟳</button>
+            <span class="chat-title">팔레스 호텔</span>
         </div>
 
         <!-- 채팅창 -->
         <div class="chat-window" id="chat"></div>
+
+        <!-- 플로팅 버튼 영역 -->
+        <div class="floating-buttons">
+            <button class="floating-btn" onclick="handleMenu('고객 등록')" title="고객 등록">
+                고객 등록
+            </button>
+            <button class="floating-btn" onclick="handleMenu('예약하기')" title="예약하기">
+                예약 하기
+            </button>
+            <button class="floating-btn" onclick="handleMenu('예약 내역')" title="예약 내역">
+                예약 내역
+            </button>
+            <button class="floating-btn" onclick="handleMenu('문의하기')" title="문의하기">
+                문의하기
+            </button>
+        </div>
 
         <!-- 입력창 + 버튼 + 전송 한 줄 배치 -->
         <div class="chat-footer">
@@ -36,18 +50,21 @@
 
         <!-- 퀵메뉴 모달 -->
         <div id="quickMenuBar" class="quick-menu-bar hidden">
-            <div class="circle-btn" onclick="sendQuick('📅 날짜로 예약').catch(console.error)">
-                <div class="icon">📅</div>
-                <div class="label">날짜로 예약</div>
-            </div>
-            <div class="circle-btn" onclick="sendQuick('🛏️ 상품으로 예약').catch(console.error)">
+            <div class="circle-btn" onclick="handleMenu('객실 소개')">
                 <div class="icon">🛏️</div>
-                <div class="label">상품으로 예약</div>
+                <div class="label">객실 소개</div>
             </div>
-
-            <div class="circle-btn" onclick="sendQuick('📄 예약 내역')">
-                <div class="icon">📄</div>
-                <div class="label">예약 내역</div>
+            <div class="circle-btn" onclick="handleMenu('팔레스 소개')">
+                <div class="icon">🏰</div>
+                <div class="label">팔레스 소개</div>
+            </div>
+            <div class="circle-btn" onclick="handleMenu('도움말')">
+                <div class="icon">❓</div>
+                <div class="label">도움말</div>
+            </div>
+            <div class="circle-btn" onclick="handleMenu('문의하기')">
+                <div class="icon">💬</div>
+                <div class="label">문의하기</div>
             </div>
         </div>
 
