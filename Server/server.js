@@ -997,6 +997,23 @@ app.get('/api/customers/search/:number', (req, res) => {
 
 });
 
+app.post('/api/customers/register/:phone', (req, res) => {
+    const { phone } = req.params;
+    const result = customersModule.registerCustomer(phone);
+    res.status(result.status).json({
+        msg: result.msg,
+    });
+});
+
+app.get('/api/customers/get/:phone', (req, res) => {
+    const { phone } = req.params;
+    const result = customersModule.getCustomer(phone);
+    res.status(result.status).json({
+        msg: result.msg,
+        data: result.data
+    });
+});
+
 
 app.get("/recentReserve", (req, res) => {
     const { phone } = req.query;
@@ -1056,6 +1073,8 @@ app.get("/api/customers/recentReserves", (req, res) => {
         res.status(500).json({ error: "최근 예약 정보를 가져오는 중 오류가 발생했습니다." });
     }
 });
+
+
 
 
 

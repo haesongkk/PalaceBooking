@@ -17,35 +17,627 @@ let finalAmount = 0; // 전역 변수로 선언
 const botMessages = {
     welcome: [
         "팔레스 호텔 팀이 함께 인사드립니다!",
-        "(단체 사진 이미지)",
-        "더 빠른 예약 안내를 위해 연락처를 남겨주시면 입력하신 번호는 예약 안내에만 안전하게 사용됩니다. 😊"
+        "![image](DAR06253-Enhanced-NR.jpg)",
+        "더 빠른 예약 안내를 위해 연락처를 남겨주시면 입력하신 번호는 예약 안내에만 안전하게 사용됩니다. 😊",
+        "원하시는 메뉴를 선택해 주세요.",
     ],
+
+    register: [
+        "✔️ 재방문 할인과 빠른 예약 안내만을 위해 고객 정보를 사용합니다.",
+        "❌ 불필요한 마케팅 문자는 보내지 않으니 안심하고 등록해 주세요.",
+        "등록 안내 문자를 받으실 핸드폰 번호를 입력해주세요."
+    ],
+
+    registerSuccess: [
+        "🎉 고객 등록이 완료되었습니다!",
+        "다음 예약 시 금방 받으신 문자(010-9363-9955)안에 링크를 통해 언제든 간편하게 예약하실 수 있습니다.",
+        "혹시 지금 바로 예약을 원하시면 아래 [예약하기] 버튼을 눌러주세요.",
+        "✨ 팔레스호텔은 당신의 특별한 순간을 언제나 기다리고 있습니다."
+    ],
+
+    reservation: [
+       "등록하신 번호를 입력해주세요!",
+    ],
+
     firstVisit: [
         "🙏 nickname님, 팔레스 호텔을 찾아주셔서 감사합니다.",
-        "첫 방문 고객님께는 야놀자보다 5,000원 더 저렴하게 안내해드립니다."
+        "첫 방문 고객님께는 5,000원 더 저렴하게 안내해드립니다."
     ],
-    recentVisit: [
+    registeredVisit: [
         "🙌 nickname님, 다시 찾아주셔서 감사합니다.",
         "단골 고객님께는 야놀자보다 5,000원 더 저렴하게 안내해드립니다."
     ],
+
     reserveConfirm: [
         "객실 상황에 따라 예약 가능 여부를 먼저 확인한 뒤, 문자로 안내드립니다.",
         "결제는 체크인 시, ‘현장’에서 진행됩니다."
     ],
 
-    // 고객 등록한 고객만 첫 방문이 가능한건지?
-    registeredVisit: [
-        "🙌 nickname님, 다시 찾아주셔서 감사합니다.",
-        "단골 고객님께는 야놀자보다 5,000원 더 저렴하게 안내해드립니다."
-    ],
-    oldVisit: [
-        "👋 오랜만이에요 nickname님! 새로운 혜택을 확인해보세요!",
-    ],
+}
+let curHandler = (text) => {};
+
+function setFloating(menus){
+    const floatingBar = document.querySelector(".floating-buttons");
+    floatingBar.innerHTML = "";
+    menus.forEach(menu => {
+        const button = document.createElement("button");
+        button.textContent = menu;
+        button.className = "floating-btn";
+        button.addEventListener("click", async () => {
+            await handleMenu(menu);
+        });
+        floatingBar.appendChild(button);
+    });
 }
 
+let username;
+let userPhone;
+let recentStartDate;
+let recentEndDate;
+let recentRoomType;
+let isFirstVisit = true;
 
-function sendLogToServer(log) {
+function registerHandler(input)
+{
+    if (!/^\d{10,11}$/.test(input)){
+        appendMessage("전화번호 형식이 올바르지 않습니다. 다시 입력해주세요.", "bot");
+        return;
+    }
+    userPhone = input;
+    updateHeader(userPhone.slice(-4));
+    fetch(`/api/customers/register/${userPhone}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    }).then(res => {  
+
+        if(res.status === 200)
+            botMessages.registerSuccess.forEach(msg => {
+                appendMessage(msg, "bot");
+            });
+        else if(res.status === 400)
+            appendMessage(`${userPhone.slice(-4)}님은 이미 등록된 고객입니다.`, "bot");
+        else
+            appendMessage("고객 등록에 실패했습니다. 다시 시도해주세요.", "bot");
+
+        curHandler = defaultHandler;
+        setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
+    });
 }
+
+function phoneHandler(input){
+    if (!/^\d{10,11}$/.test(input)){
+        appendMessage("전화번호 형식이 올바르지 않습니다. 다시 입력해주세요.", "bot");
+        return;
+    }
+    userPhone = input;
+    updateHeader(userPhone.slice(-4));
+
+    palaceAPI.connectSocket(userPhone);
+    setupSocketEventListeners();
+
+    fetch(`/api/customers/get/${userPhone}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    }).then(res => {  
+
+        if(res.status === 200){
+            curHandler = defaultHandler;
+            setFloating(["날짜 선택하기", "객실 선택하기", "취소하기"]);
+            username = userPhone.slice(-4);
+            fetch(`/reservationList?phone=${userPhone}`).then(res => res.json()).then(data => {
+                if(data.length === 0){
+                    isFirstVisit = true;
+                    botMessages.firstVisit.forEach(msg => {
+                        appendMessage(msg.replace("nickname", username), "bot");
+                    });
+                }
+                else {
+                    isFirstVisit = false;
+                    botMessages.registeredVisit.forEach(msg => {
+                        appendMessage(msg.replace("nickname", username), "bot");
+                    });
+                }
+                
+            
+            });
+        }
+        else if(res.status === 404){
+            appendMessage("고객 정보가 존재하지 않습니다. 고객 등록을 먼저 진행해주세요.", "bot");
+            curHandler = defaultHandler;
+            setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
+        }
+        else{
+            appendMessage("고객 정보 조회에 실패했습니다. 다시 시도해주세요.", "bot");
+            curHandler = defaultHandler;
+            setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
+        }
+
+ 
+    });
+}
+
+function historyHandler(input){
+    if (!/^\d{10,11}$/.test(input)){
+        appendMessage("전화번호 형식이 올바르지 않습니다. 다시 입력해주세요.", "bot");
+        return;
+    }
+    userPhone = input;
+    updateHeader(userPhone.slice(-4));
+
+    const container = document.createElement("div");
+    container.className = "message bot";
+    document.querySelector(".chat-window").appendChild(container);
+
+    // 나중에는 등록된 고객인지 확인 후 예약 내역 출력 
+    // (등록된 고객이 아니면 헤더 업데이트 x)
+    fetch(`/reservationList?phone=${userPhone}`).then(res => res.json()).then(data => {
+        if(data.length === 0){
+            container.innerHTML = "현재 예약 내역이 없습니다.";
+            setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
+            return;
+        }
+        data.forEach(reservation => {
+        const item = document.createElement("div");
+        item.className = "reservation";
+        container.appendChild(item);
+
+        const reservationInfo = document.createElement("div");
+        reservationInfo.className = "reservation-info";
+        reservationInfo.textContent = `${reservation.room} ${reservation.start_date}${reservation.end_date? ` ~ ${reservation.end_date}` : ''} ${reservation.state === 0 ? "(대기)" : reservation.state === 1 ? "(확정)" : "(취소)"}`;
+        item.appendChild(reservationInfo);
+
+        });
+    });
+    setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
+
+}
+
+function showCalendar(year, month, container){
+    container.innerHTML = "";
+
+    let displayYear = year;
+    let displayMonth = month;
+
+    const today = new Date();
+    const todayDate = today.getDate();
+    const todayMonth = today.getMonth();
+    const todayYear = today.getFullYear();
+
+    const calendarNav = document.createElement("div");
+    calendarNav.className = "calendar-nav";
+    container.appendChild(calendarNav);
+
+    const prevBtn = document.createElement("button");
+    prevBtn.textContent = "◀";
+    prevBtn.onclick = () => {
+        if(displayMonth === todayMonth && displayYear === todayYear){
+            return;
+        }
+        displayMonth--;
+        if(displayMonth < 0){
+            displayMonth = 11;
+            displayYear--;
+        }
+        showCalendar(displayYear, displayMonth, container);
+    };
+    calendarNav.appendChild(prevBtn);
+
+    const calendarTitle = document.createElement("div");
+    calendarTitle.className = "calendar-title";
+    calendarTitle.textContent = `${year}년 ${month + 1}월`;
+    calendarNav.appendChild(calendarTitle);
+
+    const nextBtn = document.createElement("button");
+    nextBtn.textContent = "▶";
+    nextBtn.onclick = () => {
+        displayMonth++;
+        if(displayMonth > 11){
+            displayMonth = 0; 
+            displayYear++;
+        }
+        showCalendar(displayYear, displayMonth, container);
+    };
+    calendarNav.appendChild(nextBtn);
+
+    const calendarGrid = document.createElement("div");
+    calendarGrid.className = "calendar-grid";
+    container.appendChild(calendarGrid);
+    
+    const days = ["일", "월", "화", "수", "목", "금", "토"];
+    days.forEach(day => {
+        const dayCell = document.createElement("div");
+        dayCell.className = "calendar-day-label";
+        dayCell.textContent = day;
+        calendarGrid.appendChild(dayCell);
+    });
+
+    const dayCells = [];
+    for(let i = 0; i < 6; i++){
+        dayCells[i] = [];
+        for(let j = 0; j < 7; j++){
+        const dayCell = document.createElement("button");
+            dayCell.className = "calendar-cell";
+            dayCells[i][j] = dayCell;
+            calendarGrid.appendChild(dayCell);
+        }
+    }
+
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const startDay = new Date(year, month, 1).getDay();
+    const lastMonthDate = new Date(year, month, 0).getDate();
+
+
+    const prevMonth = new Date(year, month-1, 1);
+    const nextMonth = new Date(year, month + 1, 1);
+    
+
+    for(let i = 0; i < startDay; i++){
+        const dayCell = dayCells[0][i];
+        dayCell.textContent = lastMonthDate - startDay + i + 1;
+        dayCell.classList.add("inactive");
+        dayCell.id = new Date(prevMonth.getFullYear(), prevMonth.getMonth(), dayCell.textContent);
+
+    }
+    for(let i = 0; i < daysInMonth; i++){
+        const offset = i + startDay;
+        const dayCell = dayCells[Math.floor(offset / 7)][offset % 7];
+        dayCell.textContent = i + 1;
+        dayCell.id = new Date(year, month, i + 1);
+        dayCell.onclick = () => {
+            const date = new Date(year, month, i + 1).setHours(0, 0, 0, 0);
+            if(!reservationInfo.startDate){
+                reservationInfo.startDate = date;
+                dayCell.classList.add("selected");
+            }
+            else{
+                if(!reservationInfo.endDate && date > reservationInfo.startDate){
+                    reservationInfo.endDate = date;
+                    console.log("case 1");
+                }
+                else if(!reservationInfo.endDate && date < reservationInfo.startDate){
+                    reservationInfo.endDate = reservationInfo.startDate;
+                    reservationInfo.startDate = date;
+                    console.log("case 2");
+                }
+                else if(!reservationInfo.endDate && date === reservationInfo.startDate){
+                    reservationInfo.startDate = null;
+                    console.log("case 3");
+                }
+                else if(reservationInfo.endDate){
+                    reservationInfo.startDate = date;
+                    reservationInfo.endDate = null;
+                    console.log("case 4");
+                }
+            }
+            showCalendar(year, month, container);
+            
+        };
+        if(year === todayYear && month === todayMonth){
+            if(i + 1 === todayDate){
+                dayCell.classList.add("today");
+
+            }
+            else if(i + 1 < todayDate){
+                dayCell.classList.add("inactive");
+                
+            }
+        }
+
+    }
+    for(let i=0; i<42-daysInMonth-startDay; i++){
+        const offset = i + startDay + daysInMonth;
+        const dayCell = dayCells[Math.floor(offset / 7)][offset % 7];
+        dayCell.textContent = i + 1;
+        dayCell.classList.add("inactive");
+        dayCell.id = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), dayCell.textContent);
+        
+    }
+    if(42-daysInMonth-startDay >= 7){
+        dayCells[5].forEach(cell => {
+            cell.style.display = "none";
+        });
+    }
+
+    if(reservationInfo.startDate){
+        const rangeStart = new Date(reservationInfo.startDate).setHours(0, 0, 0, 0);
+        const rangeEnd = new Date(reservationInfo.endDate? reservationInfo.endDate : reservationInfo.startDate).setHours(0, 0, 0, 0);
+        console.log(rangeStart, rangeEnd);
+    
+        for(let i = 0; i < 42; i++){
+            const dayCell = dayCells[Math.floor(i / 7)][i % 7];
+            const date = new Date(dayCell.id).setHours(0, 0, 0, 0);
+
+            if(date > rangeStart && date < rangeEnd){
+                dayCell.classList.add("range");
+
+            }
+            if(date === rangeStart || date === rangeEnd){
+                dayCell.classList.add("selected");
+            }
+        }
+
+        let range = new Date(rangeStart).toLocaleDateString();
+        if(reservationInfo.endDate){
+            range += " ~ " + new Date(rangeEnd).toLocaleDateString();
+        }
+        setFloating([range, "취소하기"]);
+
+    }
+    else{
+        setFloating(["객실 선택하기", "취소하기"]);
+    }
+
+
+}
+
+function showRooms(){
+
+    const container = document.createElement("div");
+    container.className = "message bot";
+    document.querySelector(".chat-window").appendChild(container);
+
+    fetch('api/defaultSettings').then(res => res.json()).then(data => {
+        data.data.forEach(room => {
+            const roomBtn = document.createElement("button");
+            roomBtn.className = "bot-option";
+            roomBtn.textContent = room.roomType;
+            roomBtn.onclick = () => {
+                container.querySelectorAll(".bot-option").forEach(btn => {
+                    btn.style.backgroundColor = "";
+                    btn.style.color = "";
+                });
+                roomBtn.style.backgroundColor = "#000000";
+                roomBtn.style.color = "#ffffff";
+                const menu = `객실: ${room.roomType}`;
+                setFloating([menu, "취소하기"]);
+                reservationInfo.roomType = room.roomType;
+            };
+            container.appendChild(roomBtn);
+        });
+    });
+
+}
+
+class ReservationInfo{
+    constructor(){
+        this.roomType;
+        this.startDate;
+        this.endDate;
+        this.price;
+    }
+}
+let reservationInfo = new ReservationInfo();
+
+async function confirmReservation(){
+    if(!reservationInfo.roomType){
+        return false;
+    }
+    if(!reservationInfo.startDate){
+        return false;
+    }
+    if(!reservationInfo.price){
+        return false;
+    }
+
+    const payload = {
+        username: '익명',
+        phone: userPhone,
+        room: reservationInfo.roomType,
+        startDate: new Date(reservationInfo.startDate).toLocaleDateString(),
+        endDate: new Date(reservationInfo.endDate).toLocaleDateString(),
+        amount: reservationInfo.price // 계산된 최종 가격 전송
+    };
+
+    try {
+        const res = await fetch(`/api/reserve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        
+        console.log('예약 응답:', data);
+        if (data.success) {
+            botMessages.reserveConfirm.forEach(msg => {
+                appendMessage(msg, "bot");
+            });
+            curHandler = defaultHandler;
+            reservationInfo.roomType = null;
+            reservationInfo.startDate = null;
+            reservationInfo.endDate = null;
+            reservationInfo.price = null;
+            setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
+            return true;
+        } 
+        else {
+            appendMessage("❌ 예약 처리 중 오류가 발생했습니다.", "bot");
+            return false;
+        }
+    } catch (error) {
+        console.error('예약 오류:', error);
+        appendMessage("❌ 예약 처리 중 오류가 발생했습니다.", "bot");
+        return false;
+    }
+}
+
+async function checkReservation(){
+    if(!reservationInfo.roomType){
+        return false;
+    }
+    if(!reservationInfo.startDate){
+        return false;
+    }
+
+    try {
+        const isAvailable = await checkRoomAvailability(reservationInfo.startDate, reservationInfo.endDate, reservationInfo.roomType);
+        
+        if(isAvailable){
+            const price = await getRoomPrice(reservationInfo.startDate, reservationInfo.endDate, reservationInfo.roomType);
+            reservationInfo.price = price;
+
+            const startDate = new Date(reservationInfo.startDate).toLocaleDateString();
+            const endDate = new Date(reservationInfo.endDate).toLocaleDateString();
+
+            const userType = isFirstVisit? "첫 예약 고객" : "단골 고객";
+            const msg = `${reservationInfo.roomType}<br>${startDate} ~ ${endDate}<br>${userType} 5,000원 할인 적용!<br>기준가: ${reservationInfo.price.toLocaleString()}원 → 할인 가격: ${(reservationInfo.price - 5000).toLocaleString()}원<br>예약하시겠습니까?`;
+            appendMessage(msg, "bot");
+            curHandler = defaultHandler;
+            setFloating(["날짜 변경하기", "객실 변경하기", "예약하기", "취소하기"]);
+            return true;
+        }
+        else{
+            appendMessage("선택하신 날짜에 해당 객실이 마감되었습니다. 다른 날짜나 객실을 선택해주세요.", "bot");
+            curHandler = defaultHandler;
+            setFloating(["날짜 변경하기", "객실 변경하기", "취소하기"]);
+            return false;
+        }
+    } catch (error) {
+        console.error('예약 확인 오류:', error);
+        appendMessage("❌ 예약 확인 중 오류가 발생했습니다.", "bot");
+        return false;
+    }
+}
+
+function disableLastBotMessage(){
+    const botMessages = document.querySelectorAll('.message.bot');
+    botMessages[botMessages.length - 1].querySelectorAll('button').forEach(btn => {
+        btn.disabled = true;
+        btn.onclick = null;
+        btn.style.opacity = '0.8';
+    })
+}
+
+function askHandler(text){
+    appendMessage("답변 받으실 번호를 입력해주세요!", "bot");
+    const menus = userPhone? [userPhone, "익명으로 보내기", "취소하기"] : ["익명으로 보내기", "취소하기"];
+    curHandler = askPhoneHandler;
+    setFloating(menus);
+}
+
+function askPhoneHandler(text){
+    appendMessage("문의 내용을 관리자에게 전달하겠습니다.", "bot");
+    setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
+    curHandler = defaultHandler;
+}
+
+async function handleMenu(type) {
+    disableLastBotMessage();
+
+
+    
+        
+    appendMessage(type, "user");
+    let menu = type;
+    if(type.includes(".")){
+        menu = '객실 선택하기';
+    }
+    if(type.includes(":")){
+        menu = '날짜 선택하기';
+    }
+    if(type.includes("010")){
+        onSend(type, false);
+    }
+    if(type == "익명으로 보내기"){
+        onSend(type, false);
+    }
+
+    switch(menu) {
+        case '고객 등록':
+            botMessages.register.forEach(msg => {
+                appendMessage(msg, "bot");
+            });
+            curHandler = registerHandler;
+            setFloating(["취소하기"]);
+            break;
+        case '예약하기':
+            const confirmResult = await confirmReservation();
+            if(!confirmResult){
+                    botMessages.reservation.forEach(msg => {
+                        appendMessage(msg, "bot");
+                    });
+                    curHandler = phoneHandler;
+                    const menus = userPhone? [userPhone, "취소하기"] : ["취소하기"];
+                    setFloating(menus);
+            }
+            break;
+        case '날짜 선택하기':
+            const checkResult = await checkReservation();
+            if(!checkResult){
+                appendMessage("이용하실 날짜를 선택해주세요.");
+                    curHandler = defaultHandler;
+                    setFloating(["객실 선택하기", "취소하기"]);
+
+                    const today = new Date();
+                    const calendarBox = document.createElement("div");
+                    calendarBox.className = "message bot";
+                    calendarBox.id = "calendarBox";
+                    document.querySelector(".chat-window").appendChild(calendarBox);
+
+                    showCalendar(today.getFullYear(), today.getMonth(), calendarBox);
+            }
+            
+            break;
+        case '객실 선택하기':
+            const checkResult2 = await checkReservation();
+            if(!checkResult2){
+                appendMessage("이용하실 객실을 선택해주세요.");
+                curHandler = defaultHandler;
+                setFloating(["날짜 선택하기", "취소하기"]);
+                showRooms();
+            }
+            break;
+
+            
+        case '예약 내역':
+            appendMessage("예약하신 전화번호로 예약 내역을 확인해 드릴게요!", "bot");
+            curHandler = historyHandler;
+            const menus = userPhone? [userPhone, "취소하기"] : ["취소하기"];
+            setFloating(menus);
+
+            break;
+        case '문의하기':
+            appendMessage("문의하실 내용을 남겨주세요!", "bot");
+            curHandler = askHandler;
+            setFloating(["취소하기"]);
+
+            break;
+
+        case '객실 소개':
+            appendMessage("🛏️ 객실 소개\n- 2PC, 멀티플렉스, 노래방, 스탠다드, 트윈 등 다양한 객실이 준비되어 있습니다.\n상세 요금 및 시설은 예약 메뉴에서 확인해 주세요.", "bot");
+
+            break;
+        case '팔레스 소개':
+            appendMessage("🏰 팔레스 소개\n- 팔레스는 프리미엄 게스트하우스/모텔로 쾌적한 환경과 다양한 부대시설을 제공합니다.", "bot");
+            break;
+        case '취소하기':
+            curHandler = defaultHandler;
+            appendMessage("무엇을 도와드릴까요?");
+            setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
+            break;
+        case '날짜 변경하기':
+            reservationInfo.startDate = null;
+            reservationInfo.endDate = null;
+            handleMenu('날짜 선택하기');
+            break;
+        case '객실 변경하기':
+            reservationInfo.roomType = null;
+            handleMenu('객실 선택하기');
+            break;
+
+        case '취소하기':
+            reservationInfo.roomType = null;
+            reservationInfo.startDate = null;
+            reservationInfo.endDate = null;
+            curHandler = defaultHandler;
+            setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
+            break;
+    }
+}
+
 
 function appendMessage(text, sender = "bot", type = "text") {
 	console.log(sender, ": ", text);
@@ -53,85 +645,60 @@ function appendMessage(text, sender = "bot", type = "text") {
     const chatBox = document.getElementById("chat");
     const msg = document.createElement("div");
     msg.className = "message " + sender;
-    msg.textContent = text;
+    
+    // 이미지 마크다운 처리
+    if (text.includes("![image](") && text.includes(")")) {
+        const imgMatch = text.match(/!\[image\]\(([^)]+)\)/);
+        if (imgMatch) {
+            const imgSrc = imgMatch[1];
+            const img = document.createElement("img");
+            img.src = imgSrc;
+            img.alt = "이미지";
+            img.style.maxWidth = "100%";
+            img.style.height = "auto";
+            img.style.borderRadius = "8px";
+            img.style.marginTop = "8px";
+            msg.appendChild(img);
+        }
+    } else {
+        msg.innerHTML = text;
+    }
+    
     chatBox.appendChild(msg); // 메시지를 맨 아래에 추가
     
-    // 봇 메시지인 경우 이전 봇 메시지들 비활성화
-    if (sender === "bot") {
-        disablePreviousBotMessages();
-    }
     
     // 메시지 추가 후 스크롤 아래로 이동
     const chatWindow = document.querySelector('.chat-window');
     if (chatWindow) {
       chatWindow.scrollTop = chatWindow.scrollHeight;
     }
-    // 로그 저장
-    const log = {
-        nick: userNick,
-        sender,
-        type,
-        content: text,
-        timestamp: new Date().toISOString()
-    };
-    if (!userNick) {
-        logBuffer.push(log);
-    } else {
-        sendLogToServer(log);
-    }
 }
 
-function disablePreviousBotMessages() {
-    const botMessages = document.querySelectorAll('.message.bot');
-    if (botMessages.length > 1) {
-        // 마지막 봇 메시지를 제외한 모든 봇 메시지 비활성화
-        for (let i = 0; i < botMessages.length - 1; i++) {
-            const msg = botMessages[i];
-            msg.querySelectorAll('button').forEach(btn => {
-                btn.disabled = true;
-                btn.style.opacity = '0.5';
-                btn.style.cursor = 'not-allowed';
-            });
-        }
-    }
-}
 
+function onSend(text, bAppend = true){
+    if(bAppend) appendMessage(text, "user");
+    curHandler(text);
+}
 document.addEventListener("DOMContentLoaded", () => {
-	
+
     const input = document.getElementById("customInput");
+
     input.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            if (rangeStart || selectedRoom) {
-                submitSelectedDate();
-            } else {
-                const text = input.innerText.trim();
-                if (text) {
-                    if (typeof curHandler === 'function') {
-                        handleUserInput(text);
-                    }
-                    input.innerHTML = "";
-                }
+            const text = input.textContent;
+            if(text) {
+                input.innerHTML = "";
+                onSend(text);
             }
         }
     });
-    // 전송 버튼도 동일하게 처리
-    const submitBtn = document.querySelector('.submit-btn');
-    if (submitBtn) {
-        submitBtn.onclick = () => {
-            if (rangeStart || selectedRoom) {
-                submitSelectedDate();
-            } else {
-                const text = input.innerText.trim();
-                if (text) {
-                    if (typeof curHandler === 'function') {
-                        handleUserInput(text);
-                    }
-                    input.innerHTML = "";
-                }
-            }
-        };
-    }
+    document.querySelector('.submit-btn').onclick = () => {
+        const text = input.textContent;
+        if(text) {
+            input.innerHTML = "";
+            onSend(text);
+        }
+    };
 
     // 자동 스크롤 MutationObserver
     const chatWindow = document.querySelector('.chat-window');
@@ -147,20 +714,8 @@ window.onload = () => {
     botMessages.welcome.forEach(msg => {
         appendMessage(msg, "bot");
     });
-    
-    
-    curHandler = phoneHandler;
 };
 
-window.addEventListener('message', function(event) {
-    if(event.data === 'payment-success') {
-        appendMessage('✅ 결제가 완료되었습니다! 예약이 접수되었습니다. 관리자 승인 후 확정됩니다.', 'bot');
-        // 필요하다면 예약 내역 새로고침 함수 호출
-        // showReservationList();
-    } else if(event.data === 'payment-fail') {
-        appendMessage('❌ 결제에 실패했습니다. 다시 시도해주세요.', 'bot');
-    }
-});
 
 window.addEventListener('resize', () => {
   window.scrollTo(0, 0);
@@ -198,620 +753,43 @@ function generateRandomNickname() {
   return `${adj} ${noun}`; // 형용사와 명사 사이에 공백!
 }
 
-function updateHeaderNickname(nick, phone)
-{
+function updateHeader(nick){
     const el = document.querySelector(".chat-title");
-    if (nick && phone) {
-        el.textContent = `${nick}(${phone.slice(-4)})`;
-    } else {
-        el.textContent = `${nick}`;
-    }
+    el.textContent = nick;
 }
 
-
-// 전송 버튼 처리
-let username;
-let userphone;
-let recentStartDate;
-let recentEndDate;
-let recentRoomType;
-// 전역 변수로 고객 타입 저장
-let userType = "old"; // "first", "recent", "old" 중 하나
-async function phoneHandler(input)
-{
-	if (!/^\d{10,11}$/.test(input))
-    {
-        appendMessage("전화번호 형식이 올바르지 않습니다. 다시 입력해주세요.", "bot");
-        return;
-    }
-
-    // 전화번호 전송 → 닉네임 + 최근 예약 확인
-    userphone = input;
-    // 소켓 연결
-    palaceAPI.connectSocket(userphone);
-    // Socket 이벤트 리스너 설정
-    setupSocketEventListeners();
-    let isRegistered = false;
-    let welcomeMessages = [];
-    await fetch(`/api/customers`).then(res => res.json()).then(data => data.data).then(data => {
-        data.forEach(item => {
-            if(item.phone === userphone){
-                isRegistered = true;
-                userType = "recent";
-                username = item.name;
-                welcomeMessages = botMessages.registeredVisit.map(msg => msg.replace("nickname", username));
-                const menuOptions = [
-                    "📅 날짜로 예약",
-                    "🛏️ 상품으로 예약"
-                ];
-    
-                updateHeaderNickname(username, userphone);
-                welcomeMessages.forEach(msg => {
-                    appendMessage(msg, "bot");
-                });
-                showQuickMenuWith(menuOptions);
-    
-                // 입력창 비우기
-                const inputBox = document.getElementById("customInput");
-                if (inputBox) inputBox.innerHTML = "";
-    
-                // curHandler를 예약 관련 handler로 변경
-                curHandler = null; // 전화번호 입력 후에는 반복 안내 방지
-    
-                // 닉네임 할당 후 로그 전송
-                onNicknameAssigned(username, userphone);
-            }
-        })
-    })
-
-    if(isRegistered) return;
-
-    fetch(`/recentReserve?phone=${userphone}`).then(res => res.json()).then(data => {
-			console.log("데이터 조회 결과:", data);
+function defaultHandler(input) { }
 
 
-            username = data.username || generateRandomNickname();
-            recentRoomType = data.room || null;
-            recentStartDate = data.start_date ? new Date(data.start_date) : null;
-            recentEndDate = data.end_date ? new Date(data.end_date) : null;
-
-            const threeMonthsAgo = new Date();
-            threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-
-            // 고객 타입별 환영 메시지 및 userType 세팅
-            if (!recentEndDate) {
-                userType = "first";
-                welcomeMessages = botMessages.firstVisit.map(msg => msg.replace("nickname", username));
-                fetch(`/api/customers`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        id: null,
-                        name: username,
-                        phone: userphone,
-                        memo: ""
-                    })
-                });
-            }
-            else if (recentEndDate >= threeMonthsAgo) {
-                userType = "recent";
-                welcomeMessages = botMessages.recentVisit.map(msg => msg.replace("nickname", username));
-            } else {
-                userType = "old";
-                welcomeMessages = botMessages.oldVisit.map(msg => msg.replace("nickname", username));
-            }
-
-            const menuOptions = [
-                "📅 날짜로 예약",
-                "🛏️ 상품으로 예약"
-            ];
-
-            updateHeaderNickname(username, userphone);
-            welcomeMessages.forEach(msg => {
-                appendMessage(msg, "bot");
-            });
-            showQuickMenuWith(menuOptions);
-
-            // 입력창 비우기
-            const inputBox = document.getElementById("customInput");
-            if (inputBox) inputBox.innerHTML = "";
-
-            // curHandler를 예약 관련 handler로 변경
-            curHandler = null; // 전화번호 입력 후에는 반복 안내 방지
-
-            // 닉네임 할당 후 로그 전송
-            onNicknameAssigned(username, userphone);
-        })
-        .catch(() => {
-            console.log("[ERROR] 서버 통신 오류");
-        });
-}
-function reserveHandler(input){
-}
-function defaultHandler(input)
-{
-	appendMessage("기능 준비 중입니다.");
-}
-let curHandler = defaultHandler;
-function handleUserInput(text)
-{
-	console.log(text, "전송");
-    const trimmed = text.trim();
-    appendMessage(trimmed, "user");
-	curHandler(trimmed);
-}
-
-async function showQuickMenuWith(labels = []) {
-    removeOldCalendars(); // 기존 달력 삭제
-    const container = document.createElement("div");
-    container.className = "message bot";
-
-    // 1. 기본 메뉴 버튼
-    labels.forEach(label => {
-        if (label === "📄 예약 내역 확인") return;
-        const btn = document.createElement("button");
-        btn.className = "bot-option";
-        btn.textContent = label;
-        btn.onclick = () => sendQuick(label).catch(console.error);
-        container.appendChild(btn);
-    });
-
-
-
-
-
-    // 4. 예약 내역 확인 버튼
-    const btn = document.createElement("button");
-    btn.className = "bot-option";
-    btn.textContent = "📄 예약 내역 확인";
-    btn.onclick = () => sendQuick("📄 예약 내역 확인").catch(console.error);
-    container.appendChild(btn);
-
-    document.getElementById("chat").appendChild(container);
-}
-
-
-
-let reserveStartDate;
-let reserveEndDate;
-let reserveRoomType;
-async function sendQuick(label) {
-    appendMessage(label, "user");
-
-    if (label.includes("날짜로 예약")) {
-        // 날짜 먼저 선택
-        selectedMode = "date-first";
-        appendMessage("이용하실 날짜를 선택해주세요.");
-        removeOldCalendars(); // 기존 달력 삭제
-        const cal = document.createElement("div");
-        cal.className = "message bot";
-        cal.id = "calendarBox";
-        renderCalendar().then(html => {
-            cal.innerHTML = html;
-        });
-        document.getElementById("chat").appendChild(cal);
-    }
-    else if (label.includes("상품으로 예약")) {
-        // 상품 먼저 선택
-        selectedMode = "product-first";
-        appendMessage("이용하실 상품을 선택해주세요.");
-        await showProductList();
-    }
-    else if (label.includes("예약 내역")) {
-        appendMessage("📄 현재 예약 내역입니다:");
-        showReservationList();
-    }
-    else {
-        appendMessage("기능 준비 중입니다.");
-    }
-}
-
-async function showRoomButtons() {
-    const chatBox = document.getElementById("chat");
-    // 기존 버튼 컨테이너가 있으면 삭제(중복 방지)
-    const oldContainer = document.querySelector('.message.bot .bot-option')?.parentElement;
-    if (oldContainer) oldContainer.remove();
-    const container = document.createElement("div");
-    container.className = "message bot";
-
-    // 서버에서 객실 목록 가져오기
-    let rooms = [];
-    const data = await fetch('/api/defaultSettings').then(res => res.json()).then(data => data.data);
-    data.forEach(room => {
-        rooms.push(room.roomType);
-    });
-
-
-
-
-    // 날짜가 선택되어 있으면 해당 날짜의 객실별 판매/마감 상태 조회
-    let stockMap = {};
-    if (rangeStart) {
-        try {
-            // 새로운 판매/마감 상태 확인 함수 사용
-            for (const room of rooms) {
-                const isAvailable = await checkRoomAvailability(rangeStart, rangeEnd, room);
-                stockMap[room] = isAvailable;
-            }
-            console.log('[stockMap]', stockMap);
-        } catch (e) {
-            console.log('[판매상태조회][에러]', e);
-            // 오류 시 모든 객실을 예약 가능한 것으로 처리
-            rooms.forEach(room => stockMap[room] = true);
-        }
-    }
-
-    rooms.forEach(room => {
-        const btn = document.createElement("button");
-        btn.className = "bot-option";
-        btn.textContent = room;
-        // 판매/마감 상태에 따라 버튼 활성화/비활성화
-        if (rangeStart && stockMap[room] === false) {
-            btn.disabled = true;
-            btn.style.background = "#ccc";
-            btn.style.color = "#888";
-            btn.title = "마감";
-        }
-        btn.onclick = () => {
-            // 마감된 객실은 절대 선택 불가
-            if (btn.disabled || (rangeStart && stockMap[room] === false)) return;
-            selectedRoom = room;
-
-            // 버튼 강조 초기화/하이라이트 제거
-            const allButtons = container.querySelectorAll("button");
-            allButtons.forEach(b => {
-                b.style.background = "";
-                b.style.color = "";
-            });
-
-            // 현재 버튼 강조
-            btn.style.background = "black";
-            btn.style.color = "white";
-
-            // 입력창에 캡슐 표시
-            const input = document.getElementById("customInput");
-            const old = input.querySelector(".capsule-room");
-            if (old) input.removeChild(old);
-
-            const capsule = document.createElement("span");
-            capsule.className = "capsule capsule-room";
-            capsule.textContent = room;
-            input.appendChild(capsule);
-        };
-        container.appendChild(btn);
-        // 버튼별 로그
-        console.log('[room 버튼]', room, 'stockMap:', stockMap[room], 'btn.disabled:', btn.disabled);
-    });
-
-    chatBox.appendChild(container);
-}
-
-
-
-// ✅ 수정된 selectPay 함수 (토스페이먼츠 결제 시스템 사용)
-function selectPay(method) {
-    processPayment(method);
-}
-
-
-function showQuickMenuInChat() {
-    const container = document.createElement("div");
-    container.className = "message bot";
-
-    const options = [
-        "📅 날짜로 예약",
-        "🛏️ 상품으로 예약"
-    ];
-
-    options.forEach(label => {
-        const btn = document.createElement("button");
-        btn.className = "bot-option";
-        btn.textContent = label;
-        btn.onclick = () => sendQuick(label);
-        container.appendChild(btn);
-    });
-
-    document.getElementById("chat").insertBefore(container, document.getElementById("chat").firstChild);
-}
 
 function toggleQuickMenuBar() {
     const quickMenuBar = document.getElementById("quickMenuBar");
     if (!quickMenuBar) return;
     quickMenuBar.classList.toggle("hidden");
-    // 퀵메뉴 항목 교체
-    quickMenuBar.innerHTML = `
-        <div class="circle-btn" onclick="showRoomInfo()">
-            <div class="icon">🛏️</div>
-            <div class="label">객실 소개</div>
-        </div>
-        <div class="circle-btn" onclick="showPalaceInfo()">
-            <div class="icon">🏰</div>
-            <div class="label">팔레스 소개</div>
-        </div>
-        <div class="circle-btn" onclick="showHelp()">
-            <div class="icon">❓</div>
-            <div class="label">도움말</div>
-        </div>
-        <div class="circle-btn" onclick="showContact()">
-            <div class="icon">💬</div>
-            <div class="label">문의하기</div>
-        </div>
-    `;
 }
 
-function showRoomInfo() {
-    appendMessage("🛏️ 객실 소개\n- 2PC, 멀티플렉스, 노래방, 스탠다드, 트윈 등 다양한 객실이 준비되어 있습니다.\n상세 요금 및 시설은 예약 메뉴에서 확인해 주세요.", "bot");
-}
-function showPalaceInfo() {
-    appendMessage("🏰 팔레스 소개\n- 팔레스는 프리미엄 게스트하우스/모텔로 쾌적한 환경과 다양한 부대시설을 제공합니다.", "bot");
-}
-function showHelp() {
-    appendMessage("❓ 도움말\n- 예약, 결제, 취소 등 궁금한 점이 있으시면 언제든 문의해 주세요!", "bot");
-}
-function showContact() {
-    appendMessage("💬 문의하기\n- 전화: 010-0000-0000\n- 카카오톡: @palacebooking\n- 기타 문의는 채팅으로 남겨주세요.", "bot");
-}
 
-function refreshMenu() {
-    if (!userphone) {
-        appendMessage("먼저 전화번호를 입력해 주세요!", "bot");
-        return;
-    }
-    // 입력창 비우기
-    const input = document.getElementById("customInput");
-    if (input) input.innerHTML = "";
-    // 예약 관련 임시 상태값 초기화
-    rangeStart = null;
-    rangeEnd = null;
-    selectedRoom = '';
-    selectedProduct = '';
-    selectedMode = "date-first";
-    // 캡슐 등도 모두 제거됨
-    appendMessage("메뉴를 다시 불러왔어요! 원하시는 예약 방법을 선택해 주세요.", "bot");
-    const menuOptions = [
-        "📅 날짜로 예약",
-        "🛏️ 상품으로 예약",
-        "📄 예약 내역 확인"
-    ];
-    showQuickMenuWith(menuOptions);
-}
 
-function toggleSettings() {
-    // 기존: alert("⚙️ 설정 또는 도움말 기능은 준비 중입니다.");
-    refreshMenu();
-}
-
-function searchChat() {
-    const keyword = prompt("검색할 단어나 문장을 입력하세요:");
-    if (!keyword) return;
-    const messages = document.querySelectorAll(".chat-window .message");
-    messages.forEach(msg => {
-        msg.style.outline = msg.textContent.includes(keyword) ? "2px solid var(--color-primary)" : "none";
-    });
-}
-
-function showReservationList() {
-    const chatBox = document.getElementById("chat");
-    const container = document.createElement("div");
-    container.className = "message bot";
-
-    fetch(`/reservationList?phone=${encodeURIComponent(userphone)}`).then(res => res.json()).then(data => {
-        console.log(data);
-            console.log("[예약내역] 서버 응답:", data);
-            let html = `<div class=\"room-list\">`;
-            if (Array.isArray(data) && data.length > 0) {
-                html += `<div style=\"margin-bottom:8px;\">📄 현재 예약 내역입니다:</div>`;
-                data.forEach(item => {
-                    if (!item.cancelled) {
-                        html += `<div style=\"display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;background:#23233b;color:#fff;border-radius:10px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04);\">
-                            <div>
-                                <strong style=\"color:#ffd700;font-size:1.08em;\">${item.room}</strong><br>
-                                <small style=\"color:#b0b8d1;\">${item.start_date} ~ ${item.end_date || ''}</small>
-                            </div>
-                            <button onclick=\"cancelReservation(${item.id})\" style=\"background:#ff3b3b;color:#fff;font-weight:bold;border:none;padding:7px 16px;border-radius:8px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.08);transition:background 0.2s;\" onmouseover=\"this.style.background='#c62828'\" onmouseout=\"this.style.background='#ff3b3b'\">취소</button>
-                        </div>`;
-                    }
-                });
-            } else {
-                html += `<div>❌ 현재 예약된 내역이 없습니다.</div>`;
-            }
-            html += `</div>`;
-            container.innerHTML = html;
-            chatBox.appendChild(container);
-        })
-        .catch(() => {
-            container.innerHTML = `<div>❌ 예약 내역을 불러오는 중 오류가 발생했습니다.</div>`;
-            chatBox.appendChild(container);
-        });
-}
 
 function cancelReservation(id) {
-    fetch(`/api/cancel?id=${id}`).then(res => res.json()).then(data => {
-        if (data.success) {
-            appendMessage(`🗑️ 예약이 취소되었습니다.`);
-            appendMessage(`💸 결제된 금액은 며칠내로 환불됩니다.`);
-            // 나중에 여기에 환불 처리 로직 추가 !!!!!
-            // 예약 내역 다시 로드
-            setTimeout(() => {
-                showReservationList();
-            }, 1000);
-        } else {
-            appendMessage(`❌ 예약 취소 중 오류가 발생했습니다.`, "bot");
-        }
+    fetch(`/api/cancel`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id: id })
+    }).then(res => res.json()).then(data => {
+        appendMessage(data.msg, "bot");
+        setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
+
+
     })
     .catch(() => {
         appendMessage(`❌ 서버 통신 오류로 예약 취소에 실패했습니다.`, "bot");
     });
 }
 
-function updateSelectedRangeUI() {
-    const wrap = document.getElementById("customInput");
-    if (!wrap) return;
 
-    // 기존 날짜 캡슐 제거
-    const existing = wrap.querySelector(".capsule");
-    if (existing) wrap.removeChild(existing);
-
-    // 캡슐 텍스트 구성
-    if (rangeStart) {
-        const startText = formatDate(rangeStart);
-        const endText = rangeEnd ? formatDate(rangeEnd) : null;
-        const label = endText ? `${startText} ~ ${endText}` : `${startText}`;
-
-        const capsule = document.createElement("span");
-        capsule.className = "capsule";
-        capsule.textContent = label;
-
-        // 캡슐 삽입
-        wrap.insertBefore(capsule, wrap.firstChild);
-    }
-
-    // 모든 달력 갱신
-    document.querySelectorAll('#calendarBox').forEach(cal => {
-        renderCalendar(rangeStart, rangeEnd).then(html => {
-            cal.innerHTML = html;
-        });
-    });
-}
-
-
-
-function formatDate(d) {
-    return `${d.getMonth() + 1}/${d.getDate()}`;
-}
-
-function showPaymentOptions() {
-    const chatBox = document.getElementById("chat");
-    const container = document.createElement("div");
-    container.className = "message bot";
-
-    const methods = [
-        "🏦 계좌이체",
-        "💳 일반결제 (신용카드)",
-        "💛 카카오페이",
-        "💚 네이버페이"
-    ];
-
-    methods.forEach(m => {
-        const btn = document.createElement("button");
-        btn.className = "bot-option";
-        btn.textContent = m;
-        btn.onclick = () => selectPay(m);
-        container.appendChild(btn);
-    });
-
-    chatBox.insertBefore(container, chatBox.firstChild);
-}
-
-
-async function showProductList() {
-    const chatBox = document.getElementById("chat");
-    const container = document.createElement("div");
-    container.className = "message bot";
-
-    // 서버에서 객실 목록 가져오기
-    let products = [];
-    const roomData = await fetch('/api/defaultSettings').then(res => res.json()).then(data => data.data);
-        roomData.forEach(room => {
-            products.push(room.roomType);
-        });
-
-    products.forEach(p => {
-        const btn = document.createElement("button");
-        btn.className = "bot-option";
-        btn.textContent = p;
-        btn.onclick = () => {
-            // 상품 선택
-            selectedProduct = p;
-            selectedRoom = p;
-            const input = document.getElementById("customInput");
-            // 기존 캡슐 제거
-            const old = input.querySelector(".capsule-room");
-            if (old) input.removeChild(old);
-            // 새 캡슐 추가
-            const capsule = document.createElement("span");
-            capsule.className = "capsule capsule-room";
-            capsule.textContent = p;
-            input.appendChild(capsule);
-            
-            // 상품 선택 후 달력 다시 렌더링 (마감된 날짜 비활성화)
-            const cal = document.getElementById("calendarBox");
-            if (cal) {
-                renderCalendar(rangeStart, rangeEnd).then(html => {
-                    cal.innerHTML = html;
-                });
-            }
-        };
-        container.appendChild(btn);
-    });
-
-    // 반드시 appendChild로 추가!
-    chatBox.appendChild(container);
-}
-
-// selectProduct 함수는 더 이상 자동으로 날짜 선택으로 넘어가지 않도록 수정 또는 사용하지 않음
-
-function handleBackspace(event) {
-    if (event.key === "Backspace") {
-        if (rangeEnd) rangeEnd = null;
-        else if (rangeStart) rangeStart = null;
-        updateSelectedRangeUI();
-    }
-}
-
-async function submitSelectedDate() {
-    // 입력창의 내용 가져오기
-    const input = document.getElementById("customInput");
-    const inputText = input.innerText.trim();
-    
-    // 입력창에 내용이 있으면 먼저 표시
-    if (inputText) {
-        appendMessage(inputText, "user");
-        input.innerHTML = ""; // 입력창 비우기
-    }
-    
-    // 상품으로 예약 플로우에서 객실이 비어있고 상품이 선택된 경우 자동 할당
-    if (!selectedRoom && selectedProduct) {
-        selectedRoom = selectedProduct;
-    }
-
-    // 날짜와 룸이 모두 선택되었는지 확인
-    if (rangeStart && selectedRoom) {
-        await showPaymentButton();
-    } else if (rangeStart && !selectedRoom) {
-        appendMessage("객실을 선택해주세요.");
-        showRoomButtons();
-    } else if (!rangeStart && selectedRoom) {
-        appendMessage("날짜를 선택해주세요.");
-        // 달력 띄우기
-        removeOldCalendars(); // 기존 달력 삭제
-        const cal = document.createElement("div");
-        cal.className = "message bot";
-        cal.id = "calendarBox";
-        disableOldCalendars();
-        renderCalendar().then(html => {
-            cal.innerHTML = html;
-        });
-        document.getElementById("chat").appendChild(cal);
-    } else {
-        appendMessage("날짜와 객실을 모두 선택해주세요.");
-    }
-}
-
-
-
-// 날짜를 YYYY-MM-DD 포맷으로 변환하는 함수
-function formatDateYMD(date) {
-    if (typeof date === 'string') date = new Date(date);
-    const y = date.getFullYear();
-    const m = (date.getMonth() + 1).toString().padStart(2, '0');
-    const d = date.getDate().toString().padStart(2, '0');
-    return `${y}-${m}-${d}`;
-}
-
-// 요일을 숫자로 반환하는 함수 (0: 일요일, 1: 월요일, ..., 6: 토요일)
 function getDayOfWeek(date) {
     if (typeof date === 'string') date = new Date(date);
     return date.getDay();
@@ -912,220 +890,6 @@ async function getRoomPrice(startDate, endDate, roomName) {
     return totalPrice;
 }
 
-async function showPaymentButton() {
-    const chatBox = document.getElementById("chat");
-    const container = document.createElement("div");
-    container.className = "message bot";
-
-    // 판매/마감 상태 확인
-    const isAvailable = await checkRoomAvailability(rangeStart, rangeEnd, selectedRoom);
-    if (!isAvailable) {
-        appendMessage("❌ 선택하신 날짜에 해당 객실이 마감되었습니다. 다른 날짜나 객실을 선택해주세요.", "bot");
-        return;
-    }
-
-    // 박 수 계산
-    let nights = 1;
-    if (rangeStart && rangeEnd) {
-        const ms = new Date(rangeEnd) - new Date(rangeStart);
-        nights = Math.round(ms / (1000 * 60 * 60 * 24));
-    }
-    
-    let amount;
-    try {
-        if (nights > 1) {
-            // 숙박 예약: 마지막날을 제외한 날들의 숙박 가격을 더함
-            console.log('[결제금액] 숙박 예약 가격 계산 시작');
-            amount = 0;
-            
-            for (let dt = new Date(rangeStart); dt < new Date(rangeEnd); dt.setDate(dt.getDate() + 1)) {
-                const dateStr = formatDateYMD(dt);
-                const dayPrice = await getRoomPrice(dt, null, selectedRoom); // 해당 날짜의 숙박 가격
-                console.log('[결제금액] 날짜별 가격:', { date: dateStr, price: dayPrice });
-                amount += dayPrice;
-            }
-            
-            console.log('[결제금액] 숙박 총 가격:', amount);
-        } else {
-            // 대실 예약: 해당 날짜의 대실 가격
-            const price = await getRoomPrice(rangeStart, rangeEnd, selectedRoom);
-            console.log('[결제금액] 선택된 객실:', selectedRoom, '가격:', price);
-            amount = price;
-        }
-    } catch (error) {
-        console.error('[결제금액] 가격 계산 오류:', error);
-        appendMessage(`❌ ${error.message}`, "bot");
-        return;
-    }
-
-    // 고객 타입별 할인 적용
-    let discountMsg = "";
-    finalAmount = amount; // 전역 변수에 할당
-    if (userType === "first") {
-        finalAmount = Math.round(amount * 0.5);
-        discountMsg = `🎉 첫방문 고객 반값 할인 적용!\n원래 가격: ${amount.toLocaleString()}원 → 할인 가격: ${finalAmount.toLocaleString()}원`;
-    } else if (userType === "recent") {
-        finalAmount = Math.round(amount * 0.8);
-        discountMsg = `💰 재방문 고객 20% 할인 적용!\n원래 가격: ${amount.toLocaleString()}원 → 할인 가격: ${finalAmount.toLocaleString()}원`;
-    } else {
-        discountMsg = `할인 없음 (오랜만에 방문해주셔서 감사합니다!)\n결제 금액: ${finalAmount.toLocaleString()}원`;
-    }
-
- 
-
-    const payload = {
-        username: username,
-        phone: userphone,
-        room: selectedRoom,
-        startDate: rangeStart?.toISOString().split('T')[0],
-        endDate: rangeEnd?.toISOString().split('T')[0] || null,
-        amount: finalAmount // 계산된 최종 가격 전송
-    };
-
-    fetch(`/api/reserve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    })
-    .then(res => res.json())
-    .then(data => {
-        console.log('예약 응답:', data);
-        if (data.success) {
-            appendMessage(discountMsg, "bot");
-            botMessages.reserveConfirm.forEach(msg => {
-                appendMessage(msg, "bot");
-            });
-        } 
-        else {
-            appendMessage("❌ 예약 처리 중 오류가 발생했습니다.", "bot");
-        }
-    })
-    .catch(err => {
-        appendMessage("❌ 서버 통신 오류가 발생했습니다.", "bot");
-    });
-
-
-
-
-}
-
-
-
-// renderCalendar 함수 - 선택된 상품이 마감된 날짜들을 비활성화
-async function renderCalendar(selectedStart = null, selectedEnd = null) {
-    const year = calendarYear;
-    const month = calendarMonth;
-
-    const firstDate = new Date(year, month, 1);
-    const firstDay = firstDate.getDay(); // 0: 일요일
-    const startDate = new Date(firstDate);
-    startDate.setDate(1 - firstDay); // 달력 시작일 (해당 월의 첫 일요일)
-
-    let html = `
-        <div class="calendar-nav">
-            <button onclick="changeMonth(-1)">◀</button>
-            <div class="calendar-title"><strong>${year}년 ${month + 1}월</strong></div>
-            <button onclick="changeMonth(1)">▶</button>
-        </div>
-        <div class="calendar-grid">
-            ${["일", "월", "화", "수", "목", "금", "토"].map(d => `<div class="calendar-day-label">${d}</div>`).join("")}
-    `;
-
-    const days = [];
-    for (let i = 0; i < 35; i++) {
-        const d = new Date(startDate);
-        d.setDate(startDate.getDate() + i);
-        days.push(d);
-    }
-    
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    
-    // 선택된 상품이 있으면 해당 상품의 마감된 날짜들 확인
-    let unavailableDates = new Set();
-    if (selectedProduct) {
-        console.log('[달력] 선택된 상품 확인:', selectedProduct);
-        try {
-            // 해당 월의 모든 날짜에 대해 상품 가용성 확인
-            for (let dt = new Date(year, month, 1); dt <= new Date(year, month + 1, 0); dt.setDate(dt.getDate() + 1)) {
-                const isAvailable = await checkRoomAvailability(dt, null, selectedProduct);
-                if (!isAvailable) {
-                    unavailableDates.add(formatDateYMD(dt));
-                }
-            }
-            console.log('[달력] 마감된 날짜들:', Array.from(unavailableDates));
-        } catch (error) {
-            console.error('[달력] 상품 가용성 확인 오류:', error);
-        }
-    }
-    
-    for (let i = 0; i < days.length; i++) {
-        const currentDate = days[i];
-        let classes = "calendar-cell";
-        const isInMonth = currentDate.getMonth() === month;
-        const isStart = selectedStart && currentDate.toDateString() === selectedStart.toDateString();
-        const isEnd = selectedEnd && currentDate.toDateString() === selectedEnd.toDateString();
-        const isInRange = selectedStart && selectedEnd && currentDate > selectedStart && currentDate < selectedEnd;
-        const isToday = currentDate.toDateString() === today.toDateString();
-        const isPast = currentDate < today;
-        const isUnavailable = unavailableDates.has(formatDateYMD(currentDate));
-        
-        if (isToday) classes += " today";
-        if (!isInMonth) classes += " inactive";
-        if (isStart || isEnd) classes += " selected";
-        else if (isInRange) classes += " range";
-        if (isPast || isUnavailable) classes += " inactive";
-        
-        // 날짜 포맷을 항상 두 자리로 맞춤
-        const y = currentDate.getFullYear();
-        const m = String(currentDate.getMonth() + 1).padStart(2, '0');
-        const d = String(currentDate.getDate()).padStart(2, '0');
-        
-        const isDisabled = isPast || isUnavailable;
-        html += `
-            <button class="${classes}" ${isDisabled ? 'disabled' : ''} onclick="selectDate('${y}-${m}-${d}')">
-                ${currentDate.getDate()}
-            </button>
-        `;
-    }
-    html += `</div>`;
-    return html;
-}
-
-function changeMonth(offset) {
-    if (!calendarEnabled) return;
-    calendarMonth += offset;
-    if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
-    else if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
-    const cal = document.getElementById("calendarBox");
-    if (cal) {
-        renderCalendar(rangeStart, rangeEnd).then(html => {
-            cal.innerHTML = html;
-        });
-    }
-}
-window.changeMonth = changeMonth;
-
-function selectDate(dateStr) {
-    if (!calendarEnabled) return;
-    const d = new Date(dateStr);
-    // 같은 날짜를 두 번 클릭하면 선택 취소
-    if (rangeStart && !rangeEnd && d.toDateString() === rangeStart.toDateString()) {
-        rangeStart = null;
-        rangeEnd = null;
-        updateSelectedRangeUI();
-        return;
-    }
-    if (!rangeStart || (rangeStart && rangeEnd)) {
-        rangeStart = d;
-        rangeEnd = null;
-    } else {
-        if (d < rangeStart) rangeStart = d;
-        else rangeEnd = d;
-    }
-    updateSelectedRangeUI();
-    // 다음 단계로 자동 진행하지 않음 (전송 버튼에서 처리)
-}
 
 // Socket.IO 클라이언트 라이브러리 로드
 if (typeof io === 'undefined') {
@@ -1139,51 +903,17 @@ function setupSocketEventListeners() {
     palaceAPI.onSocketEvent('reservation-confirmed', (data) => {
         // 관리자 승인 후 예약 확정 알림
         setTimeout(() => {
-            appendMessage('🎉 예약이 확정되었습니다! 관리자 승인 완료.', 'bot');
+            appendMessage('🎉 예약이 확정되었습니다! 팔레스호텔에서 정성껏 모시겠습니다.', 'bot');
         }, 100);
     });
 
     palaceAPI.onSocketEvent('reservation-cancelled', (data) => {
         // 관리자 취소 후 예약 취소 알림
         setTimeout(() => {
-            appendMessage('❌ 예약이 취소되었습니다. 관리자에 의해 취소 처리되었습니다.', 'bot');
+            appendMessage('❌ 객실 마감으로 예약이 취소되었습니다.', 'bot');
         }, 100);
     });
 }
 
 
 
-
-
-function disableOldCalendars() {
-    document.querySelectorAll('#calendarBox').forEach(el => {
-        el.dataset.active = "false";
-        el.querySelectorAll('button').forEach(btn => btn.disabled = true);
-    });
-}
-
-function removeOldCalendars() {
-    document.querySelectorAll('#calendarBox').forEach(el => el.remove());
-}
-
-// 달력 생성 전 기존 달력 비활성화, 새 달력만 활성화
-function activateNewCalendar(cal) {
-    // 기존 달력 모두 비활성화
-    document.querySelectorAll('#calendarBox').forEach(el => {
-        el.dataset.active = "false";
-        el.querySelectorAll('button').forEach(btn => btn.disabled = true);
-    });
-    // 새 달력 활성화
-    cal.dataset.active = "true";
-}
-
-// 닉네임+뒷번호가 정해지는 시점(전화번호 인증 후)
-function onNicknameAssigned(nick, phone) {
-    userNick = `${nick}(${phone.slice(-4)})`;
-    // 지금까지 쌓인 로그를 서버로 전송
-    logBuffer.forEach(log => {
-        log.nick = userNick;
-        sendLogToServer(log);
-    });
-    logBuffer = [];
-}

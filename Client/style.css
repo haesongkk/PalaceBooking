@@ -84,6 +84,87 @@ body {
   padding: 10px;
 }
 
+/* 플로팅 버튼 영역 */
+.floating-buttons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: transparent;
+  backdrop-filter: blur(10px);
+}
+
+.floating-btn {
+  width: fit-content;
+  height: 44px;
+  border-radius: 32px;
+  background: rgb(236, 230, 171);
+  color: var(--color-black);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.floating-btn:first-child {
+  margin-left: auto;
+}
+
+.floating-btn:hover {
+  background: var(--color-primary);
+  color: var(--color-black);
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 214, 0, 0.3);
+}
+
+.floating-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.btn-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* 모바일 반응형 스타일 */
+@media (max-width: 480px) {
+  .floating-buttons {
+    gap: 8px;
+    padding: 6px 12px;
+  }
+  
+  .floating-btn {
+    width: fit-content;
+    height: 40px;
+  }
+  
+  .btn-icon {
+    font-size: 16px;
+  }
+}
+
+/* 태블릿 이상에서 더 넓은 간격 */
+@media (min-width: 768px) {
+  .floating-buttons {
+    gap: 16px;
+    padding: 10px 20px;
+  }
+  
+  .floating-btn {
+    width: fit-content;
+    height: 48px;
+  }
+  
+  .btn-icon {
+    font-size: 20px;
+  }
+}
+
 /* 스크롤바 숨기기 */
 .chat-window::-webkit-scrollbar {
   width: 0;
