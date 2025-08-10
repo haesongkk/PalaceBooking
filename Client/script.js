@@ -491,13 +491,9 @@ async function checkReservation(){
         }
         else{
             appendMessage("선택하신 날짜에 해당 객실이 마감되었습니다. 다른 날짜나 객실을 선택해주세요.", "bot");
-            reservationInfo.startDate = null;
-            reservationInfo.endDate = null;
-            reservationInfo.roomType = null;
-            reservationInfo.price = null;
             curHandler = defaultHandler;
             setFloating(["날짜 변경하기", "객실 변경하기", "취소하기"]);
-            return false;
+            return true;
         }
     } catch (error) {
         console.error('예약 확인 오류:', error);
