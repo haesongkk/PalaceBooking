@@ -288,7 +288,7 @@ function showCalendar(year, month, container){
         dayCell.textContent = i + 1;
         dayCell.id = new Date(year, month, i + 1);
         dayCell.onclick = () => {
-            const date = new Date(year, month, i + 1).setHours(0, 0, 0, 0);
+            const date = new Date(year, month, i + 1).toLocaleDateString();
             if(!reservationInfo.startDate){
                 reservationInfo.startDate = date;
                 dayCell.classList.add("selected");
@@ -343,13 +343,13 @@ function showCalendar(year, month, container){
     }
 
     if(reservationInfo.startDate){
-        const rangeStart = new Date(reservationInfo.startDate).setHours(0, 0, 0, 0);
-        const rangeEnd = new Date(reservationInfo.endDate? reservationInfo.endDate : reservationInfo.startDate).setHours(0, 0, 0, 0);
+        const rangeStart = new Date(reservationInfo.startDate).toLocaleDateString();
+        const rangeEnd = new Date(reservationInfo.endDate? reservationInfo.endDate : reservationInfo.startDate).toLocaleDateString();
         console.log(rangeStart, rangeEnd);
     
         for(let i = 0; i < 42; i++){
             const dayCell = dayCells[Math.floor(i / 7)][i % 7];
-            const date = new Date(dayCell.id).setHours(0, 0, 0, 0);
+            const date = new Date(dayCell.id).toLocaleDateString();
 
             if(date > rangeStart && date < rangeEnd){
                 dayCell.classList.add("range");
@@ -360,10 +360,13 @@ function showCalendar(year, month, container){
             }
         }
 
-        let range = new Date(rangeStart).toLocaleDateString();
-        if(reservationInfo.endDate){
-            range += " ~ " + new Date(rangeEnd).toLocaleDateString();
-        }
+        const chaeckoutY = new Date(rangeEnd).getFullYear();
+        const chaeckoutM = new Date(rangeEnd).getMonth();
+        const chaeckoutD = new Date(rangeEnd).getDate() + 1;
+        const checkoutDate = new Date(chaeckoutY, chaeckoutM, chaeckoutD).toLocaleDateString();
+
+
+        let range = new Date(rangeStart).toLocaleDateString() + " 입실 ~ " + checkoutDate + " 퇴실";
         setFloating([range, "취소하기"]);
 
     }
@@ -473,6 +476,14 @@ async function checkReservation(){
     }
 
     try {
+        reservationInfo.endDate = reservationInfo.endDate || reservationInfo.startDate;
+        const checkoutY = new Date(reservationInfo.endDate).getFullYear();
+        const checkoutM = new Date(reservationInfo.endDate).getMonth();
+        const checkoutD = new Date(reservationInfo.endDate).getDate() + 1;
+        const checkoutDate = new Date(checkoutY, checkoutM, checkoutD).toLocaleDateString();
+        reservationInfo.endDate = checkoutDate;
+        console.log(reservationInfo);
+
         const isAvailable = await checkRoomAvailability(reservationInfo.startDate, reservationInfo.endDate, reservationInfo.roomType);
         
         if(isAvailable){
@@ -483,7 +494,7 @@ async function checkReservation(){
             const endDate = new Date(reservationInfo.endDate).toLocaleDateString();
 
             const userType = isFirstVisit? "첫 예약 고객" : "단골 고객";
-            const msg = `${reservationInfo.roomType}<br>${startDate} ~ ${endDate}<br>${userType} 5,000원 할인 적용!<br>기준가: ${reservationInfo.price.toLocaleString()}원 → 할인 가격: ${(reservationInfo.price - 5000).toLocaleString()}원<br>예약하시겠습니까?`;
+            const msg = `${reservationInfo.roomType}<br>${startDate} 입실 ~ ${endDate} 퇴실<br>${userType} 5,000원 할인 적용!<br>기준가: ${reservationInfo.price.toLocaleString()}원 → 할인 가격: ${(reservationInfo.price - 5000).toLocaleString()}원<br>예약하시겠습니까?`;
             appendMessage(msg, "bot");
             curHandler = defaultHandler;
             setFloating(["날짜 변경하기", "객실 변경하기", "예약하기", "취소하기"]);

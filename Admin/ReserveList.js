@@ -142,7 +142,7 @@ class ReserveList {
             const periodCell = document.createElement('td');
             const startDate = reservation.start_date || '';
             const endDate = reservation.end_date || '';
-            periodCell.textContent = endDate ? `${startDate} ~ ${endDate}` : startDate;
+            periodCell.textContent = endDate ? `${startDate} 입실 ~ ${endDate} 퇴실` : startDate;
             row.appendChild(periodCell);
             
             const actionCell = document.createElement('td');
