@@ -391,24 +391,27 @@ class DailyPrice {
 
     setCellData(cell, id, roomType, overnightStatus, overnightPrice, overnightOpenClose, dailyStatus, dailyPrice, dailyOpenClose, dailyUsageTime) {
         if(cell.className !== 'sales-calendar-day has-data') return;
-
+        
         const dataBox = cell.querySelector('.room-data-box');
+        let dataItems = null;
+
+
         dataBox.querySelectorAll('.room-data-items').forEach(item => {
             if(item.id === JSON.stringify(id)) {
-                // item.querySelector('.room-status').textContent = parseInt(this.isOvernight ? overnightStatus : dailyStatus) ? '판매' : '마감';
-                // item.querySelector('.room-price').textContent = `${this.isOvernight ? overnightPrice : dailyPrice}원`;
-                // item.querySelector('.room-details').textContent = `${this.isOvernight ? overnightOpenClose[0] : dailyOpenClose[0]}시~${this.isOvernight ? overnightOpenClose[1] : dailyOpenClose[1]}시`;
-                // if(!this.isOvernight) {
-                //     item.querySelector('.room-details').textContent = `${dailyUsageTime}시간`;
-                // }
-                // return;
-                item.remove();
+                const roomNameItem = item.querySelector('.room-name');
+                if(roomNameItem.textContent === roomType) {
+                    dataItems = item;
+                    item.innerHTML = '';
+                }
             }
         });
+        if(!dataItems){
+            dataItems = document.createElement('div');
+            dataItems.className = 'room-data-items';
+            dataItems.id = id;
+            dataBox.appendChild(dataItems);
+        }
 
-        const dataItems = document.createElement('div');
-        dataItems.className = 'room-data-items';
-        dataItems.id = id;
 
         const status = this.isOvernight ? overnightStatus : dailyStatus;
         const price = this.isOvernight ? overnightPrice : dailyPrice;
@@ -442,7 +445,6 @@ class DailyPrice {
         roomPrice.textContent = `${price}원`;
         dataItems.appendChild(roomPrice);
 
-        dataBox.appendChild(dataItems);
 
     }
 
