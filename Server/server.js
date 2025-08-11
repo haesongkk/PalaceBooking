@@ -34,26 +34,24 @@ app.get('/admin', (req, res) => {
 
 // 예약 추가 시 관리자에게 실시간 알림
 app.post("/api/reserve", (req, res) => {
-    const { username, phone, room, startDate, endDate } = req.body;
-    if (!username || !phone || !room || !startDate) {
-        return res.status(400).json({ error: "필수 정보 누락" });
-    }
 
-    try {
-        const stmt = db.prepare(`
-            INSERT INTO reservations (username, phone, room, start_date, end_date)
-            VALUES (?, ?, ?, ?, ?)
-        `);
-        const info = stmt.run(username, phone, room, startDate, endDate);
+    const { phone, roomType, checkinDate, checkoutDate, price } = req.body;
+    if(!phone) return res.status(400).json({ error: "연락처 누락" });
+    if(!roomType) return res.status(400).json({ error: "객실 누락" });
+    if(!checkinDate) return res.status(400).json({ error: "입실 날짜 누락" });
+    if(!checkoutDate) return res.status(400).json({ error: "퇴실 날짜 누락" });
+    if(!price) return res.status(400).json({ error: "가격 누락" });
 
-        // 관리자에게 실시간 알림
-        if (io) io.to("admin").emit("reservation-updated");
+    console.log(req.body);
 
-        res.json({ success: true, id: info.lastInsertRowid });
-    } catch (error) {
-        console.error('예약 생성 오류:', error);
-        res.status(500).json({ error: "예약 생성 중 오류가 발생했습니다." });
-    }
+    
+    const info = db.prepare(`
+        INSERT INTO reservations (phone, room, start_date, end_date)
+        VALUES (?, ?, ?, ?)
+        `).run(phone, roomType, checkinDate, checkoutDate);
+
+    if(io) io.to("admin").emit("reservation-updated");
+    res.status(200).json({ success: true, id: info.lastInsertRowid });
 });
 
 
@@ -75,10 +73,10 @@ app.post("/api/payment", (req, res) => {
     try {
         // 예약 정보를 DB에 저장
         const stmt = db.prepare(`
-            INSERT INTO reservations (username, phone, room, start_date, end_date)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO reservations (phone, room, start_date, end_date)
+            VALUES (?, ?, ?, ?)
         `);
-        const info = stmt.run(username, phone, room, startDate, endDate);
+        const info = stmt.run(phone, room, startDate, endDate);
 
         // 관리자에게 실시간 알림
         if (io) io.to("admin").emit("reservation-updated");
@@ -94,7 +92,6 @@ app.post("/api/payment", (req, res) => {
             customerEmail: `${phone}@palace.com`
         });
     } catch (error) {
-        console.error('결제 예약 생성 오류:', error);
         res.status(500).json({ error: "결제 예약 생성 중 오류가 발생했습니다." });
     }
 });
@@ -102,7 +99,6 @@ app.post("/api/payment", (req, res) => {
 // 전체 예약 내역 조회 (배열 반환)
 app.get("/reservationList", (req, res) => {
     const { phone } = req.query;
-    console.log(phone);
     if (!phone) {
         return res.status(400).json({ error: "전화번호가 필요합니다." });
     }
@@ -124,6 +120,13 @@ app.get('/api/admin/reservations', (req, res) => {
     const rows = db.prepare(`
         SELECT * FROM reservations ORDER BY id DESC
     `).all();
+    for(let i = 0; i < rows.length; i++){
+        const customer = customersModule.getCustomer(rows[i].phone);
+        if(customer){
+            rows[i].username = customer.data.name;
+        }
+    }
+    console.log(rows);
     res.json(rows);
 });
 
@@ -179,27 +182,6 @@ app.delete('/api/admin/specials/:id', (req, res) => {
     res.json({ success: info.changes > 0 });
 });
 
-// 객실별 남은 객실 수 반환 API
-app.get('/api/admin/roomCounts', (req, res) => {
-    // 객실별 총 객실 수(임의 지정)
-    const totalRooms = {
-        "🖥️ 2PC (60,000원)": 5,
-        "🎥 멀티플렉스 (50,000원)": 4,
-        "🎤 노래방 (60,000원)": 3,
-        "🛏️ 스탠다드 (45,000원)": 10,
-        "🛌 트윈 (50,000원)": 6
-    };
-    // 예약된 객실 수 집계
-    const rows = db.prepare('SELECT room, COUNT(*) as cnt FROM reservations WHERE state=1 GROUP BY room').all();
-    const used = {};
-    rows.forEach(r => { used[r.room] = r.cnt; });
-    // 남은 객실 수 계산
-    const result = {};
-    for (const room in totalRooms) {
-        result[room] = totalRooms[room] - (used[room] || 0);
-    }
-    res.json(result);
-});
 
 // 날짜별 객실 재고 테이블 생성
 try {
@@ -219,22 +201,18 @@ try {
 // GET: 날짜별 객실 판매/마감 상태 조회
 app.get('/api/admin/roomStock', (req, res) => {
     const { date } = req.query;
-    console.log('[서버] roomStock 요청:', { date });
     if (!date) return res.status(400).json({ error: '날짜 필요' });
     
     try {
         // room.db에서 객실 목록과 상태 정보 가져오기
         const roomRows = roomDb.prepare('SELECT * FROM rooms').all();
-        console.log('[서버] rooms 테이블 조회 결과:', roomRows);
         
         // daily_prices 테이블에서 해당 날짜의 판매/마감 상태 조회
         const dailyPrices = roomDb.prepare('SELECT room_id, room_type, status FROM daily_prices WHERE date = ?').all(date);
-        console.log('[서버] daily_prices 조회 결과:', dailyPrices);
         
         // 요일 계산 (0: 일요일, 1: 월요일, ..., 6: 토요일)
         const requestDate = new Date(date);
         const dayOfWeek = requestDate.getDay();
-        console.log('[서버] 요일:', dayOfWeek);
         
         // 결과 조합
         const result = [];
@@ -250,7 +228,6 @@ app.get('/api/admin/roomStock', (req, res) => {
             
             if (dailyPrice) {
                 // daily_prices에 데이터가 있으면 해당 상태 사용 (우선순위)
-                console.log('[서버] daily_prices 사용:', { room: room.name, status: dailyPrice.status });
                 result.push({ 
                     room_type: room.name, 
                     available: dailyPrice.status === 1, // 1: 판매, 0: 마감
@@ -266,11 +243,9 @@ app.get('/api/admin/roomStock', (req, res) => {
                             roomStatus = statusArray[dayOfWeek];
                         }
                     } catch (e) {
-                        console.error('[서버] status 파싱 오류:', e);
                     }
                 }
                 
-                console.log('[서버] rooms 테이블 사용:', { room: room.name, dayOfWeek, status: roomStatus });
                 result.push({ 
                     room_type: room.name, 
                     available: roomStatus === 1, // 1: 판매, 0: 마감
@@ -279,10 +254,8 @@ app.get('/api/admin/roomStock', (req, res) => {
             }
         });
         
-        console.log('[서버] 최종 결과:', result);
         res.json(result);
     } catch (error) {
-        console.error('[서버] 객실 재고 조회 오류:', error);
         res.status(500).json({ error: '객실 재고 조회 실패' });
     }
 });
@@ -304,15 +277,12 @@ app.post('/api/admin/roomStock', (req, res) => {
 // GET: 날짜별 가격 조회 (daily_prices 테이블)
 app.get('/api/admin/dailyPrices', (req, res) => {
     const { date, roomType = 'daily' } = req.query;
-    console.log('[서버] dailyPrices 요청:', { date, roomType });
     if (!date) return res.status(400).json({ error: '날짜 필요' });
     
     try {
         const rows = roomDb.prepare('SELECT * FROM daily_prices WHERE date = ? AND room_type = ?').all(date, roomType);
-        console.log('[서버] daily_prices 조회 결과:', rows);
         res.json(rows);
     } catch (error) {
-        console.error('[서버] 날짜별 가격 조회 오류:', error);
         res.status(500).json({ error: '날짜별 가격 조회 실패' });
     }
 });
@@ -320,19 +290,15 @@ app.get('/api/admin/dailyPrices', (req, res) => {
 // GET: 객실별 요일 가격 조회 (rooms 테이블)
 app.get('/api/admin/roomInfo', (req, res) => {
     const { name } = req.query;
-    console.log('[서버] roomInfo 요청:', { name });
     if (!name) return res.status(400).json({ error: '객실명 필요' });
     
     try {
         const room = roomDb.prepare('SELECT * FROM rooms WHERE name = ?').get(name);
-        console.log('[서버] room 조회 결과:', room);
         if (!room) {
-            console.log('[서버] 객실을 찾을 수 없음:', name);
             return res.status(404).json({ error: '객실을 찾을 수 없습니다' });
         }
         res.json(room);
     } catch (error) {
-        console.error('[서버] 객실 정보 조회 오류:', error);
         res.status(500).json({ error: '객실 정보 조회 실패' });
     }
 });
@@ -387,7 +353,6 @@ try {
         const existingData = roomDb.prepare('SELECT COUNT(*) as count FROM daily_prices').get();
         
         if (existingData.count > 0) {
-            console.log('기존 daily_prices 데이터를 새로운 구조로 마이그레이션합니다...');
             
             // 기존 데이터를 백업 테이블로 복사
             roomDb.prepare(`
@@ -439,15 +404,12 @@ try {
                         );
                     });
                 } catch (error) {
-                    console.error('rooms_data 파싱 오류:', error);
                 }
             });
             
-            console.log('마이그레이션 완료: 객실별 개별 행 구조로 변환되었습니다.');
         }
     }
 } catch (error) {
-    console.error('데이터 마이그레이션 오류:', error);
 }
 
 
@@ -467,7 +429,6 @@ app.get('/api/admin/rooms', (req, res) => {
         
         res.json(parsedRows);
     } catch (error) {
-        console.error('객실 조회 오류:', error);
         res.status(500).json({ error: '객실 조회 실패' });
     }
 });
@@ -503,7 +464,6 @@ app.post('/api/admin/rooms/add', (req, res) => {
         
         res.json({ success: true, id: roomId, name: roomName });
     } catch (error) {
-        console.error('객실 추가 오류:', error);
         res.status(500).json({ error: '객실 추가 실패' });
     }
 });
@@ -538,7 +498,6 @@ app.post('/api/admin/rooms', (req, res) => {
         
         res.json({ success: true, id });
     } catch (error) {
-        console.error('객실 수정 오류:', error);
         res.status(500).json({ error: '객실 수정 실패' });
     }
 });
@@ -573,7 +532,6 @@ app.put('/api/admin/rooms/:id', (req, res) => {
             res.status(404).json({ error: '객실을 찾을 수 없습니다.' });
         }
     } catch (error) {
-        console.error('객실 수정 오류:', error);
         res.status(500).json({ error: '객실 수정 실패' });
     }
 });
@@ -585,7 +543,6 @@ app.delete('/api/admin/rooms/:id', (req, res) => {
         const info = roomDb.prepare('DELETE FROM rooms WHERE id = ?').run(id);
         res.json({ success: info.changes > 0 });
     } catch (error) {
-        console.error('객실 삭제 오류:', error);
         res.status(500).json({ error: '객실 삭제 실패' });
     }
 });
@@ -619,7 +576,6 @@ app.get('/api/admin/daily-prices', (req, res) => {
         
         res.json(rows);
     } catch (error) {
-        console.error('날짜별 요금 조회 오류:', error);
         res.status(500).json({ error: '날짜별 요금 조회 실패' });
     }
 });
@@ -668,7 +624,6 @@ app.post('/api/admin/daily-prices', (req, res) => {
         
         res.json({ success: true });
     } catch (error) {
-        console.error('날짜별 요금 저장 오류:', error);
         res.status(500).json({ error: '날짜별 요금 저장 실패' });
     }
 });
@@ -720,7 +675,6 @@ app.post('/api/admin/daily-prices/bulk', (req, res) => {
         
         res.json({ success: true, count: prices.length });
     } catch (error) {
-        console.error('날짜별 요금 일괄 저장 오류:', error);
         res.status(500).json({ error: '날짜별 요금 일괄 저장 실패' });
     }
 });
@@ -732,7 +686,6 @@ app.delete('/api/admin/daily-prices/:date/:room_type', (req, res) => {
         const info = roomDb.prepare('DELETE FROM daily_prices WHERE date = ? AND room_type = ?').run(date, room_type);
         res.json({ success: info.changes > 0 });
     } catch (error) {
-        console.error('날짜별 요금 삭제 오류:', error);
         res.status(500).json({ error: '날짜별 요금 삭제 실패' });
     }
 });
@@ -744,7 +697,6 @@ app.delete('/api/admin/daily-prices/:date/:room_type/:room_id', (req, res) => {
         const info = roomDb.prepare('DELETE FROM daily_prices WHERE date = ? AND room_type = ? AND room_id = ?').run(date, room_type, room_id);
         res.json({ success: info.changes > 0 });
     } catch (error) {
-        console.error('객실별 요금 삭제 오류:', error);
         res.status(500).json({ error: '객실별 요금 삭제 실패' });
     }
 });
@@ -827,7 +779,6 @@ app.post('/api/admin/daily-prices/smart-save', (req, res) => {
             message: `${savedCount}개 저장, ${deletedCount}개 삭제`
         });
     } catch (error) {
-        console.error('스마트 저장 오류:', error);
         res.status(500).json({ error: '스마트 저장 실패' });
     }
 });
@@ -892,7 +843,6 @@ app.get('/api/dev/dbs', (req, res) => {
     
     res.json(dbFiles);
   } catch (error) {
-    console.error('DB files fetch error:', error);
     res.status(500).json({ error: 'Failed to get DB files' });
   }
 });
@@ -931,7 +881,6 @@ app.get('/api/dev/db/:dbName', (req, res) => {
         const rows = targetDb.prepare(`SELECT * FROM ${tableName}`).all();
         result[tableName] = rows;
       } catch (error) {
-        console.error(`Error reading table ${tableName}:`, error);
         result[tableName] = { error: error.message };
       }
     });
@@ -941,7 +890,6 @@ app.get('/api/dev/db/:dbName', (req, res) => {
     
     res.json(result);
   } catch (error) {
-    console.error('DB data fetch error:', error);
     res.status(500).json({ error: 'Database access failed' });
   }
 });
@@ -979,7 +927,6 @@ app.delete('/api/customers/:id', (req, res) => {
 
 app.get('/api/customers', (req, res) => {
     const result = customersModule.getAllCustomers();
-    console.log('getAllCustomers - result:', result);
     
     res.status(result.status).json({
         msg: result.msg,
@@ -1111,7 +1058,6 @@ app.post('/api/defaultSettings/update', (req, res) => {
         dailyUsageTime 
     } = req.body;
 
-    console.log(req.body);
     const result = defaultSettingsModule.updateDefaultSettings(
         id, 
         roomType, 
@@ -1144,7 +1090,6 @@ app.delete('/api/defaultSettings/:id', (req, res) => {
 db.prepare(`
     CREATE TABLE IF NOT EXISTS reservations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT,
       phone TEXT,
       room TEXT,
       start_date TEXT,
@@ -1211,14 +1156,11 @@ const dailySettingsModule = require('./dailySettings');
 
 app.get('/api/dailySettings/:month/:year/:isOvernight', (req, res) => {
     const { month, year, isOvernight } = req.params;
-    console.log(month, year, isOvernight);
     const result = dailySettingsModule.getMonthlyDailySettings(year, month, isOvernight);
     res.status(result.status).json({
         msg: result.msg,
         data: result.data
     });
-    console.log("month: ", month, "year: ", year, "isOvernight: ", isOvernight);
-    console.log("dailySettings: ", result);
 });
 
 app.post('/api/dailySettings', (req, res) => {

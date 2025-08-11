@@ -127,18 +127,17 @@ function phoneHandler(input){
         if(res.status === 200){
             curHandler = defaultHandler;
             setFloating(["날짜 선택하기", "객실 선택하기", "취소하기"]);
-            username = userPhone.slice(-4);
             fetch(`/reservationList?phone=${userPhone}`).then(res => res.json()).then(data => {
                 if(data.length === 0){
                     isFirstVisit = true;
                     botMessages.firstVisit.forEach(msg => {
-                        appendMessage(msg.replace("nickname", username), "bot");
+                        appendMessage(msg.replace("nickname", userPhone.slice(-4)), "bot");
                     });
                 }
                 else {
                     isFirstVisit = false;
                     botMessages.registeredVisit.forEach(msg => {
-                        appendMessage(msg.replace("nickname", username), "bot");
+                        appendMessage(msg.replace("nickname", userPhone.slice(-4)), "bot");
                     });
                 }
                 
@@ -414,7 +413,7 @@ class ReservationInfo{
     }
 }
 let reservationInfo = new ReservationInfo();
-
+let reservationId = [];
 async function confirmReservation(){
     if(!reservationInfo.roomType){
         return false;
@@ -426,44 +425,37 @@ async function confirmReservation(){
         return false;
     }
 
-    const payload = {
-        username: '익명',
+    const sendData = {
         phone: userPhone,
-        room: reservationInfo.roomType,
-        startDate: new Date(reservationInfo.startDate).toLocaleDateString(),
-        endDate: new Date(reservationInfo.endDate).toLocaleDateString(),
-        amount: reservationInfo.price // 계산된 최종 가격 전송
+        roomType: reservationInfo.roomType,
+        checkinDate: new Date(reservationInfo.startDate).toLocaleDateString(),
+        checkoutDate: new Date(reservationInfo.endDate).toLocaleDateString(),
+        price: reservationInfo.price // 계산된 최종 가격 전송
     };
 
-    try {
-        const res = await fetch(`/api/reserve`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+    const res = await fetch(`/api/reserve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sendData)
+    });
+    const data = await res.json();
+    if(data.success){
+        botMessages.reserveConfirm.forEach(msg => {
+            appendMessage(msg, "bot");
         });
-        const data = await res.json();
+        curHandler = defaultHandler;
         
-        console.log('예약 응답:', data);
-        if (data.success) {
-            botMessages.reserveConfirm.forEach(msg => {
-                appendMessage(msg, "bot");
-            });
-            curHandler = defaultHandler;
-            reservationInfo.roomType = null;
-            reservationInfo.startDate = null;
-            reservationInfo.endDate = null;
-            reservationInfo.price = null;
-            setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
-            return true;
-        } 
-        else {
-            appendMessage("❌ 예약 처리 중 오류가 발생했습니다.", "bot");
-            return false;
-        }
-    } catch (error) {
-        console.error('예약 오류:', error);
+        reservationId.push(data.id);
+        reservationInfo.roomType = null;
+        reservationInfo.startDate = null;
+        reservationInfo.endDate = null;
+        reservationInfo.price = null;
+        setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
+        return true;
+    }
+    else{
         appendMessage("❌ 예약 처리 중 오류가 발생했습니다.", "bot");
-        return false;
+        return true;
     }
 }
 
