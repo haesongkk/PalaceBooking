@@ -55,6 +55,7 @@ const botMessages = {
 
 }
 let curHandler = (text) => {};
+let socketEventListenersSetup = false; // 소켓 이벤트 리스너 설정 여부를 추적
 
 function setFloating(menus){
     const floatingBar = document.querySelector(".floating-buttons");
@@ -115,7 +116,12 @@ function phoneHandler(input){
     updateHeader(userPhone.slice(-4));
 
     palaceAPI.connectSocket(userPhone);
-    setupSocketEventListeners();
+    
+    // 소켓 이벤트 리스너가 아직 설정되지 않은 경우에만 설정
+    if (!socketEventListenersSetup) {
+        setupSocketEventListeners();
+        socketEventListenersSetup = true;
+    }
 
     fetch(`/api/customers/get/${userPhone}`, {
         method: 'GET',
@@ -905,20 +911,27 @@ if (typeof io === 'undefined') {
     document.head.appendChild(script);
 }
 
+// 페이지 로드 시 소켓 이벤트 리스너 설정 상태 초기화
+window.addEventListener('load', () => {
+    socketEventListenersSetup = false;
+});
+
 // Socket.IO 이벤트 리스너 설정 함수
 function setupSocketEventListeners() {
     palaceAPI.onSocketEvent('reservation-confirmed', (data) => {
-        // 관리자 승인 후 예약 확정 알림
-        setTimeout(() => {
-            appendMessage('🎉 예약이 확정되었습니다! 팔레스호텔에서 정성껏 모시겠습니다.', 'bot');
-        }, 100);
+        reservationId.forEach(id => {
+            if(id === data.id) {
+                appendMessage('🎉 예약이 확정되었습니다! 팔레스호텔에서 정성껏 모시겠습니다.', 'bot');
+            }
+        });
     });
 
     palaceAPI.onSocketEvent('reservation-cancelled', (data) => {
-        // 관리자 취소 후 예약 취소 알림
-        setTimeout(() => {
-            appendMessage('❌ 객실 마감으로 예약이 취소되었습니다.', 'bot');
-        }, 100);
+        reservationId.forEach(id => {
+            if(id === data.id) {
+                appendMessage('❌ 객실 마감으로 예약이 취소되었습니다.', 'bot');
+            }
+        });
     });
 }
 
