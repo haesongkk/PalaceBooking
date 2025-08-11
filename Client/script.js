@@ -622,7 +622,7 @@ async function handleMenu(type, bAppend = true) {
             reservationInfo.roomType = null;
             reservationInfo.price = null;
             curHandler = defaultHandler;
-            appendMessage("무엇을 도와드릴까요?");
+            appendMessage("아래 메뉴 중에서 선택해주세요.");
             setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
             break;
         case '날짜 변경하기':
