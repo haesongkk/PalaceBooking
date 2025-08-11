@@ -45,7 +45,7 @@ const botMessages = {
     ],
     registeredVisit: [
         "🙌 nickname님, 다시 찾아주셔서 감사합니다.",
-        "단골 고객님께는 야놀자보다 5,000원 더 저렴하게 안내해드립니다."
+        "단골 고객님께는 5,000원 더 저렴하게 안내해드립니다."
     ],
 
     reserveConfirm: [
