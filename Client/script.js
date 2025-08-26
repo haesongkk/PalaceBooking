@@ -375,36 +375,37 @@ function showCalendar(year, month, container){
 }
 
 function showRooms(){
-
-    const container = document.createElement("div");
-    container.className = "message bot";
-    document.querySelector(".chat-window").appendChild(container);
-
-    fetch('api/defaultSettings').then(res => res.json()).then(data => {
-        data.data.forEach(room => {
-            const roomBtn = document.createElement("button");
-            roomBtn.className = "bot-option";
-            roomBtn.textContent = room.roomType;
-            roomBtn.onclick = () => {
-                container.querySelectorAll(".bot-option").forEach(btn => {
-                    btn.style.backgroundColor = "";
-                    btn.style.color = "";
-                });
-                roomBtn.style.backgroundColor = "#000000";
-                roomBtn.style.color = "#ffffff";
-                const menu = `객실: ${room.roomType}`;
-                setFloating([menu, "취소하기"]);
-                reservationInfo.roomType = room.roomType;
-            };
-            container.appendChild(roomBtn);
+    fetch(`api/rooms`).then(res => res.json()).then(data => {
+        document.querySelector(".chat-window").innerHTML += `
+            <div class="message bot">
+                <div class="room-viewport">
+                    ${data.map(room => `
+                        <div class="room-card">
+                            <h3>${room.name}</h3>
+                            ${JSON.parse(room.image).map(img => `
+                                <img src="${img}" style="width: 100px; height: 100px; object-fit: cover;">
+                            `).join('')}
+                            <p>${room.description}</p>
+                            <button class="room-select-btn" id="${room.id}" name="${room.name}">선택하기</button>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        const thisChat = document.querySelector(".message.bot:last-child");
+        thisChat.querySelectorAll(".room-select-btn").forEach(btn => {
+            btn.onclick = () => {
+                console.log(btn.name);
+                setFloating(["객실: " + btn.name, "취소하기"]);
+                reservationInfo.roomID = btn.id;
+            }
         });
     });
-
 }
 
 class ReservationInfo{
     constructor(){
-        this.roomType;
+        this.roomID;
         this.startDate;
         this.endDate;
         this.price;
@@ -413,7 +414,7 @@ class ReservationInfo{
 let reservationInfo = new ReservationInfo();
 
 async function confirmReservation(){
-    if(!reservationInfo.roomType){
+    if(!reservationInfo.roomID){
         return false;
     }
     if(!reservationInfo.startDate){
@@ -426,80 +427,63 @@ async function confirmReservation(){
     const payload = {
         username: '익명',
         phone: userPhone,
-        room: reservationInfo.roomType,
-        startDate: new Date(reservationInfo.startDate).toLocaleDateString(),
-        endDate: new Date(reservationInfo.endDate).toLocaleDateString(),
-        amount: reservationInfo.price // 계산된 최종 가격 전송
+        roomID: reservationInfo.roomID,
+        checkinDate: new Date(reservationInfo.startDate).toLocaleDateString(),
+        checkoutDate: new Date(reservationInfo.endDate).toLocaleDateString(),
+        price: reservationInfo.price // 계산된 최종 가격 전송
     };
 
-    try {
-        const res = await fetch(`/api/reserve`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
+    
+    const res = await fetch(`/api/reserve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    const data = await res.json();
         
-        console.log('예약 응답:', data);
-        if (data.success) {
-            botMessages.reserveConfirm.forEach(msg => {
-                appendMessage(msg, "bot");
-            });
-            curHandler = defaultHandler;
-            reservationInfo.roomType = null;
-            reservationInfo.startDate = null;
-            reservationInfo.endDate = null;
-            reservationInfo.price = null;
-            setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
-            return true;
-        } 
-        else {
-            appendMessage("❌ 예약 처리 중 오류가 발생했습니다.", "bot");
-            return false;
-        }
-    } catch (error) {
-        console.error('예약 오류:', error);
-        appendMessage("❌ 예약 처리 중 오류가 발생했습니다.", "bot");
-        return false;
-    }
+    reservationId.push(data.id);
+    reservationInfo.roomID = null;
+    reservationInfo.startDate = null;
+    reservationInfo.endDate = null;
+    reservationInfo.price = null;
+    setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
+    return true;
+    
 }
 
 async function checkReservation(){
-    if(!reservationInfo.roomType){
+    if(!reservationInfo.roomID){
         return false;
     }
     if(!reservationInfo.startDate){
         return false;
     }
-
-    try {
-        const isAvailable = await checkRoomAvailability(reservationInfo.startDate, reservationInfo.endDate, reservationInfo.roomType);
-        
-        if(isAvailable){
-            const price = await getRoomPrice(reservationInfo.startDate, reservationInfo.endDate, reservationInfo.roomType);
-            reservationInfo.price = price;
-
-            const startDate = new Date(reservationInfo.startDate).toLocaleDateString();
-            const endDate = new Date(reservationInfo.endDate).toLocaleDateString();
-
-            const userType = isFirstVisit? "첫 예약 고객" : "단골 고객";
-            const msg = `${reservationInfo.roomType}<br>${startDate} ~ ${endDate}<br>${userType} 5,000원 할인 적용!<br>기준가: ${reservationInfo.price.toLocaleString()}원 → 할인 가격: ${(reservationInfo.price - 5000).toLocaleString()}원<br>예약하시겠습니까?`;
-            appendMessage(msg, "bot");
-            curHandler = defaultHandler;
-            setFloating(["날짜 변경하기", "객실 변경하기", "예약하기", "취소하기"]);
-            return true;
-        }
-        else{
-            appendMessage("선택하신 날짜에 해당 객실이 마감되었습니다. 다른 날짜나 객실을 선택해주세요.", "bot");
-            curHandler = defaultHandler;
-            setFloating(["날짜 변경하기", "객실 변경하기", "취소하기"]);
+    if(!reservationInfo.endDate){
+        reservationInfo.endDate = new Date(reservationInfo.startDate);
+    }
+    reservationInfo.endDate.setDate(new Date(reservationInfo.endDate).getDate() + 1);
+    const ok = await fetch(`/api/chatbot/getReservationPrice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            customerID: userPhone,
+            roomID: reservationInfo.roomID,
+            checkinDate: reservationInfo.startDate,
+            checkoutDate: reservationInfo.endDate
+        })
+    }).then(res => res.json()).then(data => {
+        if(data.error) {
+            appendMessage(data.error, "bot");
             return false;
         }
-    } catch (error) {
-        console.error('예약 확인 오류:', error);
-        appendMessage("❌ 예약 확인 중 오류가 발생했습니다.", "bot");
-        return false;
-    }
+
+        data.msg.forEach(msg => {
+            appendMessage(msg, "bot");
+        });
+        setFloating(data.floatings);
+        return data.ok;
+    });
+    return ok;
 }
 
 function disableLastBotMessage(){
@@ -614,6 +598,10 @@ async function handleMenu(type) {
             appendMessage("🏰 팔레스 소개\n- 팔레스는 프리미엄 게스트하우스/모텔로 쾌적한 환경과 다양한 부대시설을 제공합니다.", "bot");
             break;
         case '취소하기':
+            reservationInfo.startDate = null;
+            reservationInfo.endDate = null;
+            reservationInfo.roomID = null;
+            reservationInfo.price = null;
             curHandler = defaultHandler;
             appendMessage("무엇을 도와드릴까요?");
             setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
@@ -624,8 +612,8 @@ async function handleMenu(type) {
             handleMenu('날짜 선택하기');
             break;
         case '객실 변경하기':
-            reservationInfo.roomType = null;
-            handleMenu('객실 선택하기');
+            reservationInfo.roomID = null;
+            handleMenu('객실 선택하기', false);
             break;
 
         case '취소하기':

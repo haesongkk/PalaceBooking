@@ -11,11 +11,8 @@ class DailyPrice {
         this.cells = [];
         
         this.container = this.createContainer();
-        console.log('DailyPrice: container:', this.container);
         
         this.loadData();
-        //this.updateMonthDisplay();
-        //this.updateSettingsButton();
     }
 
     createContainer() {
@@ -157,29 +154,20 @@ class DailyPrice {
     onClickSalesButton() {
         window.popupCanvas.append('판매 설정', new DailyPricePopup(
             this.selectedDates,
-            this.lastSelectedCell.querySelector('.room-data-box'),
             this.isOvernight,
-            () => {
-                // 저장 후 캐시 갱신 및 캘린더 재렌더링
-                this.loadData();
-            }
+            () => this.loadData()
         ));
     }
 
     async loadData() {
-        const res1 = await fetch('/api/defaultSettings');
-        const data1 = await res1.json();
-        this.defaultSettings = data1.data;
+        this.defaultSettings = await fetch(`/api/setting/${this.isOvernight? 1 : 0}`).then(res => res.json());
 
+        console.log(this.defaultSettings);
+        this.dailySettings = await fetch(`/api/daily/${this.isOvernight? 1 : 0}/${this.curYear}/${this.curMonth+1}`).then(res => res.json());
 
-        const res2 = await fetch(`/api/dailySettings/${this.curMonth+1}/${this.curYear}/${this.isOvernight? 1 : 0}`);
-        const data2 = await res2.json();
-        this.dailySettings = data2.data;
-        console.log('DailyPrice: loadData 완료', this.dailySettings);
+        console.log(this.dailySettings);
 
         this.renderCalendar();
-
-        // dailyData 조회도 해야함
     }
 
     renderCalendar() {
@@ -272,23 +260,21 @@ class DailyPrice {
         }
 
         this.defaultSettings.forEach(defaultSetting => {
-
-            const overnightStatus = JSON.parse(defaultSetting.overnightStatus);
-            const overnightPrice = JSON.parse(defaultSetting.overnightPrice);
-            const overnightOpenClose = JSON.parse(defaultSetting.overnightOpenClose);
-
-            const dailyStatus = JSON.parse(defaultSetting.dailyStatus);
-            const dailyPrice = JSON.parse(defaultSetting.dailyPrice);
-            const dailyOpenClose = JSON.parse(defaultSetting.dailyOpenClose);
-            const dailyUsageTime = JSON.parse(defaultSetting.dailyUsageTime);
+            const status = JSON.parse(defaultSetting.status);
+            const price = JSON.parse(defaultSetting.price);
+            const openClose = JSON.parse(defaultSetting.openClose);
+            const usageTime = JSON.parse(defaultSetting.usageTime);
 
             for(let i = 0; i< 7; i++) {
                 this.dateCells.forEach(row => {
                     this.setCellData(
                         row[i],
-                        defaultSetting.id, defaultSetting.roomType, 
-                        overnightStatus[i], overnightPrice[i], overnightOpenClose[i], 
-                        dailyStatus[i], dailyPrice[i], dailyOpenClose[i], dailyUsageTime[i]
+                        defaultSetting.id, 
+                        defaultSetting.roomName, 
+                        status[i], 
+                        price[i], 
+                        openClose[i], 
+                        usageTime[i]
                     );
                 });
             }
@@ -585,7 +571,6 @@ class DailyPrice {
         
         const popup = new DailyPricePopup(
             this.selectedDates,
-            this.lastSelectedCell.querySelector('.room-data-box'),
             this.isOvernight,
             () => this.loadData()
         );
