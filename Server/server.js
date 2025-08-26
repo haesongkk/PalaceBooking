@@ -13,6 +13,7 @@ import dailySettingsModule from './dailySettings.js';
 import customersModule from "./customers.js";
 import roomsModule from "./rooms.js";
 import defaultSettingsModule from "./defaultSettings.js";
+import discountModule from "./discount.js";
 
 
 const db = new Database("data.db");
@@ -222,7 +223,51 @@ app.get("/api/daily/:bIsOvernight/:year/:month/:date", (req, res) => {
     res.status(200).json(data);
 });
 
-function getReservationPrice(roomId, checkinDate, checkoutDate){
+
+
+app.get("/api/discount", (req, res) => {
+    try {
+        const { firstVisitDiscount, recentVisitDiscount } = discountModule.getDiscount();
+        res.status(200).json({
+            msg: "get discount success",
+            data: {
+                firstVisitDiscount: firstVisitDiscount,
+                recentVisitDiscount: recentVisitDiscount
+            }
+        });
+    } catch (error) {
+        res.status(503).json({ err: "get discount failed: " + error.message });
+    }
+});
+
+app.patch("/api/discount", (req, res) => {
+    try {
+        const { firstVisitDiscount, recentVisitDiscount } = req.body;
+
+        if(!firstVisitDiscount) {
+            return res.status(400).json({ err: "no firstVisitDiscount" });
+        }
+        if(!recentVisitDiscount) {
+            return res.status(400).json({ err: "no recentVisitDiscount" });
+        }
+
+        const info = discountModule.setDiscount(firstVisitDiscount, recentVisitDiscount);
+        if(info.changes == 0) {
+            return res.status(400).json({ err: "patch discount failed: no changes" });
+        } else {
+            return res.status(200).json({ msg: "patch discount success" });
+        }
+    } catch (error) {
+        res.status(503).json({ err: "patch discount failed: " + error.message });
+    }
+});
+
+function getReservationPrice(roomId, checkinDate, checkoutDate, discount){
+    let originalPrice = 0;
+    let discountedPrice = 0;
+
+
+
     // const startDate = new Date(checkinDate);
     // const endDate = new Date(checkoutDate);
     // let checkDate = new Date(startDate);
@@ -249,7 +294,7 @@ function getReservationPrice(roomId, checkinDate, checkoutDate){
     //     checkDate.setDate(checkDate.getDate() + 1);
     // }
     // return price;
-    return 100000;
+    return [originalPrice, discountedPrice];
 }
 
 function getCustomerType(customerID){
@@ -267,28 +312,30 @@ app.post(`/api/chatbot/getReservationPrice`, (req, res) => {
     if(!checkinDate) return res.status(400).json({ error: "checkinDate 누락" });
     if(!checkoutDate) return res.status(400).json({ error: "checkoutDate 누락" });
 
-    let price = getReservationPrice(roomID, checkinDate, checkoutDate);
     let customerType = getCustomerType(customerID);
-
-    if(price == -1) {
+    let discount = customerType == 1 ? discountModule.getDiscount().firstVisitDiscount : discountModule.getDiscount().recentVisitDiscount;
+    let [originalPrice, discountedPrice] = getReservationPrice(roomID, checkinDate, checkoutDate, discount);
+    
+    if(originalPrice == -1) {
         return res.status(200).json({
             ok: false,
             floatings: ["날짜 변경하기", "객실 변경하기", "취소하기"],
             msg: ["선택하신 날짜에 해당 객실이 마감되었습니다. 다른 날짜나 객실을 선택해주세요."],
         });
     }
-    if(price != -1){
+    if(originalPrice != -1){
         let msg = [];
         
         const szRoomName = roomsModule.getRoomById(roomID).data.name;
         const szStartDate = new Date(checkinDate).toLocaleDateString();
         const szEndDate = new Date(checkoutDate).toLocaleDateString();
         const szCustomerType = customerType == 1 ? "첫 예약 고객" : "단골 고객";
-        const szOrginalPrice = price.toLocaleString();
-        const szDiscountedPrice = (price - 5000).toLocaleString();
+        const szOrginalPrice = originalPrice.toLocaleString();
+        const szDiscountedPrice = discountedPrice.toLocaleString();
+        const szDiscount = discount.toLocaleString();
 
         msg.push(`${szRoomName} ${szStartDate} 입실 ~ ${szEndDate} 퇴실`);
-        msg.push(`${szCustomerType} 5,000원 할인 적용!`);
+        msg.push(`${szCustomerType} 1박 당 ${szDiscount}원 할인 적용!`);
         msg.push(`기준가: ${szOrginalPrice}원 → 할인 가격: ${szDiscountedPrice}원`);
         msg.push(`예약하시겠습니까?`);
 
@@ -299,6 +346,9 @@ app.post(`/api/chatbot/getReservationPrice`, (req, res) => {
         });
     }
 });
+
+
+
 
 
 

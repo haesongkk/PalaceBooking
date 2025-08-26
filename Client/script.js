@@ -71,7 +71,7 @@ function setFloating(menus){
 }
 
 let username;
-let userPhone;
+let userPhone = "01090909090";
 let recentStartDate;
 let recentEndDate;
 let recentRoomType;
@@ -459,9 +459,9 @@ async function checkReservation(){
         return false;
     }
     if(!reservationInfo.endDate){
-        reservationInfo.endDate = new Date(reservationInfo.startDate);
+        reservationInfo.endDate = new Date(reservationInfo.startDate).toLocaleDateString();
     }
-    reservationInfo.endDate.setDate(new Date(reservationInfo.endDate).getDate() + 1);
+    reservationInfo.endDate = new Date(reservationInfo.endDate).setDate(new Date(reservationInfo.endDate).getDate() + 1);
     const ok = await fetch(`/api/chatbot/getReservationPrice`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -472,6 +472,7 @@ async function checkReservation(){
             checkoutDate: reservationInfo.endDate
         })
     }).then(res => res.json()).then(data => {
+        console.log(data);
         if(data.error) {
             appendMessage(data.error, "bot");
             return false;

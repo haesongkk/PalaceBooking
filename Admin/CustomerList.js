@@ -14,31 +14,41 @@ class CustomerList {
         container.className = 'customer-list-top-container';
         this.container.appendChild(container);
 
-        this.searchInput = document.createElement('input');
-        this.searchInput.className = 'customer-list-top-search-input';
-        this.searchInput.placeholder = '연락처를 검색하세요!';
-        this.searchInput.addEventListener('keydown', (e) => {
-            if(e.key === 'Enter' && this.searchInput.value.length > 0) {
+        container.innerHTML = `
+            <input type="text" class="customer-list-top-search-input" placeholder="연락처를 검색하세요!">
+            <button class="customer-list-top-search-button">검색</button>
+            <button class="customer-list-top-register-button">고객 등록</button>
+            <button class="customer-list-top-setting-button">할인율 설정</button>
+        `;
+
+        container.querySelector('.customer-list-top-search-input').addEventListener('keydown', (e) => {
+            if(e.key === 'Enter' && container.querySelector('.customer-list-top-search-input').value.length > 0) {
                 this.onSearchButtonClick();
             }
         });
-        container.appendChild(this.searchInput);
 
-        const searchButton = document.createElement('button');
-        searchButton.className = 'customer-list-top-search-button';
-        searchButton.textContent = '검색';
-        container.appendChild(searchButton);
-        searchButton.addEventListener('click', () => {
+        container.querySelector('.customer-list-top-search-button').addEventListener('click', () => {
             this.onSearchButtonClick();
         });
-        
-        const registerButton = document.createElement('button');
-        registerButton.className = 'customer-list-top-register-button';
-        registerButton.textContent = '등록';
-        registerButton.addEventListener('click', () => {
-            this.onRegisterButtonClick(); 
+
+        container.querySelector('.customer-list-top-register-button').addEventListener('click', () => {
+            this.onRegisterButtonClick();
         });
-        container.appendChild(registerButton);
+
+        container.querySelector('.customer-list-top-setting-button').addEventListener('click', () => {
+            this.onSettingButtonClick();
+        });
+
+    }
+
+    onSettingButtonClick() {
+        window.popupCanvas.append('할인율 설정', new DiscountEdit(
+            () => {
+                this.getCustomers().then(() => {
+                    this.createCustomerTable();
+                });
+            }
+        ));
     }
 
     async createCustomerTable() {
