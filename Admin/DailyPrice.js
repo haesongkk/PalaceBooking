@@ -9,6 +9,7 @@ class DailyPrice {
         this.dailyPricesCache = {};
         this.roomData = {}; // 자체적으로 관리
         this.cells = [];
+        this.roomNameMap = {};
         
         this.container = this.createContainer();
         
@@ -162,11 +163,13 @@ class DailyPrice {
     async loadData() {
         this.defaultSettings = await fetch(`/api/setting/${this.isOvernight? 1 : 0}`).then(res => res.json());
 
-        console.log(this.defaultSettings);
         this.dailySettings = await fetch(`/api/daily/${this.isOvernight? 1 : 0}/${this.curYear}/${this.curMonth+1}`).then(res => res.json());
 
-        console.log(this.dailySettings);
-
+        this.defaultSettings.forEach(defaultSetting => {
+            const {roomId, roomName} = defaultSetting;
+            this.roomNameMap[roomId] = roomName;
+        });
+        console.log(this.roomNameMap);
         this.renderCalendar();
     }
 
@@ -269,8 +272,7 @@ class DailyPrice {
                 this.dateCells.forEach(row => {
                     this.setCellData(
                         row[i],
-                        defaultSetting.id, 
-                        defaultSetting.roomName, 
+                        defaultSetting.roomId, 
                         status[i], 
                         price[i], 
                         openClose[i], 
@@ -282,31 +284,21 @@ class DailyPrice {
 
         // 모든 데이터를 병렬로 로드
 
-        this.dailySettings.forEach(async setting => {
+        this.dailySettings.forEach(daily => {
             const {
-                dateId, roomId, isOvernight, 
-                status, price, openClose, usageTime
-            } = setting;
+                roomId, year, month, day, 
+                status, price, open, close, usageTime
+            } = daily;
 
-            const date = await fetch(`/api/date/${dateId}`).then(res => res.json()).then(data => data.data);
-
-
-            const roomType = await fetch(`/api/roomType/${roomId}`).then(res => res.json()).then(data => data.data);
-            if(roomType) {
-                const {row, col} = this.getCalendarCoord(date.date);
-                this.setCellData(
-                    this.dateCells[row][col],
-                    JSON.parse(roomId), 
-                    roomType.roomType,
-                    JSON.parse(status),
-                    JSON.parse(price),
-                    JSON.parse(openClose),
-                    JSON.parse(status),
-                    JSON.parse(price),
-                    JSON.parse(openClose),
-                    JSON.parse(usageTime)
-                );
-            }
+            const {row, col} = this.getCalendarCoord(parseInt(day));
+            this.setCellData(
+                this.dateCells[row][col],
+                roomId, 
+                status,
+                price,
+                [open, close],
+                usageTime
+            );
 
 
             
@@ -375,61 +367,37 @@ class DailyPrice {
         return { row, col };
     }
 
-    setCellData(cell, id, roomType, overnightStatus, overnightPrice, overnightOpenClose, dailyStatus, dailyPrice, dailyOpenClose, dailyUsageTime) {
+    setCellData(cell, roomId, status, price, openClose, usageTime) {
         if(cell.className !== 'sales-calendar-day has-data') return;
 
         const dataBox = cell.querySelector('.room-data-box');
-        dataBox.querySelectorAll('.room-data-items').forEach(item => {
-            if(item.id === JSON.stringify(id)) {
-                // item.querySelector('.room-status').textContent = parseInt(this.isOvernight ? overnightStatus : dailyStatus) ? '판매' : '마감';
-                // item.querySelector('.room-price').textContent = `${this.isOvernight ? overnightPrice : dailyPrice}원`;
-                // item.querySelector('.room-details').textContent = `${this.isOvernight ? overnightOpenClose[0] : dailyOpenClose[0]}시~${this.isOvernight ? overnightOpenClose[1] : dailyOpenClose[1]}시`;
-                // if(!this.isOvernight) {
-                //     item.querySelector('.room-details').textContent = `${dailyUsageTime}시간`;
-                // }
-                // return;
-                item.remove();
-            }
-        });
+        let dataItem = dataBox.querySelector(`#data-${new Date(cell.id).toLocaleDateString().replace(/\D/g, '')}-${roomId}`);
+        if(!dataItem) {
+            dataItem = document.createElement('div');
+            dataItem.className = 'room-data-items';
+            dataItem.id = `data-${new Date(cell.id).toLocaleDateString().replace(/\D/g, '')}-${roomId}`;
+            dataBox.appendChild(dataItem);
+        } 
 
-        const dataItems = document.createElement('div');
-        dataItems.className = 'room-data-items';
-        dataItems.id = id;
-
-        const status = this.isOvernight ? overnightStatus : dailyStatus;
-        const price = this.isOvernight ? overnightPrice : dailyPrice;
-        const openClose = this.isOvernight ? overnightOpenClose : dailyOpenClose;
-        const usageTime = this.isOvernight ? null : dailyUsageTime;
-
-        const roomstatus = document.createElement('span');
-        roomstatus.className = `room-status ${status? 'sale' : 'closed'}`;
-        roomstatus.textContent = parseInt(status) ? '판매' : '마감';
-        dataItems.appendChild(roomstatus);
-
-        const roomName = document.createElement('div');
-        roomName.className = 'room-name';
-        roomName.textContent = roomType;
-        dataItems.appendChild(roomName);
-
-        const roomDetails = document.createElement('div');
-        roomDetails.className = 'room-details';
-        roomDetails.textContent = `${openClose[0]}시~${openClose[1]}시`;
-        dataItems.appendChild(roomDetails);
-
-        if(usageTime) {
-            const usageTimeText = document.createElement('span');
-            usageTimeText.className = 'room-details';
-            usageTimeText.textContent = `${usageTime}시간`;
-            dataItems.appendChild(usageTimeText);
-        }
-
-        const roomPrice = document.createElement('div');
-        roomPrice.className = 'room-price';
-        roomPrice.textContent = `${price}원`;
-        dataItems.appendChild(roomPrice);
-
-        dataBox.appendChild(dataItems);
-
+        dataItem.innerHTML = `
+            <span class="room-status ${status? 'sale' : 'closed'}">
+                ${status? '판매' : '마감'}
+            </span>
+            <div class="room-name">
+                ${this.roomNameMap[roomId]}
+            </div>
+            <div class="room-details">
+                ${openClose[0]}시~${openClose[1]}시
+            </div>
+            ${this.isOvernight ? `` : `
+                <span class="room-details">
+                    ${usageTime}시간
+                </span>
+            `}
+            <div class="room-price">
+                ${price}원
+            </div>
+        `;
     }
 
     adjustCheckboxHeight(weekRow) {

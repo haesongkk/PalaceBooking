@@ -168,6 +168,22 @@ app.get("/api/setting/:bIsOvernight/:roomId", (req, res) => {
     res.status(200).json(rt.data);
 });
 
+app.post("/api/setting/:bIsOvernight/:roomId", (req, res) => {
+    try {
+        if(!req.params) return res.status(400).json({ error: "params 오류" });
+        if(!req.body) return res.status(400).json({ error: "body 오류" });
+
+        const { bIsOvernight, roomId } = req.params;
+        const { status, price, openClose, usageTime } = req.body;
+
+        roomsModule.updateSetting(Number(roomId), Number(bIsOvernight), status, price, openClose, usageTime);
+
+        return res.status(200).json({ msg: "update setting susccess" });
+    } catch (error) {
+        return res.status(503).json({ error: error.message });
+    }
+});
+
 app.get("/api/daily/:bIsOvernight/:year/:month", (req, res) => {
     if(!req.params) return res.status(400).json({ error: "params 오류" });
     const { bIsOvernight, year, month } = req.params;
@@ -221,6 +237,55 @@ app.get("/api/daily/:bIsOvernight/:year/:month/:date", (req, res) => {
     });
 
     res.status(200).json(data);
+});
+
+app.put("/api/daily/:bIsOvernight", (req, res) => {
+    try {
+        if(!req.params) return res.status(400).json({ error: "params 오류" });
+        if(!req.body) return res.status(400).json({ error: "body 오류" });
+
+        const { bIsOvernight } = req.params;
+        const { dayList, settingList } = req.body;
+        
+        if(!dayList) return res.status(400).json({ error: "dayList 누락" });
+        if(!settingList) return res.status(400).json({ error: "settingList 누락" });
+        
+        dayList.forEach(day => {
+            const { date, month, year } = day;
+            if(!date) return res.status(400).json({ error: "date 누락" });
+            if(!month) return res.status(400).json({ error: "month 누락" });
+            if(!year) return res.status(400).json({ error: "year 누락" });
+
+            settingList.forEach(setting => {
+                const { roomId, status, price, open, close, usageTime } = setting;
+                if(roomId === undefined) return res.status(400).json({ error: "roomId 누락" });
+                if(status === undefined) return res.status(400).json({ error: "status 누락" });
+                if(price === undefined) return res.status(400).json({ error: "price 누락" });
+                if(open === undefined) return res.status(400).json({ error: "open 누락" });
+                if(close === undefined) return res.status(400).json({ error: "close 누락" });
+                if(usageTime === undefined) return res.status(400).json({ error: "usageTime 누락" });
+
+                roomsModule.updateDaily(
+                    Number(bIsOvernight? 1 : 0), 
+                    Number(date), 
+                    Number(month), 
+                    Number(year), 
+                    Number(roomId), 
+                    Number(status), 
+                    Number(price), 
+                    Number(open), 
+                    Number(close), 
+                    Number(usageTime)
+                );
+            });
+        });
+
+        return res.status(200).json({ msg: "update daily success" });
+    } catch (error) {
+        res.status(503).json({ error: error.message });
+    }
+
+
 });
 
 

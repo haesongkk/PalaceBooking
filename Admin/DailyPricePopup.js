@@ -45,103 +45,117 @@ class DailyPricePopup {
                     </thead>
                     <tbody id="form-rows">
                         ${data.map(item => `
-                            <tr>
+                            <tr id="${item.roomId}">
                                 <td>${item.roomName}</td>
-                                <td>
-                                    <button ${item.status === 1 ? 'active' : ''}>판매</button>
-                                    <button ${item.status === 0 ? 'active' : ''}>마감</button>
+                                <td id="status-cell-${item.roomId}">
+                                    <button class="status-btn ${item.status === 1 ? 'active' : ''}">판매</button>
+                                    <button class="status-btn ${item.status === 0 ? 'active' : ''}">마감</button>
                                 </td>
-                                <td>
-                                    <input type="text" value="${item.price}">
+                                <td id="price-cell-${item.roomId}">
+                                    <input class="price-input" type="text" value="${item.price}">
+                                    <span>원</span>
                                 </td>
-                                <td>
-                                    <input type="text" value="${item.open}">
+                                <td id="time-range-cell-${item.roomId}">
+                                    <input class="custom-dropdown" type="text" value="${item.open}">
                                     <span>시~</span>
-                                    <input type="text" value="${item.close}">
+                                    <input class="custom-dropdown" type="text" value="${item.close}">
                                     <span>시</span>
                                 </td>
                                 ${this.isOvernight ? '' : `
-                                <td>
-                                    <input type="text" value="${item.usageTime}">
+                                <td id="usage-time-cell-${item.roomId}">
+                                    <input class="custom-dropdown" type="text" value="${item.usageTime}">
                                     <span>시간</span>
-                                </td>
+                                </t d>
                                 `}
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
             `;
+            data.forEach(item => {
+                const statusBtns = this.container.querySelector(`#status-cell-${item.roomId}`).querySelectorAll('.status-btn');
+                statusBtns.forEach(btn => {
+                    btn.onclick = () => {
+                        statusBtns.forEach(btn => btn.classList.remove('active'));
+                        btn.classList.add('active');
+                    }
+                });
+            });
         });
     }
 
 
 
     async submit() {
-        const days = [];
-        this.selectedDates.forEach(dateString => {
-            const date = new Date(dateString);
-            days.push({
-                year: date.getFullYear(),
-                month: date.getMonth() + 1,
-                date: date.getDate(),
+        const dayList = [];
+        this.selectedDates.forEach(date => {
+            dayList.push({
+                date: date[2],
+                month: date[1],
+                year: date[0],
             });
         });
+        console.log(dayList);
 
-        const settings = [];
-        const rows = this.modal.querySelector('#form-rows').querySelectorAll('tr');
-        
-        rows.forEach(row => { 
-            // 행별로 데이터 파싱해서 Db 저장하기
-            const statusBtn = row.querySelector('.status-btn:first-child');
-            const status = statusBtn.classList.contains('active')? 1 : 0;
+        const settingList = []; 
+        this.container.querySelectorAll('#form-rows tr').forEach(row => {
+            const roomId = row.id;
 
-            const price = row.querySelector('.price-input').value;
+            const status = row.querySelector(`#status-cell-${roomId}`).querySelector('.status-btn.active').textContent == '판매' ? 1 : 0;
+            console.log(row.id, status);
 
+            const price = row.querySelector(`#price-cell-${roomId}`).querySelector('.price-input').value;
+            if(!/^\d+$/.test(price)) {
+                alert('가격은 숫자만 입력해주세요.');
+                return false;
+            }
 
-            const timeRange = row.querySelectorAll('.dropdown-display');
-            const openClose = [ JSON.parse(timeRange[0].textContent), JSON.parse(timeRange[1].textContent) ];
-
-
-
-            const usageTime = this.isOvernight ? '0' : timeRange[2].textContent;
-
-
-
-
-            // const rowData = this.getRowData(row);
-            settings.push({
-                roomId: row.id,
-                isOvernight: this.isOvernight? 1 : 0,
-
-                status: status,
-                price: price,
-                openClose: JSON.stringify(openClose),
-                usageTime: usageTime    
+            const openClose = [];
+            row.querySelector(`#time-range-cell-${roomId}`).querySelectorAll('.custom-dropdown').forEach(input => {
+                if(!/^\d+$/.test(input.value)) {
+                    alert('개시/마감 시각은 숫자만 입력해주세요.');
+                    return false;
+                }
+                openClose.push(Number(input.value));
             });
+
+            let usageTime = null;
+            if(!this.isOvernight) {
+                usageTime = row.querySelector(`#usage-time-cell-${roomId}`).querySelector('.custom-dropdown').value;
+                if(!/^\d+$/.test(usageTime)) {
+                    alert('이용시간은 숫자만 입력해주세요.');
+                    return false;
+                }
+            }
+
+            settingList.push({
+                roomId: Number(roomId),
+                status: Number(status),
+                price: Number(price),
+                open: openClose[0],
+                close: openClose[1],
+                usageTime: Number(usageTime),
+            });
+
         });
 
-        const data = {
-            days: days,
-            settings: settings
-        }
-
-        console.log(data);
-
-        const res = await fetch('/api/dailySettings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+        const res = await fetch(`/api/daily/${this.isOvernight}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                dayList: dayList,
+                settingList: settingList,
+            }),
+        }).then(res => res.json()).then(data => {
+            if(data.error) {
+                alert(data.error);
+                return false;
+            }
         });
-        const result = await res.json();
-        if(res.ok) {
-            console.log(result.msg);
-            this.onSaveCallback();
-            return true;
-        }
-        else {
-            console.error(result.msg);
-            return false;
-        }
+        this.onSaveCallback();
+        return true;
     }
 
     remove() {

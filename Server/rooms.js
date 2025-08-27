@@ -208,22 +208,24 @@ function getSettingById(id, bIsOvernight) {
 }
 
 function updateSetting(id, bIsOvernight, status, price, openClose, usageTime) {
-    try {
-        roomsDB.prepare(`
-            UPDATE setting
-            SET status = ?, price = ?, openClose = ?, usageTime = ?
-            WHERE roomId = ? AND bOvernight = ?
-        `).run(status, price, openClose, usageTime, id, bIsOvernight);
-        return {
-            ok: true,
-            msg: ``,
-        }
-    } catch (error) {
-        return {
-            ok: false,
-            msg: error,
-        }
-    }
+    if(typeof id !== 'number') 
+        throw new Error("id must be a number");
+    if(typeof bIsOvernight !== 'number') 
+        throw new Error("bIsOvernight must be a number");
+    if(typeof status !== 'string') 
+        throw new Error("status must be a string");
+    if(typeof price !== 'string') 
+        throw new Error("price must be a string");
+    if(typeof openClose !== 'string') 
+        throw new Error("openClose must be a string");
+    if(typeof usageTime !== 'string') 
+        throw new Error("usageTime must be a string");
+
+    return roomsDB.prepare(`
+        UPDATE setting
+        SET status = ?, price = ?, openClose = ?, usageTime = ?
+        WHERE roomId = ? AND bOvernight = ?
+    `).run(status, price, openClose, usageTime, id, bIsOvernight);
 }
 
 function getDailyListByMonth(bIsOvernight, year, month) {
@@ -267,40 +269,50 @@ function getDailyByDate(bIsOvernight, year, month, date) {
 }
 
 function updateDaily(bIsOvernight, date, month, year, roomId, status, price, open, close, usageTime) {
-    try {
-        const bExist = roomsDB.prepare(`
-            SELECT * FROM daily
-            WHERE bOvernight = ? AND year = ? AND month = ? AND day = ? AND roomId = ?
-        `).get(bIsOvernight, year, month, date, roomId);
+    if(typeof bIsOvernight !== 'number') 
+        throw new Error("bIsOvernight must be a number");
+    if(typeof date !== 'number') 
+        throw new Error("date must be a number");
+    if(typeof month !== 'number') 
+        throw new Error("month must be a number");
+    if(typeof year !== 'number') 
+        throw new Error("year must be a number");
+    if(typeof roomId !== 'number') 
+        throw new Error("roomId must be a number");
+    if(typeof status !== 'number') 
+        throw new Error("status must be a number");
+    if(typeof price !== 'number') 
+        throw new Error("price must be a number");
+    if(typeof open !== 'number') 
+        throw new Error("open must be a number");
+    if(typeof close !== 'number') 
+        throw new Error("close must be a number");
+    if(typeof usageTime !== 'number') 
+        throw new Error("usageTime must be a number");
 
-        if(!bExist) {
-            roomsDB.prepare(`
-                INSERT INTO daily (bOvernight, year, month, day, roomId, status, price, open, close, usageTime)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(
-                bIsOvernight, year, month, date, roomId, 
-                status, price, open, close, usageTime
-            );
-        }
-        else {
-            roomsDB.prepare(`
-                UPDATE daily
-                SET status = ?, price = ?, open = ?, close = ?, usageTime = ?
-                WHERE bOvernight = ? AND year = ? AND month = ? AND day = ? AND roomId = ?
-            `).run(
-                status, price, open, close, usageTime, 
-                bIsOvernight, year, month, date, roomId
-            );
-        }
-        return {
-            ok: true,
-            msg: ``,
-        }
-    } catch (error) {
-        return {
-            ok: false,
-            msg: error,
-        }
+    const bExist = roomsDB.prepare(`
+        SELECT * FROM daily
+        WHERE bOvernight = ? AND year = ? AND month = ? AND day = ? AND roomId = ?
+    `).get(bIsOvernight, year, month, date, roomId);
+
+    if(!bExist) {
+        roomsDB.prepare(`
+            INSERT INTO daily (bOvernight, year, month, day, roomId, status, price, open, close, usageTime)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+            bIsOvernight, year, month, date, roomId, 
+            status, price, open, close, usageTime
+        );
+    }
+    else {
+        roomsDB.prepare(`
+            UPDATE daily
+            SET status = ?, price = ?, open = ?, close = ?, usageTime = ?
+            WHERE bOvernight = ? AND year = ? AND month = ? AND day = ? AND roomId = ?
+        `).run(
+            status, price, open, close, usageTime, 
+            bIsOvernight, year, month, date, roomId
+        );
     }
 }
 
