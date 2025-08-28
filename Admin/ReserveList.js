@@ -49,33 +49,18 @@ class ReserveList {
     }
 
     setupSocketConnection() {
-        // Socket.IO가 로드되었는지 확인
         if (typeof io === 'undefined') {
             setTimeout(() => this.setupSocketConnection(), 200);
             return;
         }
         
-        // 독자적인 소켓 연결 생성
         this.socket = io();
-        
-        // 연결 완료 이벤트 리스너
         this.socket.on('connect', () => {
-            console.log('ReserveList: Socket.IO 연결 완료');
-            this.socket.emit('admin'); // 'admin' 방에 join
+            this.socket.emit('admin');
         });
-        
-        // 연결 실패 이벤트 리스너
-        this.socket.on('connect_error', (error) => {
-            console.error('ReserveList: Socket.IO 연결 실패:', error);
-        });
-        
-        // 예약 업데이트 이벤트 리스너
         this.socket.on('reservation-updated', () => {
-            console.log('ReserveList: reservation-updated 이벤트 수신');
             this.updateTable();
         });
-        
-        console.log('ReserveList: 독자적인 웹소켓 연결 설정 완료');
     }
 
     switchFilter(tabName) {
@@ -86,148 +71,85 @@ class ReserveList {
     }
 
     async updateTable() {
-        const reservations = await fetch('/api/admin/reservations').then(res => res.json());
-
-        // 필터 적용
-        let filteredReservations = reservations;
-        switch(this.currentFilter){
-            case '전체':
-                filteredReservations = reservations;
-                break;
-            case '대기':
-                filteredReservations = reservations.filter(res => res.state === 0);
-                break;
-            case '확정':
-                filteredReservations = reservations.filter(res => res.state === 1);
-                break;
-            case '취소':
-                filteredReservations = reservations.filter(res => res.state === -1);
-                break;
-            default:
-                break;
-        }
-        
-        this.tbody.innerHTML = '';
-
-        if (filteredReservations.length === 0) {
-            const loadingRow = document.createElement('tr');
-            const loadingCell = document.createElement('td');
-            loadingCell.colSpan = 6;
-            loadingCell.textContent = '예약이 없습니다.';
-            loadingCell.className = 'loading-cell';
-            loadingRow.appendChild(loadingCell);
-            this.tbody.appendChild(loadingRow);
-            return;
-        }
-        
-        filteredReservations.forEach(reservation => {
-            const row = document.createElement('tr');
-
-            const idCell = document.createElement('td');
-            idCell.textContent = reservation.id;
-            row.appendChild(idCell);
-
-            const nameCell = document.createElement('td');
-            nameCell.textContent = reservation.username || '-';
-            row.appendChild(nameCell);
-            
-            const phoneCell = document.createElement('td');
-            phoneCell.textContent = reservation.phone || '-';
-            row.appendChild(phoneCell);
-            
-            const roomCell = document.createElement('td');
-            roomCell.textContent = reservation.room || '-';
-            row.appendChild(roomCell);
-            
-            const periodCell = document.createElement('td');
-            const startDate = reservation.start_date || '';
-            const endDate = reservation.end_date || '';
-            periodCell.textContent = endDate ? `${startDate} ~ ${endDate}` : startDate;
-            row.appendChild(periodCell);
-            
-            const actionCell = document.createElement('td');
-            
-            if(reservation.state === 0){
-                // 확정 버튼
-                const confirmBtn = document.createElement('button');
-                confirmBtn.textContent = '확정';
-                confirmBtn.className = 'confirm';
-                confirmBtn.disabled = reservation.state !== 0; // 대기 상태가 아니면 비활성화
-                confirmBtn.onclick = () => this.confirmReservation(reservation.id, confirmBtn);
-                actionCell.appendChild(confirmBtn);
-                
-                // 취소 버튼
-                const cancelBtn = document.createElement('button');
-                cancelBtn.textContent = '취소';
-                cancelBtn.className = 'cancel';
-                cancelBtn.disabled = reservation.state === -1; // 이미 취소된 상태면 비활성화
-                cancelBtn.onclick = () => this.cancelReservation(reservation.id, cancelBtn);
-                actionCell.appendChild(cancelBtn);
+        fetch(`/api/reservation`).then(res => res.json()).then(data => {
+            if(data.error) {
+                alert(data.error);
+                return;
             }
-            else if(reservation.state === 1){
-                actionCell.textContent = '확정';
+            this.tbody.innerHTML = '';
+            let filteredReservations = [];
+            data.forEach(reservation => {
+                switch(this.currentFilter){
+                    case '전체':
+                        filteredReservations.push(reservation);
+                        break;
+                    case '대기':
+                        if(reservation.status === 0) filteredReservations.push(reservation);
+                        break;
+                    case '확정':
+                        if(reservation.status === 1) filteredReservations.push(reservation);
+                        break;
+                    case '취소':
+                        if(reservation.status === -1) filteredReservations.push(reservation);
+                        break;
+                }
+            });
+            if(filteredReservations.length === 0){
+                this.tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6">예약이 없습니다.</td>
+                    </tr>
+                `;
             }
-            else if(reservation.state === -1){
-                actionCell.textContent = '취소';
-            }
-            row.appendChild(actionCell);
-            
+            filteredReservations.forEach(reservation => {
+                this.tbody.innerHTML += `
+                    <tr>
+                        <td>${reservation.id}</td>
+                        <td>${reservation.customerName}</td>
+                        <td>${reservation.customerPhone}</td>
+                        <td>${reservation.roomName}</td>
+                        <td>${reservation.checkinDate} 입실 ~ ${reservation.checkoutDate} 퇴실</td>
+                        <td>
+                            ${reservation.status === 0 ? `
+                                <button class="confirm" id="confirm-${reservation.id}">확정</button>
+                                <button class="cancel" id="cancel-${reservation.id}">취소</button>
+                            ` : ''}
+                            ${reservation.status === 1 ? `확정` : ''}
+                            ${reservation.status === -1 ? `취소` : ''}
+                        </td>
+                    </tr>
+                `;
 
-            this.tbody.appendChild(row);
+
+            });
+
+            const buttons = this.tbody.querySelectorAll('button');
+
+            buttons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const [type, id] = btn.id.split('-');
+                    const msg = type === 'confirm' ? '확정' : '취소';
+                    const statusTo = type === 'confirm' ? 1 : -1;
+                    if(!confirm(`이 예약을 ${msg}하시겠습니까?`)) {
+                        return;
+                    }
+                    fetch(`/api/reservation/${id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: statusTo })
+                    })
+                    .then(res => res.json()).then(data => {
+                        if(data.error) {
+                            alert(data.error);
+                            return;
+                        }
+                        this.updateTable();
+                    })
+                });
+            });
         });
     }
 
-    confirmReservation(id, btn) {
-        if (!confirm('이 예약을 확정하시겠습니까?')) return;
-        btn.disabled = true;
-        
-        fetch('/api/admin/confirm', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: id })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                alert('예약이 확정되었습니다!');
-                this.updateTable();
-            } else {
-                alert('오류: ' + (data.error || '확정 실패'));
-                btn.disabled = false;
-            }
-        })
-        .catch(error => {
-            console.error('예약 확정 실패:', error);
-            alert('예약 확정 중 오류가 발생했습니다.');
-            btn.disabled = false;
-        });
-    }
-
-    cancelReservation(id, btn) {
-        if (!confirm('이 예약을 취소하시겠습니까?')) return;
-        btn.disabled = true;
-        
-        fetch('/api/cancel', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: id })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                alert('예약이 취소되었습니다!');
-                this.updateTable();
-            } else {
-                alert('오류: ' + (data.error || '취소 실패'));
-                btn.disabled = false;
-            }
-        })
-        .catch(error => {
-            console.error('예약 취소 실패:', error);
-            alert('예약 취소 중 오류가 발생했습니다.');
-            btn.disabled = false;
-        });
-    }
 
     async reload() {
         await this.updateTable();

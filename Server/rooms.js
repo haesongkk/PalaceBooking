@@ -37,6 +37,53 @@ roomsDB.exec(`
     );
 `);
 
+roomsDB.exec(`
+    CREATE TABLE IF NOT EXISTS reservations (
+        id INTEGER PRIMARY KEY,
+        customerID INTEGER NOT NULL,
+        roomID INTEGER NOT NULL,
+        checkinDate TEXT NOT NULL,
+        checkoutDate TEXT NOT NULL,
+        price INTEGER NOT NULL,
+        status INTEGER NOT NULL
+    );
+`);
+
+function createReservation(customerID, roomID, checkinDate, checkoutDate, price, status) {
+    if(typeof customerID !== 'number') 
+        throw new Error("customerID must be a number");
+    if(typeof roomID !== 'number') 
+        throw new Error("roomID must be a number");
+    if(typeof checkinDate !== 'string') 
+        throw new Error("checkinDate must be a string");
+    if(typeof checkoutDate !== 'string') 
+        throw new Error("checkoutDate must be a string");
+    if(typeof price !== 'number') 
+        throw new Error("price must be a number");
+    if(typeof status !== 'number') 
+        throw new Error("status must be a number");
+
+    return roomsDB.prepare(`
+        INSERT INTO reservations (customerID, roomID, checkinDate, checkoutDate, price, status)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `).run(customerID, roomID, checkinDate, checkoutDate, price, status);
+}
+
+function getReservationList() {
+    return roomsDB.prepare(`SELECT * FROM reservations`).all();
+}
+
+function updateReservationStatus(id, status) {
+    if(typeof id !== 'number') throw new Error("id must be a number");
+    if(typeof status !== 'number') throw new Error("status must be a number");
+
+    return roomsDB.prepare(`
+        UPDATE reservations
+        SET status = ?
+        WHERE id = ?
+    `).run(status, id);
+}
+
 function getRoomList() {
     try {
         return {
@@ -316,6 +363,16 @@ function updateDaily(bIsOvernight, date, month, year, roomId, status, price, ope
     }
 }
 
+function getReservationListByCustomerID(customerID) {
+    if(typeof customerID !== 'number') 
+        throw new Error("customerID must be a number");
+
+    return roomsDB.prepare(`
+        SELECT * FROM reservations
+        WHERE customerID = ?
+    `).all(customerID);
+}
+
 module.exports = {
     getRoomList,
     getRoomById,
@@ -330,5 +387,10 @@ module.exports = {
 
     getDailyListByMonth,
     getDailyByDate,
-    updateDaily
+    updateDaily,
+
+    createReservation,
+    getReservationList,
+    updateReservationStatus,
+    getReservationListByCustomerID,
 }

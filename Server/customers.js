@@ -1,18 +1,14 @@
 const Database = require("better-sqlite3");
-const path = require("path");
-
 const customersDb = new Database("customers.db");
 
-customersDb.prepare(`
+customersDb.exec(`
   CREATE TABLE IF NOT EXISTS customers (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     phone TEXT NOT NULL,
-    memo TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`).run();
+    memo TEXT
+  );
+`);
 
 function getCustomerById(id) {
     if(typeof id !== 'number') throw new Error('id must be a number');
@@ -174,21 +170,9 @@ function registerCustomer(phone) {
 }
 
 function getCustomer(phone) {
-    const customer = customersDb.prepare(
+    return customersDb.prepare(
         'SELECT * FROM customers WHERE phone = ?'
     ).get(phone);
-
-    if(!customer) return {
-        status: 404,
-        msg: '고객 정보가 존재하지 않습니다.',
-        data: null
-    };
-
-    return {
-        status: 200,
-        msg: '고객 조회 성공',
-        data: customer
-    };
 }
 
 module.exports = {
