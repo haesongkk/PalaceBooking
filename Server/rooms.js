@@ -10,6 +10,17 @@ roomsDB.exec(`
         description TEXT NOT NULL
     );
 `);
+
+roomsDB.exec(`
+    CREATE TABLE IF NOT EXISTS image (
+        id       INTEGER,
+
+        data     BLOB NOT NULL,    
+        mime     TEXT NOT NULL,    
+        size     INTEGER NOT NULL
+    );
+`);
+
 roomsDB.exec(`
     CREATE TABLE IF NOT EXISTS setting (
         roomId INTEGER,
@@ -48,6 +59,32 @@ roomsDB.exec(`
         status INTEGER NOT NULL
     );
 `);
+
+function createImage(data, mime, size) {
+    if(!(data instanceof Buffer)) 
+        throw new Error("data must be a Buffer");
+    if(typeof mime !== 'string') 
+        throw new Error("mime must be a string");
+    if(typeof size !== 'number') 
+        throw new Error("size must be a number");
+
+    return roomsDB.prepare(`
+        INSERT INTO image (id, data, mime, size)
+        VALUES (?, ?, ?, ?)
+        RETURNING *
+    `).get(new Date().getTime(), data, mime, size);
+}
+
+function getImageById(id) {
+    if(typeof id !== 'number') 
+        throw new Error("id must be a number");
+
+    return roomsDB.prepare(`
+        SELECT * 
+        FROM image 
+        WHERE id = ?
+    `).get(id);
+}
 
 function createReservation(customerID, roomID, checkinDate, checkoutDate, price, status) {
     if(typeof customerID !== 'number') 
@@ -313,6 +350,9 @@ module.exports = {
     getRoomList,
     getRoomById,
     updateRoom,
+
+    createImage,
+    getImageById,
 
     deleteRoom,
     createRoom,

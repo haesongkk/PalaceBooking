@@ -1,12 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import path from 'path';
-import Database from 'better-sqlite3';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import multer from 'multer';
-import fs from 'fs';
 
 
 import customersModule from "./customers.js";
@@ -14,10 +11,15 @@ import roomsModule from "./rooms.js";
 import discountModule from "./discount.js";
 
 
-
-
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+import os from 'os';
+
+const server = http.createServer(app);
+const io = new SocketIOServer(server, {
+    cors: { origin: "*" }
+});
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -26,31 +28,33 @@ app.use(express.static("../Client"));
 app.use('/admin', express.static('../Admin'));
 
 app.use('/img', express.static('./img'));
-app.use('/uploads', express.static('./uploads'));
 
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, './uploads'),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9._-]/g, '');
-    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, `${base}-${unique}${ext}`);
-  },
+const upload = multer({ storage: multer.memoryStorage() });
+
+app.post("/api/image", upload.array('image', 10), (req, res) => {
+    try {
+        let idList = [];
+        req.files.forEach(file => {
+            const image = roomsModule.createImage(file.buffer, file.mimetype, file.size);
+            idList.push(image.id);
+        });
+
+        res.status(200).json(idList);
+    } catch (error) {
+        res.status(503).json({ error: error.message });
+    }
 });
-const upload = multer({ 
-    storage,
-    limits: { fileSize: 20 * 1024 * 1024 },
-    fileFilter: (req, file, cb) => {
-        const ok = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.mimetype);
-        if (!ok) return cb(new Error('허용되지 않는 파일 형식입니다.'), false);
-        cb(null, true);
-    },
- });
 
-app.post("/api/uploadImage", upload.array('image', 10), (req, res) => {
-    const urlList = req.files.map(file => `/uploads/${file.filename}`);
-    res.status(200).json(urlList);
+app.get(`/api/image/:id`, (req, res) => {
+    try {
+        const { id } = req.params;
+        const image = roomsModule.getImageById(Number(id));
+        res.setHeader('Content-Type', image.mime);
+        res.send(image.data);
+    } catch (error) {
+        res.status(503).json({ error: error.message });
+    }
 });
 
 
@@ -613,12 +617,7 @@ app.get('/api/admin/login/:password', (req, res) => {
 
 
 
-import os from 'os';
 
-const server = http.createServer(app);
-const io = new SocketIOServer(server, {
-    cors: { origin: "*" }
-});
 
 // 소켓 연결 관리
 io.on("connection", (socket) => {

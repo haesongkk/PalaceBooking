@@ -52,7 +52,7 @@ class RoomEdit {
                 const preview = document.createElement('img');
                 roomImagePreview.appendChild(preview);
 
-                preview.src = image;
+                preview.src = `/api/image/${image}`;
                 preview.style.width = '100px';
                 preview.style.height = '100px';
                 preview.addEventListener('click', () => {
@@ -70,23 +70,28 @@ class RoomEdit {
                 for(const file of addedFiles) {
                     formData.append('image', file);
                 }
-                fetch('/api/uploadImage', {
+                fetch('/api/image', {
                     method: 'POST',
                     body: formData
                 })
                 .then(res => res.json())
                 .then(data => {
-                    for(const url of data) {
-                        this.imageList.push(url);
+                    if(data.error) {
+                        alert(data.error);
+                        return;
+                    }
+
+                    for(const id of data) {
+                        this.imageList.push(id);
                         const preview = document.createElement('img');
                         roomImagePreview.appendChild(preview);
 
-                        preview.src = url;
+                        preview.src = `/api/image/${id}`;
                         preview.style.width = '100px';
                         preview.style.height = '100px';
                         preview.addEventListener('click', () => {
                             if(confirm('이미지를 삭제하시겠습니까?')) {
-                                this.imageList.splice(this.imageList.indexOf(url), 1);
+                                this.imageList.splice(this.imageList.indexOf(id), 1);
                                 preview.remove();
                             }
                         });
