@@ -78,18 +78,17 @@ app.get("/api/rooms/:id", (req, res) => {
 });
 
 app.post("/api/rooms", (req, res) => {
-    if(!req.body) return res.status(400).json({ error: "body 오류" });
-    const { name, image, description } = req.body;
+    try {
+        const { name, image, description } = req.body;
+        if(name == undefined) return res.status(400).json({ error: "name 누락" });
+        if(image == undefined) return res.status(400).json({ error: "image 누락" });
+        if(description == undefined) return res.status(400).json({ error: "description 누락" });
 
-    if(!name) return res.status(400).json({ error: "name 누락" });
-    if(!image) return res.status(400).json({ error: "image 누락" });
-    if(!description) return res.status(400).json({ error: "description 누락" });
-
-
-    const rt = roomsModule.createRoom(name, image, description);
-    if(!rt.ok) return res.status(503).json({ error: rt.msg });
-
-    return res.status(200);
+        const id = roomsModule.createRoom(name, image, description);
+        res.status(200).json(id);
+    } catch (error) {
+        res.status(503).json({ error: error.message });
+    }
 });
 
 
@@ -116,18 +115,18 @@ app.put("/api/rooms/:id", (req, res) => {
 });
 
 app.delete("/api/rooms/:id", (req, res) => {
-    if(!req.params) return res.status(400).json({ error: "params 오류" });
-    const { id } = req.params;
-    if(!id) return res.status(400).json({ error: "id 누락" });
-    
-    const nID = Number(id);
-    const rt = roomsModule.deleteRoom(nID);
-    if(rt.ok) {
-        res.status(200).json(rt.msg);
-        const rtDefault = defaultModule.removeDefault(nID);
-    } else {
-        res.status(503).json(rt.msg);
+    try {
+        const { id } = req.params;
+        if(id == undefined) return res.status(400).json({ error: "id 누락" });
+
+        roomsModule.deleteRoom(Number(id));
+        res.status(200).json({ msg: "delete room success" });
     }
+    catch (error) {
+        return res.status(503).json({ error: error.message });
+    }
+    
+
 });
 
 

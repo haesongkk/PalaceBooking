@@ -10,24 +10,39 @@ class RoomList {
             </div>
         `;
 
-        this.container.querySelector('.room-settings-add-button').addEventListener('click', () => {
-            this.addRoom();
-        });
+        this.container.querySelector('.room-settings-add-button').onclick = () => {
+            fetch('/api/rooms', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: '새 객실',
+                    image: JSON.stringify(['/uploads/default.png']),
+                    description: '새 객실 설명'
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.error) {
+                    alert(data.error);
+                    return;
+                }
+                this.updateRoomList();
+            })
+        }
 
         this.updateRoomList();
     }
 
     updateRoomList() {
-        console.log(this.container);
         const bottomContainer = this.container.querySelector('.room-settings-bottom-container');
-        console.log(bottomContainer);
         bottomContainer.innerHTML = '';
 
         fetch('/api/rooms')
         .then(res => res.json())
         .then(data => {
             data.forEach(room => {
-                console.log(room);
                 const roomItem = `
                     <div class="room-settings-item">
                         <h3>${room.name}</h3>
@@ -67,23 +82,6 @@ class RoomList {
         })
     }
 
-    addRoom() {
-        fetch('/api/rooms', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                name: '새 객실',
-                image: JSON.stringify(['/uploads/default.png']),
-                description: '새 객실 설명'
-            })
-        })
-        .then(res => {
-            this.updateRoomList();
-        })
-    }
-
     editRoom(id) {
         window.popupCanvas.append(
             '객실 수정', 
@@ -92,14 +90,17 @@ class RoomList {
     }
 
     deleteRoom(id) {
+        if(!confirm("정말 삭제하시겠습니까?")) return;
         fetch(`/api/rooms/${id}`, {
             method: 'DELETE'
         })
-        .then(res => {
-            if(res.status !== 200) {
-                confirm(res.json().error);
+        .then(res => res.json())
+        .then(data => {
+            if(data.error) {
+                alert(data.error);
                 return;
             }
+
             this.updateRoomList();
         })
     }

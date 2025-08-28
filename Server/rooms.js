@@ -12,7 +12,7 @@ roomsDB.exec(`
 `);
 roomsDB.exec(`
     CREATE TABLE IF NOT EXISTS setting (
-        roomId INTEGER REFERENCES room(id),
+        roomId INTEGER,
         bOvernight INTEGER NOT NULL CHECK (bOvernight IN (0, 1)),
 
         status TEXT NOT NULL,
@@ -23,7 +23,7 @@ roomsDB.exec(`
 `);
 roomsDB.exec(`
     CREATE TABLE IF NOT EXISTS daily (
-        roomId INTEGER REFERENCES room(id),
+        roomId INTEGER,
         bOvernight INTEGER NOT NULL,
         year INTEGER NOT NULL,
         month INTEGER NOT NULL,
@@ -136,76 +136,60 @@ function updateRoom(id, szName, imagePath, szDescription) {
 }
 
 function deleteRoom(id) {
-    try {
-        roomsDB.prepare(`
-            DELETE FROM room
-            WHERE id = ?
-        `).run(id);
+    if(typeof id !== 'number') 
+        throw new Error("id must be a number");
 
-        // 기본 설정 (대실/숙박) 삭제
-        roomsDB.prepare(`
-            DELETE FROM setting
-            WHERE roomId = ?
-        `).run(id);
+    roomsDB.prepare(`
+        DELETE FROM room
+        WHERE id = ?
+    `).run(id);
 
-        // 일일 설정 (대실/숙박) 삭제
-        roomsDB.prepare(`
-            DELETE FROM daily
-            WHERE roomId = ?
-        `).run(id);
+    roomsDB.prepare(`
+        DELETE FROM setting
+        WHERE roomId = ?
+    `).run(id);
 
-        return {
-            ok: true,
-            msg: ``,
-        }
-    } catch (error) {
-        return {
-            ok: false,
-            msg: error,
-        }
-    }
+    roomsDB.prepare(`
+        DELETE FROM daily
+        WHERE roomId = ?
+    `).run(id);
 }
 
 function createRoom(szName, szImagePath, szDescription) {
-    try {
-        const rt = roomsDB.prepare(`
-            INSERT INTO room (name, image, description)
-            VALUES (?, ?, ?)
-        `).run(szName, szImagePath, szDescription);
-        const roomId = rt.lastInsertRowid;
+    if(typeof szName !== 'string') 
+        throw new Error("szName must be a string");
+    if(typeof szImagePath !== 'string') 
+        throw new Error("szImagePath must be a string");
+    if(typeof szDescription !== 'string') 
+        throw new Error("szDescription must be a string");
 
-        // 기본 설정 (대실) 생성
-        roomsDB.prepare(`
-            INSERT INTO setting (roomId, bOvernight, status, price, openClose, usageTime)
-            VALUES (?, 0, 
-            '[1,1,1,1,1,1,1]', 
-            '[30000,30000,30000,30000,30000,30000,30000]', 
-            '[[12,22],[12,22],[12,22],[12,22],[12,22],[12,22],[12,22]]', 
-            '[5,5,5,5,5,5,5]')
-        `).run(roomId);
+    const rt = roomsDB.prepare(`
+        INSERT INTO room (name, image, description)
+        VALUES (?, ?, ?)
+    `).run(szName, szImagePath, szDescription);
+    const roomId = rt.lastInsertRowid;
 
-        // 기본 설정 (숙박) 생성
-        roomsDB.prepare(`
-            INSERT INTO setting (roomId, bOvernight, status, price, openClose, usageTime)
-            VALUES (?, 1,
-            '[1,1,1,1,1,1,1]', 
-            '[50000,50000,50000,50000,50000,50000,50000]', 
-            '[[13,11],[13,11],[13,11],[13,11],[13,11],[13,11],[13,11]]', 
-            '[0,0,0,0,0,0,0]')
-        `).run(roomId);
+    // 기본 설정 (대실) 생성
+    roomsDB.prepare(`
+        INSERT INTO setting (roomId, bOvernight, status, price, openClose, usageTime)
+        VALUES (?, 0, 
+        '[1,1,1,1,1,1,1]', 
+        '[30000,30000,30000,30000,30000,30000,30000]', 
+        '[[12,22],[12,22],[12,22],[12,22],[12,22],[12,22],[12,22]]', 
+        '[5,5,5,5,5,5,5]')
+    `).run(roomId);
 
-        return {
-            ok: true,
-            msg: ``,
-            data: roomId
-        }
-    } catch (error) {
-        return {
-            ok: false,
-            msg: error,
-            data: null
-        }
-    }
+    // 기본 설정 (숙박) 생성
+    roomsDB.prepare(`
+        INSERT INTO setting (roomId, bOvernight, status, price, openClose, usageTime)
+        VALUES (?, 1,
+        '[1,1,1,1,1,1,1]', 
+        '[50000,50000,50000,50000,50000,50000,50000]', 
+        '[[13,11],[13,11],[13,11],[13,11],[13,11],[13,11],[13,11]]', 
+        '[0,0,0,0,0,0,0]')
+    `).run(roomId);
+
+    return roomId;
 }
 
 function getSettingList(bIsOvernight) {

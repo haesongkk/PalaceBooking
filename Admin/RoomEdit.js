@@ -46,17 +46,15 @@ class RoomEdit {
 
             const roomImagePreview = this.container.querySelector('.room-image-preview');
             const imageList = JSON.parse(data.image);
-            console.log(imageList);
 
             for(const image of imageList) {
                 this.imageList.push(image);
-                roomImagePreview.innerHTML += `
-                    <img 
-                        src="${image}" 
-                        style="width: 100px; height: 100px;"
-                    >
-                `;
-                const preview = roomImagePreview.querySelector(`img[src="${image}"]`);
+                const preview = document.createElement('img');
+                roomImagePreview.appendChild(preview);
+
+                preview.src = image;
+                preview.style.width = '100px';
+                preview.style.height = '100px';
                 preview.addEventListener('click', () => {
                     if(confirm('이미지를 삭제하시겠습니까?')) {
                         this.imageList.splice(this.imageList.indexOf(image), 1);
@@ -80,13 +78,12 @@ class RoomEdit {
                 .then(data => {
                     for(const url of data) {
                         this.imageList.push(url);
-                        roomImagePreview.innerHTML += `
-                            <img 
-                                src="${url}" 
-                                style="width: 100px; height: 100px;"
-                            >
-                        `;
-                        const preview = roomImagePreview.querySelector(`img[src="${url}"]`);
+                        const preview = document.createElement('img');
+                        roomImagePreview.appendChild(preview);
+
+                        preview.src = url;
+                        preview.style.width = '100px';
+                        preview.style.height = '100px';
                         preview.addEventListener('click', () => {
                             if(confirm('이미지를 삭제하시겠습니까?')) {
                                 this.imageList.splice(this.imageList.indexOf(url), 1);
