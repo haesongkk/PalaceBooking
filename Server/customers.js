@@ -14,6 +14,15 @@ customersDb.prepare(`
   )
 `).run();
 
+function getCustomerById(id) {
+    if(typeof id !== 'number') throw new Error('id must be a number');
+
+    return customersDb.prepare(`
+        SELECT * FROM customers 
+        WHERE id = ?
+    `).get(id);
+}
+
 function saveCustomer(name, phone, memo) {
     if(!name) return { 
         status: 400, 
@@ -188,5 +197,6 @@ module.exports = {
     updateCustomer,
     searchCustomer,
     registerCustomer,
-    getCustomer
+    getCustomer,
+    getCustomerById
 };

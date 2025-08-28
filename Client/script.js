@@ -72,6 +72,7 @@ function setFloating(menus){
 
 let username;
 let userPhone = "01090909090";
+let userID = 1;
 let recentStartDate;
 let recentEndDate;
 let recentRoomType;
@@ -466,7 +467,7 @@ async function checkReservation(){
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            customerID: userPhone,
+            customerID: userID,
             roomID: reservationInfo.roomID,
             checkinDate: reservationInfo.startDate,
             checkoutDate: reservationInfo.endDate

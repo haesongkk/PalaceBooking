@@ -338,85 +338,79 @@ function getReservationPrice(roomId, checkinDate, checkoutDate, discount){
     let originalPrice = 0;
     let discountedPrice = 0;
 
+    const startDate = new Date(checkinDate);
+    const endDate = new Date(checkoutDate);
+
+    let checkDate = new Date(startDate);
+    while(checkDate < endDate){
 
 
-    // const startDate = new Date(checkinDate);
-    // const endDate = new Date(checkoutDate);
-    // let checkDate = new Date(startDate);
-    // let price = 0;
-    // // 매 일자를 돌면서 가격을 누적하고 마감인 날이 있다면 -1 반환
-    // while(checkDate < endDate){
-    //     const dailyRt = roomsModule.getDailyByDate(1, checkDate.getFullYear(), checkDate.getMonth() + 1, checkDate.getDate());
-    //     if(!dailyRt.ok) throw new Error(dailyRt.msg);
+        let setting = Array.from(roomsModule.getDailyByDate(1, checkDate.getFullYear(), checkDate.getMonth() + 1, checkDate.getDate()).data).find(room => room.roomId == roomId);
+        if(!setting) {
+            const dayOfWeek = new Date(checkDate.getFullYear(), checkDate.getMonth() + 1, checkDate.getDate()).getDay();
+            const settingRt = roomsModule.getSettingById(roomId, 1);
+
+            setting = {
+                status: JSON.parse(settingRt.data.status)[dayOfWeek],
+                price: JSON.parse(settingRt.data.price)[dayOfWeek],
+            };
+        }
+
+        if(setting.status == 0) return -1;
+        originalPrice += Number(setting.price);
         
-    //     const daily = dailyRt.data.find(room => room.roomId == roomId);
-    //     if(daily) {
-    //         if(daily.status == 0) return -1;
-    //         price += Number(daily.price);
-    //     }
-    //     if(!daily) {
-    //         const settingRt = roomsModule.getSettingById(roomId, 1);
-    //         if(!settingRt.ok) throw new Error(settingRt.msg);
-
-    //         const dayOfWeek = new Date(checkDate.getFullYear(), checkDate.getMonth() + 1, checkDate.getDate()).getDay();
-
-    //         if(JSON.parse(settingRt.data.status)[dayOfWeek] == 0) return -1;
-    //         price += Number(JSON.parse(settingRt.data.price)[dayOfWeek]);
-    //     }
-    //     checkDate.setDate(checkDate.getDate() + 1);
-    // }
-    // return price;
+        discountedPrice -= discount;
+        checkDate.setDate(checkDate.getDate() + 1);
+    }
+    discountedPrice += originalPrice;
     return [originalPrice, discountedPrice];
 }
 
-function getCustomerType(customerID){
-    // const customerRt = customersModule.getCustomer(customerID);
-    // if(!customerRt.ok) throw new Error(customerRt.msg);
-    // if(customerRt.data.bFirstVisit) return 1;
-    // return 0;
-    return 1;
-}
-
 app.post(`/api/chatbot/getReservationPrice`, (req, res) => {
-    const { customerID, roomID, checkinDate, checkoutDate } = req.body;
-    if(!customerID) return res.status(400).json({ error: "customerID 누락" });
-    if(!roomID) return res.status(400).json({ error: "roomID 누락" });
-    if(!checkinDate) return res.status(400).json({ error: "checkinDate 누락" });
-    if(!checkoutDate) return res.status(400).json({ error: "checkoutDate 누락" });
+    try {
+        const { customerID, roomID, checkinDate, checkoutDate } = req.body;
+        if(!customerID) return res.status(400).json({ error: "customerID 누락" });
+        if(!roomID) return res.status(400).json({ error: "roomID 누락" });
+        if(!checkinDate) return res.status(400).json({ error: "checkinDate 누락" });
+        if(!checkoutDate) return res.status(400).json({ error: "checkoutDate 누락" });
 
-    let customerType = getCustomerType(customerID);
-    let discount = customerType == 1 ? discountModule.getDiscount().firstVisitDiscount : discountModule.getDiscount().recentVisitDiscount;
-    let [originalPrice, discountedPrice] = getReservationPrice(roomID, checkinDate, checkoutDate, discount);
-    
-    if(originalPrice == -1) {
-        return res.status(200).json({
-            ok: false,
-            floatings: ["날짜 변경하기", "객실 변경하기", "취소하기"],
-            msg: ["선택하신 날짜에 해당 객실이 마감되었습니다. 다른 날짜나 객실을 선택해주세요."],
-        });
-    }
-    if(originalPrice != -1){
-        let msg = [];
+        const customerType = customersModule.getCustomerById(customerID)? 0: 1;
+        let discount = customerType == 1 ? discountModule.getDiscount().firstVisitDiscount : discountModule.getDiscount().recentVisitDiscount;
+        let [originalPrice, discountedPrice] = getReservationPrice(roomID, checkinDate, checkoutDate, discount);
         
-        const szRoomName = roomsModule.getRoomById(roomID).data.name;
-        const szStartDate = new Date(checkinDate).toLocaleDateString();
-        const szEndDate = new Date(checkoutDate).toLocaleDateString();
-        const szCustomerType = customerType == 1 ? "첫 예약 고객" : "단골 고객";
-        const szOrginalPrice = originalPrice.toLocaleString();
-        const szDiscountedPrice = discountedPrice.toLocaleString();
-        const szDiscount = discount.toLocaleString();
+        if(originalPrice == -1) {
+            return res.status(200).json({
+                ok: false,
+                floatings: ["날짜 변경하기", "객실 변경하기", "취소하기"],
+                msg: ["선택하신 날짜에 해당 객실이 마감되었습니다. 다른 날짜나 객실을 선택해주세요."],
+            });
+        }
+        if(originalPrice != -1){
+            let msg = [];
+            
+            const szRoomName = roomsModule.getRoomById(roomID).data.name;
+            const szStartDate = new Date(checkinDate).toLocaleDateString();
+            const szEndDate = new Date(checkoutDate).toLocaleDateString();
+            const szCustomerType = customerType == 1 ? "첫 예약 고객" : "단골 고객";
+            const szOrginalPrice = originalPrice.toLocaleString();
+            const szDiscountedPrice = discountedPrice.toLocaleString();
+            const szDiscount = discount.toLocaleString();
 
-        msg.push(`${szRoomName} ${szStartDate} 입실 ~ ${szEndDate} 퇴실`);
-        msg.push(`${szCustomerType} 1박 당 ${szDiscount}원 할인 적용!`);
-        msg.push(`기준가: ${szOrginalPrice}원 → 할인 가격: ${szDiscountedPrice}원`);
-        msg.push(`예약하시겠습니까?`);
+            msg.push(`${szRoomName} ${szStartDate} 입실 ~ ${szEndDate} 퇴실`);
+            msg.push(`${szCustomerType} 1박 당 ${szDiscount}원 할인 적용!`);
+            msg.push(`기준가: ${szOrginalPrice}원 → 할인 가격: ${szDiscountedPrice}원`);
+            msg.push(`예약하시겠습니까?`);
 
-        return res.status(200).json({
-            ok: true,
-            floatings: ["날짜 변경하기", "객실 변경하기", "예약하기", "취소하기"],
-            msg: msg,
-        });
+            return res.status(200).json({
+                ok: true,
+                floatings: ["날짜 변경하기", "객실 변경하기", "예약하기", "취소하기"],
+                msg: msg,
+            });
     }
+    } catch (error) {
+        res.status(503).json({ error: error.message });
+    }
+
 });
 
 
