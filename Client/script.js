@@ -355,7 +355,7 @@ function showRooms(){
                         <div class="room-card" id="${room.id}-${room.name}">
                             <h3>${room.name}</h3>
                             ${JSON.parse(room.image).map(img => `
-                                <img src="${img}" style="width: 100px; height: 100px; object-fit: cover;">
+                                <img src="/api/image/${img}" style="width: 100px; height: 100px; object-fit: cover;">
                             `).join('')}
                             <p>${room.description}</p>
                         </div>
@@ -450,7 +450,6 @@ async function checkReservation(){
 function disableLastBotMessage(){
     const botMessages = document.querySelectorAll('.message.bot');
     botMessages[botMessages.length - 1].querySelectorAll('button').forEach(btn => {
-        console.log(btn);
         btn.disabled = true;
         btn.onclick = null;
         btn.style.opacity = '0.8';

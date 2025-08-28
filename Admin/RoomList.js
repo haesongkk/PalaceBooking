@@ -48,7 +48,7 @@ class RoomList {
                         <h3>${room.name}</h3>
                         ${JSON.parse(room.image).map(image => `
                             <img 
-                                src="${image}" 
+                                src="/api/image/${image}" 
                                 style="width: 100px; height: 100px;"
                             >`).join('')}
                         ${room.description.split('\n').map(line => `
