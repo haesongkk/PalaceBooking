@@ -85,54 +85,35 @@ function updateReservationStatus(id, status) {
 }
 
 function getRoomList() {
-    try {
-        return {
-            ok: true,
-            msg: ``,
-            data: roomsDB.prepare(`SELECT * FROM room`).all()
-        }
-    } catch (error) {
-        return {
-            ok: false,
-            msg: error,
-            data: []
-        }
-    }
+    return roomsDB.prepare(`SELECT * FROM room`).all();
 }
 
-function getRoomById(nID) {
-    try {
-        return {
-            ok: true,
-            msg: ``,
-            data: roomsDB.prepare(`SELECT * FROM room WHERE id = ?`).get(nID)
-        }
-    } catch (error) {
-        return {
-            ok: false,
-            msg: error,
-            data: null
-        }
-    }
+function getRoomById(id) {
+    if(typeof id !== 'number') 
+        throw new Error("id must be a number");
+
+    return roomsDB.prepare(`
+        SELECT * 
+        FROM room 
+        WHERE id = ?
+        `).get(id);
 }
 
-function updateRoom(id, szName, imagePath, szDescription) {
-    try {
-        roomsDB.prepare(`
-            UPDATE room
-            SET name = ?, image = ?, description = ?
-            WHERE id = ?
-        `).run(szName, JSON.stringify(imagePath), szDescription, id)
-        return {
-            ok: true,
-            msg: ``,
-        }
-    } catch (error) {
-        return {
-            ok: false,
-            msg: error,
-        }
-    }
+function updateRoom(id, szName, szImagePaths, szDescription) {
+    if(typeof id !== 'number') 
+        throw new Error("id must be a number");
+    if(typeof szName !== 'string') 
+        throw new Error("szName must be a string");
+    if(typeof szImagePaths !== 'string') 
+        throw new Error("szImagePaths must be a string");
+    if(typeof szDescription !== 'string') 
+        throw new Error("szDescription must be a string");
+
+    return roomsDB.prepare(`
+        UPDATE room
+        SET name = ?, image = ?, description = ?
+        WHERE id = ?
+    `).run(szName, szImagePaths, szDescription, id);
 }
 
 function deleteRoom(id) {
@@ -193,49 +174,28 @@ function createRoom(szName, szImagePath, szDescription) {
 }
 
 function getSettingList(bIsOvernight) {
-    try {
-        return {
-            ok: true,
-            msg: ``,
-            data: roomsDB.prepare(`
-                SELECT * 
-                FROM setting
-                WHERE bOvernight = ?    
-                `).all(bIsOvernight)
-        }
-    } catch (error) {
-        return {
-            ok: false,
-            msg: error,
-            data: []
-        }
-    }
+    if(typeof bIsOvernight !== 'number') 
+        throw new Error("bIsOvernight must be a number");
+
+    return roomsDB.prepare(`
+        SELECT * 
+        FROM setting
+        WHERE bOvernight = ?    
+        `).all(bIsOvernight);
 }
 
 function getSettingById(id, bIsOvernight) {
-    try {
-        const overnight = bIsOvernight ? 1 : 0;
-        console.log(roomsDB.prepare(`
-            SELECT * 
-            FROM setting
-            WHERE roomId = ? AND bOvernight = ?
-            `).get(id, overnight));
-        return {
-            ok: true,
-            msg: ``,
-            data: roomsDB.prepare(`
-                SELECT * 
-                FROM setting
-                WHERE roomId = ? AND bOvernight = ?
-                `).get(id, overnight)
-        }
-    } catch (error) {
-        return {
-            ok: false,
-            msg: error,
-            data: null
-        }
-    }
+    if(typeof id !== 'number') 
+        throw new Error("id must be a number");
+    if(typeof bIsOvernight !== 'number') 
+        throw new Error("bIsOvernight must be a number");
+
+    const overnight = bIsOvernight ? 1 : 0;
+    return roomsDB.prepare(`
+        SELECT * 
+        FROM setting
+        WHERE roomId = ? AND bOvernight = ?
+        `).get(id, overnight);
 }
 
 function updateSetting(id, bIsOvernight, status, price, openClose, usageTime) {
@@ -260,23 +220,18 @@ function updateSetting(id, bIsOvernight, status, price, openClose, usageTime) {
 }
 
 function getDailyListByMonth(bIsOvernight, year, month) {
-    try {
-        return {
-            ok: true,
-            msg: ``,
-            data: roomsDB.prepare(`
-                SELECT * 
-                FROM daily
-                WHERE bOvernight = ? AND year = ? AND month = ?
-            `).all(bIsOvernight, year, month)
-        }
-    } catch (error) {
-        return {
-            ok: false,
-            msg: error,
-            data: []
-        }
-    }
+    if(typeof bIsOvernight !== 'number') 
+        throw new Error("bIsOvernight must be a number");
+    if(typeof year !== 'number') 
+        throw new Error("year must be a number");
+    if(typeof month !== 'number') 
+        throw new Error("month must be a number");
+
+    return roomsDB.prepare(`
+        SELECT * 
+        FROM daily
+        WHERE bOvernight = ? AND year = ? AND month = ?
+    `).all(bIsOvernight, year, month);
 }
 
 function getDailyByDate(bIsOvernight, year, month, date) {

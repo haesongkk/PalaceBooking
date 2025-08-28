@@ -55,25 +55,23 @@ app.post("/api/uploadImage", upload.array('image', 10), (req, res) => {
 
 
 app.get("/api/rooms", (req, res) => {
-    const rt = roomsModule.getRoomList();
-    if(rt.ok) {
-        res.status(200).json(rt.data);
-    } else {
-        res.status(503).json(rt.msg);
+    try {
+        const roomList = roomsModule.getRoomList();
+        res.status(200).json(roomList);
+    } catch (error) {
+        res.status(503).json({ error: error.message });
     }
 });
 
 app.get("/api/rooms/:id", (req, res) => {
-    if(!req.params) return res.status(400).json({ error: "params 오류" });
-    const { id } = req.params;
-    if(!id) return res.status(400).json({ error: "id 누락" });
+    try {
+        const { id } = req.params;
+        if(!id) return res.status(400).json({ error: "id 누락" });
 
-    const nID = Number(id);
-    const rt = roomsModule.getRoomById(nID);
-    if(rt.ok) {
-        res.status(200).json(rt.data);
-    } else {
-        res.status(503).json(rt.msg);
+        const room = roomsModule.getRoomById(Number(id));
+        res.status(200).json(room);
+    } catch (error) {
+        res.status(503).json({ error: error.message });
     }
 });
 
@@ -94,23 +92,19 @@ app.post("/api/rooms", (req, res) => {
 
 
 app.put("/api/rooms/:id", (req, res) => {
-    if(!req.params) return res.status(400).json({ error: "params 오류" });
-    if(!req.body) return res.status(400).json({ error: "body 오류" });
+    try {
+        const { id } = req.params;
+        const { name, imagePathList, description } = req.body;
 
+        if(id == undefined) return res.status(400).json({ error: "id 누락" });
+        if(name == undefined) return res.status(400).json({ error: "name 누락" });
+        if(description == undefined) return res.status(400).json({ error: "description 누락" });
 
-    const { id } = req.params;
-    const { name, imagePathList, description } = req.body;
+        const rt = roomsModule.updateRoom(Number(id), name, JSON.stringify(imagePathList), description);
 
-    if(!id) return res.status(400).json({ error: "id 누락" });
-    if(!name) return res.status(400).json({ error: "name 누락" });
-    if(!description) return res.status(400).json({ error: "description 누락" });
-    
-    const nID = Number(id);
-    const rt = roomsModule.updateRoom(nID, name, imagePathList, description);
-    if(rt.ok) {
-        res.status(200).json(rt.msg);
-    } else {
-        res.status(503).json(rt.msg);
+        res.status(200).json({ msg: "update room success" });
+    } catch (error) {
+        res.status(503).json({ error: error.message });
     }
 });
 
@@ -125,25 +119,23 @@ app.delete("/api/rooms/:id", (req, res) => {
     catch (error) {
         return res.status(503).json({ error: error.message });
     }
-    
-
 });
 
 
 app.get("/api/setting/:bIsOvernight", (req, res) => {
-    if(!req.params) return res.status(400).json({ error: "params 오류" });
+    try {
+        const { bIsOvernight } = req.params;
+        if(bIsOvernight === undefined) return res.status(400).json({ error: "bIsOvernight 누락" });
 
-    const { bIsOvernight } = req.params;
-    const rt = roomsModule.getSettingList(Number(bIsOvernight));
-    if(!rt.ok) return res.status(503).json({ error: rt.msg });
-
-    rt.data.forEach(room => {
-        const rt2 = roomsModule.getRoomById(room.roomId);
-        if(!rt2.ok) return res.status(503).json({ error: rt2.msg });
-        room.roomName = rt2.data.name;
-    });
-
-    res.status(200).json(rt.data);
+        const settingList = roomsModule.getSettingList(Number(bIsOvernight));
+        settingList.forEach(setting => {
+            const room = roomsModule.getRoomById(setting.roomId);
+            setting.roomName = room.name;
+        });
+        res.status(200).json(settingList);
+    } catch (error) {
+        res.status(503).json({ error: error.message });
+    }
 });
 
 app.get("/api/setting/:bIsOvernight/:roomId", (req, res) => {
@@ -153,18 +145,14 @@ app.get("/api/setting/:bIsOvernight/:roomId", (req, res) => {
 		const { bIsOvernight, roomId } = req.params;
 		if(bIsOvernight === undefined) return res.status(400).json({ error: "bIsOvernight 누락" });
 		if(roomId === undefined) return res.status(400).json({ error: "roomId 누락" });
-        console.log(bIsOvernight, typeof(bIsOvernight));
-        console.log(roomId, typeof(roomId));
 
-		const rt = roomsModule.getSettingById(Number(roomId), Number(bIsOvernight));
-		if(!rt.ok) return res.status(503).json({ error: rt.msg });
 
-		const rt2 = roomsModule.getRoomById(Number(roomId));
-		if(!rt2.ok) return res.status(503).json({ error: rt2.msg });
-    
-		rt.data.roomName = rt2.data.name;
+		const setting = roomsModule.getSettingById(Number(roomId), Number(bIsOvernight));
 
-		res.status(200).json(rt.data);
+		const room = roomsModule.getRoomById(Number(roomId));
+		setting.roomName = room.name;
+
+		res.status(200).json(setting);
 		
 	} catch (error) {
 		return res.status(503).json({ error: error.message });
@@ -188,57 +176,59 @@ app.post("/api/setting/:bIsOvernight/:roomId", (req, res) => {
 });
 
 app.get("/api/daily/:bIsOvernight/:year/:month", (req, res) => {
-    if(!req.params) return res.status(400).json({ error: "params 오류" });
-    const { bIsOvernight, year, month } = req.params;
+    try {
+        const { bIsOvernight, year, month } = req.params;
+        if(bIsOvernight === undefined) return res.status(400).json({ error: "bIsOvernight 누락" });
+        if(year === undefined) return res.status(400).json({ error: "year 누락" });
+        if(month === undefined) return res.status(400).json({ error: "month 누락" });
 
-    if(!bIsOvernight) return res.status(400).json({ error: "bIsOvernight 누락" });
-    if(!month) return res.status(400).json({ error: "month 누락" });
-    if(!year) return res.status(400).json({ error: "year 누락" });
-    const result = roomsModule.getDailyListByMonth(bIsOvernight, year, month);
-
-    if(!result.ok) return res.status(503).json({ error: result.msg });
-    res.status(200).json(result.data);
+        const dailyList = roomsModule.getDailyListByMonth(bIsOvernight? 1 : 0, Number(year), Number(month));
+        res.status(200).json(dailyList);
+    } catch (error) {
+        return res.status(503).json({ error: error.message });
+    }
 });
 
 app.get("/api/daily/:bIsOvernight/:year/:month/:date", (req, res) => {
-    if(!req.params) return res.status(400).json({ error: "params 오류" });
-    const { bIsOvernight, year, month, date } = req.params;
+    try {
+        const { bIsOvernight, year, month, date } = req.params;
+        if(bIsOvernight === undefined) return res.status(400).json({ error: "bIsOvernight 누락" });
+        if(year === undefined) return res.status(400).json({ error: "year 누락" });
+        if(month === undefined) return res.status(400).json({ error: "month 누락" });
+        if(date === undefined) return res.status(400).json({ error: "date 누락" });
 
-    if(!bIsOvernight) return res.status(400).json({ error: "bIsOvernight 누락" });
-    if(!year) return res.status(400).json({ error: "year 누락" });
-    if(!month) return res.status(400).json({ error: "month 누락" });
-    if(!date) return res.status(400).json({ error: "date 누락" });
-    const daily = roomsModule.getDailyByDate(bIsOvernight, year, month, date);
+        const daily = roomsModule.getDailyByDate(bIsOvernight? 1 : 0, Number(year), Number(month), Number(date));
 
-    if(daily != undefined) return res.status(200).json(daily);
+        if(daily.length > 0) return res.status(200).json(daily);
 
-    const rt = roomsModule.getSettingList(bIsOvernight? 1 : 0);
-    if(!rt.ok) return res.status(503).json({ error: rt.msg });
+        const settingList = roomsModule.getSettingList(bIsOvernight? 1 : 0);
 
-    const data = [];
-    const dayOfWeek = new Date(year, month - 1, date).getDay();
+        const data = [];
+        const dayOfWeek = new Date(year, month - 1, date).getDay();
 
-    rt.data.forEach(room => {
-        const tmp = roomsModule.getRoomById(room.roomId);
-        if(!tmp.ok) return res.status(503).json({ error: tmp.msg });
+        settingList.forEach(setting => {
+            const room = roomsModule.getRoomById(setting.roomId);
 
-        data.push({
-            roomId: room.roomId,
-            roomName: tmp.data.name,
-            bOvernight: room.bOvernight,
-            year: year,
-            month: month,
-            day: date,
+            data.push({
+                roomId: setting.roomId,
+                roomName: room.name,
+                bOvernight: setting.bOvernight,
+                year: year,
+                month: month,
+                day: date,
 
-            status: JSON.parse(room.status)[dayOfWeek],
-            price: JSON.parse(room.price)[dayOfWeek],
-            open: JSON.parse(room.openClose)[dayOfWeek][0],
-            close: JSON.parse(room.openClose)[dayOfWeek][1],
-            usageTime: JSON.parse(room.usageTime)[dayOfWeek]
-        })
-    });
+                status: JSON.parse(setting.status)[dayOfWeek],
+                price: JSON.parse(setting.price)[dayOfWeek],
+                open: JSON.parse(setting.openClose)[dayOfWeek][0],
+                close: JSON.parse(setting.openClose)[dayOfWeek][1],
+                usageTime: JSON.parse(setting.usageTime)[dayOfWeek]
+            })
+        });
 
-    res.status(200).json(data);
+        res.status(200).json(data);
+    } catch (error) {
+        return res.status(503).json({ error: error.message });
+    }
 });
 
 app.put("/api/daily/:bIsOvernight", (req, res) => {
@@ -298,13 +288,13 @@ app.get(`/api/reservation`, (req, res) => {
             const customer = customersModule.getCustomerById(reservation.customerID);
             if(customer == undefined) throw new Error("customer not found");
             const room = roomsModule.getRoomById(reservation.roomID);
-            if(room.data == undefined) throw new Error("room not found");
+            if(room == undefined) throw new Error("room not found");
 
             reservationList.push({
                 id: reservation.id,
                 customerName: customer.name,
                 customerPhone: customer.phone,
-                roomName: room.data.name,
+                roomName: room.name,
                 checkinDate: reservation.checkinDate,
                 checkoutDate: reservation.checkoutDate,
                 price: reservation.price,
@@ -376,6 +366,7 @@ app.delete("/api/customers/:id", (req, res) => {
         if(id == undefined) return res.status(400).json({ err: "id 누락" });
 
         const rt = customersModule.deleteCustomer(Number(id));
+        console.log(rt);
         res.status(200).json({ msg: "delete customer success" });
     } catch (error) {
         res.status(503).json({ err: error.message });
@@ -408,10 +399,10 @@ function getReservationPrice(roomId, checkinDate, checkoutDate, discount){
         }
         else {
             const dayOfWeek = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate()).getDay();
-            const settingRt = roomsModule.getSettingById(roomId, 1);
+            const tmp = roomsModule.getSettingById(Number(roomId), 1);
             setting = {
-                status: JSON.parse(settingRt.data.status)[dayOfWeek],
-                price: JSON.parse(settingRt.data.price)[dayOfWeek],
+                status: JSON.parse(tmp.status)[dayOfWeek],
+                price: JSON.parse(tmp.price)[dayOfWeek],
             };
         }
 
@@ -447,7 +438,7 @@ app.post(`/api/chatbot/getReservationPrice`, (req, res) => {
         if(originalPrice != -1){
             let msg = [];
             
-            const szRoomName = roomsModule.getRoomById(roomID).data.name;
+            const szRoomName = roomsModule.getRoomById(Number(roomID)).name;
             const szStartDate = new Date(checkinDate).toLocaleDateString();
             const szEndDate = new Date(checkoutDate).toLocaleDateString();
             const szCustomerType = customerType == 1 ? "첫 예약 고객" : "단골 고객";
@@ -627,7 +618,6 @@ app.get('/api/customers', (req, res) => {
             else recentReserve = reservations[0];
 
             const text = recentReserve ? recentReserve.checkinDate + " ~ " + recentReserve.checkoutDate : "-";
-
             
             customerList.push({
                 id: customer.id,
@@ -637,6 +627,7 @@ app.get('/api/customers', (req, res) => {
                 recentReserve: text
             });
         });
+        console.log(customerList);
         res.status(200).json(customerList);
     }
     catch (error) {

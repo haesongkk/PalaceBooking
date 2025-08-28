@@ -95,19 +95,22 @@ class CustomerList {
                 return;
             }
             this.customers.forEach(customer => {
-                tbody.innerHTML = `
-                    <tr>
-                        <td>${customer.name}</td>
-                        <td>${customer.phone}</td>
-                        <td>${customer.memo}</td>
-                        <td>${customer.recentReserve}</td>
-                        <td>
-                            <button>수정</button>
-                            <button>삭제</button>
-                        </td>
-                    </tr>
+                console.log(customer);
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${customer.name}</td>
+                    <td>${customer.phone}</td>
+                    <td>${customer.memo}</td>
+                    <td>${customer.recentReserve}</td>
+                    <td>
+                        <button class="customer-table-edit-button">수정</button>
+                        <button class="customer-table-delete-button">삭제</button>
+                    </td>
                 `;
-                const buttons = tbody.querySelectorAll('button');
+                tbody.appendChild(row);
+
+                const buttons = row.querySelectorAll('button');
+                console.log(buttons);
                 buttons[0].addEventListener('click', () => {
                     this.onEditButtonClick(customer);
                 });
@@ -155,6 +158,7 @@ class CustomerList {
     }
 
     onDeleteButtonClick(id) {
+        console.log(id);
         fetch(`/api/customers/${id}`, {
             method: 'DELETE'
         }).then(res => res.json()).then(data => {

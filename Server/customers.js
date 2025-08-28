@@ -73,7 +73,7 @@ function getCustomerList() {
     return customersDb.prepare(`
         SELECT * 
         FROM customers
-        `).all();
+    `).all();
 }
 
 function deleteCustomer(id) {
@@ -82,7 +82,7 @@ function deleteCustomer(id) {
         DELETE 
         FROM customers 
         WHERE id = ?
-        `).run(id);
+    `).run(id);
 }
 
 function updateCustomer(id, name, phone, memo) {
