@@ -266,21 +266,17 @@ function showCalendar(year, month, container){
             else{
                 if(!reservationInfo.endDate && date > reservationInfo.startDate){
                     reservationInfo.endDate = date;
-                    console.log("case 1");
                 }
                 else if(!reservationInfo.endDate && date < reservationInfo.startDate){
                     reservationInfo.endDate = reservationInfo.startDate;
                     reservationInfo.startDate = date;
-                    console.log("case 2");
                 }
                 else if(!reservationInfo.endDate && date === reservationInfo.startDate){
                     reservationInfo.startDate = null;
-                    console.log("case 3");
                 }
                 else if(reservationInfo.endDate){
                     reservationInfo.startDate = date;
                     reservationInfo.endDate = null;
-                    console.log("case 4");
                 }
             }
             showCalendar(year, month, container);
@@ -332,7 +328,9 @@ function showCalendar(year, month, container){
 
         let range = new Date(rangeStart).toLocaleDateString();
         if(reservationInfo.endDate){
-            range += " ~ " + new Date(rangeEnd).toLocaleDateString();
+            range += " 입실 ~ " + new Date(rangeEnd).toLocaleDateString() + " 퇴실";
+        } else {
+            range += " 대실";
         }
         setFloating([range, "취소하기"]);
 
@@ -418,7 +416,6 @@ async function checkReservation(){
     if(!reservationInfo.startDate) return false;
 
     if(!reservationInfo.endDate) reservationInfo.endDate = new Date(reservationInfo.startDate).toLocaleDateString();
-    reservationInfo.endDate = new Date(reservationInfo.endDate).setDate(new Date(reservationInfo.endDate).getDate() + 1);
 
     const ok = await fetch(`/api/chatbot/getReservationPrice`, {
         method: 'POST',

@@ -42,7 +42,6 @@ class CustomerList {
     onSettingButtonClick() {
         window.popupCanvas.append('할인율 설정', new DiscountEdit(
             () => {
-                this.getCustomers();
                 this.createCustomerTable();
             }
         ));

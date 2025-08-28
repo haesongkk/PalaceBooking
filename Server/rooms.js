@@ -296,23 +296,19 @@ function getDailyListByMonth(bIsOvernight, year, month) {
 }
 
 function getDailyByDate(bIsOvernight, year, month, date) {
-    try {
-        return {
-            ok: true,
-            msg: ``,
-            data: roomsDB.prepare(`
-                SELECT * FROM daily
-                WHERE bOvernight = ? AND year = ? AND month = ? AND day = ?
-            `).get(bIsOvernight, year, month, date)
-        }
-    }
-    catch (error) {
-        return {
-            ok: false,
-            msg: error,
-            data: null
-        }
-    }
+    if(typeof bIsOvernight !== 'number') 
+        throw new Error("bIsOvernight must be a number");
+    if(typeof year !== 'number') 
+        throw new Error("year must be a number");
+    if(typeof month !== 'number') 
+        throw new Error("month must be a number");
+    if(typeof date !== 'number') 
+        throw new Error("date must be a number");
+
+    return roomsDB.prepare(`
+        SELECT * FROM daily
+        WHERE bOvernight = ? AND year = ? AND month = ? AND day = ?
+    `).all(bIsOvernight, year, month, date)
 }
 
 function updateDaily(bIsOvernight, date, month, year, roomId, status, price, open, close, usageTime) {

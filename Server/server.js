@@ -14,7 +14,6 @@ import roomsModule from "./rooms.js";
 import discountModule from "./discount.js";
 
 
-const db = new Database("data.db");
 
 
 const app = express();
@@ -210,10 +209,9 @@ app.get("/api/daily/:bIsOvernight/:year/:month/:date", (req, res) => {
     if(!year) return res.status(400).json({ error: "year 누락" });
     if(!month) return res.status(400).json({ error: "month 누락" });
     if(!date) return res.status(400).json({ error: "date 누락" });
-    const result = roomsModule.getDailyByDate(bIsOvernight, year, month, date);
+    const daily = roomsModule.getDailyByDate(bIsOvernight, year, month, date);
 
-    if(!result.ok) return res.status(503).json({ error: result.msg });
-    if(result.data) return res.status(200).json(result.data);
+    if(daily != undefined) return res.status(200).json(daily);
 
     const rt = roomsModule.getSettingList(bIsOvernight? 1 : 0);
     if(!rt.ok) return res.status(503).json({ error: rt.msg });
@@ -399,15 +397,15 @@ function getReservationPrice(roomId, checkinDate, checkoutDate, discount){
     let checkDate = new Date(startDate);
     while(checkDate < endDate){
         let setting;
-        const dailyRt = roomsModule.getDailyByDate(
+        const daily = roomsModule.getDailyByDate(
             1, 
             checkDate.getFullYear(), 
             checkDate.getMonth() + 1, 
             checkDate.getDate()
         );
 
-        if(dailyRt.data != undefined) {
-            setting = Array.from(dailyRt.data).find(room => room.roomId == roomId);
+        if(!daily) {
+            setting = daily.find(room => room.roomId == roomId);
         }
         else {
             const dayOfWeek = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate()).getDay();
@@ -509,93 +507,6 @@ app.post(`/api/chatbot/confirmReservation`, (req, res) => {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// 예약 추가 시 관리자에게 실시간 알림
-app.post("/api/reserve", (req, res) => {
-    const { username, phone, room, startDate, endDate } = req.body;
-    if (!username || !phone || !room || !startDate) {
-        return res.status(400).json({ error: "필수 정보 누락" });
-    }
-
-    
-    const info = db.prepare(`
-        INSERT INTO reservations (phone, room, start_date, end_date)
-        VALUES (?, ?, ?, ?)
-        `).run(phone, roomType, checkinDate, checkoutDate);
-
-    if(io) io.to("admin").emit("reservation-updated");
-    res.status(200).json({ success: true, id: info.lastInsertRowid });
-});
-
-
-
-// 전체 예약 내역 조회 (배열 반환)
-app.get("/reservationList", (req, res) => {
-    const { phone } = req.query;
-    console.log(phone);
-    if (!phone) {
-        return res.status(400).json({ error: "전화번호가 필요합니다." });
-    }
-
-    const stmt = db.prepare(`
-        SELECT *
-        FROM reservations
-        WHERE phone = ? AND state != -1
-        ORDER BY end_date DESC
-    `);
-
-    const rows = stmt.all(phone);
-
-    res.json(rows);
-});
-
-
-
-
-
 app.post('/api/customers/register/:phone', (req, res) => {
     const { phone } = req.params;
     const result = customersModule.registerCustomer(phone);
@@ -641,9 +552,7 @@ app.get('/api/chatbot/certify/:phone', (req, res) => {
 
 
 
-// 비밀번호 확인 API !!!!!
 app.get('/api/admin/login/:password', (req, res) => {
-    // 무차별 대입 방어 필요
     const { password } = req.params;
 
     if(password === '123') {
@@ -736,65 +645,7 @@ app.get('/api/customers', (req, res) => {
     }
 });
 
-// customerList.js 137
-app.get("/api/customers/recentReserves", (req, res) => {
-    try {
-        const stmt = db.prepare(`
-            SELECT r.phone, r.end_date
-            FROM reservations r
-            INNER JOIN (
-                SELECT phone, MAX(end_date) as max_end_date
-                FROM reservations
-                WHERE state != -1
-                GROUP BY phone
-            ) latest ON r.phone = latest.phone AND r.end_date = latest.max_end_date
-        `);
-        
-        const rows = stmt.all();
-        const recentReserves = {};
-        
-        rows.forEach(row => {
-            recentReserves[row.phone] = row.end_date;
-        });
-        
-        res.json({ data: recentReserves });
-    } catch (error) {
-        res.status(500).json({ error: "최근 예약 정보를 가져오는 중 오류가 발생했습니다." });
-    }
-});
 
-
-// customerList.js 150
-app.get("/api/customers/recentReserve", (req, res) => {
-    const { phone } = req.query;
-    if (!phone) {
-        return res.status(400).json({ error: "전화번호가 필요합니다." });
-    }
-
-    const stmt = db.prepare(`
-        SELECT *
-        FROM reservations
-        WHERE phone = ? AND state != -1
-        ORDER BY end_date DESC
-        LIMIT 1
-    `);
-
-    const row = stmt.get(phone);
-
-    if (row) {
-        res.json(row);
-    } else {
-        res.json({
-            id: null,
-            username: null,
-            phone: null,
-            room: null,
-            start_date: null,
-            end_date: null,
-            cancelled: null
-        });
-    }
-});
 
 app.get('/api/customers/search/:number', (req, res) => {
     const { number } = req.params;
