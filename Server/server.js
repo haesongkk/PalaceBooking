@@ -412,7 +412,7 @@ function getReservationPrice(roomId, checkinDate, checkoutDate, discount){
             checkDate.getDate()
         );
 
-        if(!daily) {
+        if(daily.length > 0) {
             setting = daily.find(room => room.roomId == roomId);
         }
         else {

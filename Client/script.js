@@ -262,7 +262,8 @@ function showCalendar(year, month, container){
         dayCell.textContent = i + 1;
         dayCell.id = new Date(year, month, i + 1);
         dayCell.onclick = () => {
-            const date = new Date(year, month, i + 1).toLocaleDateString();
+            const date = new Date(year, month, i + 1);
+            
             if(!reservationInfo.startDate){
                 reservationInfo.startDate = date;
                 dayCell.classList.add("selected");
@@ -274,6 +275,7 @@ function showCalendar(year, month, container){
                 else if(!reservationInfo.endDate && date < reservationInfo.startDate){
                     reservationInfo.endDate = reservationInfo.startDate;
                     reservationInfo.startDate = date;
+
                 }
                 else if(!reservationInfo.endDate && date === reservationInfo.startDate){
                     reservationInfo.startDate = null;
@@ -313,30 +315,28 @@ function showCalendar(year, month, container){
     }
 
     if(reservationInfo.startDate){
-        const rangeStart = new Date(reservationInfo.startDate).toLocaleDateString();
-        const rangeEnd = new Date(reservationInfo.endDate? reservationInfo.endDate : reservationInfo.startDate).toLocaleDateString();
-        console.log(rangeStart, rangeEnd);
+        const rangeEnd = new Date(reservationInfo.endDate? reservationInfo.endDate : reservationInfo.startDate);
     
         for(let i = 0; i < 42; i++){
             const dayCell = dayCells[Math.floor(i / 7)][i % 7];
-            const date = new Date(dayCell.id).toLocaleDateString();
+            const date = new Date(dayCell.id).setHours(0, 0, 0, 0);
+            const start = new Date(reservationInfo.startDate).setHours(0, 0, 0, 0);
+            const end = new Date(rangeEnd).setHours(0, 0, 0, 0);
 
-            if(date > rangeStart && date < rangeEnd){
+            if(date > start && date < end){
                 dayCell.classList.add("range");
-
-            }
-            if(date === rangeStart || date === rangeEnd){
+            }else if(date === start || date === end){
                 dayCell.classList.add("selected");
             }
         }
 
-        let range = new Date(rangeStart).toLocaleDateString();
+        let text = new Date(reservationInfo.startDate).toLocaleDateString();
         if(reservationInfo.endDate){
-            range += " 입실 ~ " + new Date(rangeEnd).toLocaleDateString() + " 퇴실";
+            text += " 입실 ~ " + new Date(rangeEnd).toLocaleDateString() + " 퇴실";
         } else {
-            range += " 대실";
+            text += " 대실";
         }
-        setFloating([range, "취소하기"]);
+        setFloating([text, "취소하기"]);
 
     }
     else{
@@ -417,6 +417,7 @@ async function checkReservation(){
     if(!reservationInfo.roomID) return false;
     if(!reservationInfo.startDate) return false;
 
+    reservationInfo.startDate = new Date(reservationInfo.startDate).toLocaleDateString();
     if(!reservationInfo.endDate) reservationInfo.endDate = new Date(reservationInfo.startDate).toLocaleDateString();
 
     const ok = await fetch(`/api/chatbot/getReservationPrice`, {
