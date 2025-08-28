@@ -369,7 +369,7 @@ class DailyPrice {
 
     setCellData(cell, roomId, status, price, openClose, usageTime) {
         if(cell.className !== 'sales-calendar-day has-data') return;
-
+        
         const dataBox = cell.querySelector('.room-data-box');
         let dataItem = dataBox.querySelector(`#data-${new Date(cell.id).toLocaleDateString().replace(/\D/g, '')}-${roomId}`);
         if(!dataItem) {

@@ -75,6 +75,7 @@ class ReserveList {
             if(data.error) {
                 alert(data.error);
                 return;
+
             }
             this.tbody.innerHTML = '';
             let filteredReservations = [];

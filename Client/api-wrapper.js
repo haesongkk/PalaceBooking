@@ -23,6 +23,9 @@ class PalaceBookingAPI {
 
     onSocketEvent(event, callback) {
         if (this.socket) {
+            // 기존 이벤트 리스너 제거 (중복 등록 방지)
+            this.socket.off(event);
+            // 새로운 이벤트 리스너 등록
             this.socket.on(event, callback);
         }
     }

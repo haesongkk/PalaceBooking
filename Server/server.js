@@ -113,9 +113,11 @@ app.delete("/api/rooms/:id", (req, res) => {
         const { id } = req.params;
         if(id == undefined) return res.status(400).json({ error: "id 누락" });
 
+
         roomsModule.deleteRoom(Number(id));
         res.status(200).json({ msg: "delete room success" });
     }
+
     catch (error) {
         return res.status(503).json({ error: error.message });
     }
@@ -142,10 +144,10 @@ app.get("/api/setting/:bIsOvernight/:roomId", (req, res) => {
 	try {
 		if(!req.params) return res.status(400).json({ error: "params 오류" });
 
+
 		const { bIsOvernight, roomId } = req.params;
 		if(bIsOvernight === undefined) return res.status(400).json({ error: "bIsOvernight 누락" });
 		if(roomId === undefined) return res.status(400).json({ error: "roomId 누락" });
-
 
 		const setting = roomsModule.getSettingById(Number(roomId), Number(bIsOvernight));
 
@@ -157,6 +159,7 @@ app.get("/api/setting/:bIsOvernight/:roomId", (req, res) => {
 	} catch (error) {
 		return res.status(503).json({ error: error.message });
 	}
+
 });
 
 app.post("/api/setting/:bIsOvernight/:roomId", (req, res) => {
@@ -182,10 +185,13 @@ app.get("/api/daily/:bIsOvernight/:year/:month", (req, res) => {
         if(year === undefined) return res.status(400).json({ error: "year 누락" });
         if(month === undefined) return res.status(400).json({ error: "month 누락" });
 
+
         const dailyList = roomsModule.getDailyListByMonth(bIsOvernight? 1 : 0, Number(year), Number(month));
         res.status(200).json(dailyList);
     } catch (error) {
+
         return res.status(503).json({ error: error.message });
+
     }
 });
 
@@ -227,7 +233,9 @@ app.get("/api/daily/:bIsOvernight/:year/:month/:date", (req, res) => {
 
         res.status(200).json(data);
     } catch (error) {
+
         return res.status(503).json({ error: error.message });
+
     }
 });
 
@@ -275,6 +283,7 @@ app.put("/api/daily/:bIsOvernight", (req, res) => {
         return res.status(200).json({ msg: "update daily success" });
     } catch (error) {
         res.status(503).json({ error: error.message });
+
     }
 
 
@@ -305,6 +314,7 @@ app.get(`/api/reservation`, (req, res) => {
 
     } catch (error) {
         res.status(503).json({ error: error.message });
+
     }
 });
 
@@ -319,6 +329,7 @@ app.patch("/api/reservation/:id", (req, res) => {
         res.status(200).json({ msg: "update reservation status success" });
     } catch (error) {
         res.status(503).json({ error: error.message });
+
     }
 });
 
@@ -335,6 +346,7 @@ app.get("/api/discount", (req, res) => {
         });
     } catch (error) {
         res.status(503).json({ err: "get discount failed: " + error.message });
+
     }
 });
 
@@ -365,12 +377,15 @@ app.delete("/api/customers/:id", (req, res) => {
         const { id } = req.params;
         if(id == undefined) return res.status(400).json({ err: "id 누락" });
 
+
         const rt = customersModule.deleteCustomer(Number(id));
         res.status(200).json({ msg: "delete customer success" });
     } catch (error) {
         res.status(503).json({ err: error.message });
     }
+
 });
+
 
 
 
@@ -504,6 +519,7 @@ app.post('/api/customers/register/:phone', (req, res) => {
     });
 });
 
+
 app.get('/api/chatbot/certify/:phone', (req, res) => {
     try{
         const { phone } = req.params;
@@ -513,6 +529,7 @@ app.get('/api/chatbot/certify/:phone', (req, res) => {
             floatings: ["고객 등록", "예약하기", "예약 내역", "문의하기"],
             msg: ["고객 정보가 존재하지 않습니다. 고객 등록을 먼저 진행해주세요."],
         });
+
 
         const userNick = phone.slice(-4);
         const reservationList = roomsModule.getReservationListByCustomerID(customer.id);
@@ -532,9 +549,9 @@ app.get('/api/chatbot/certify/:phone', (req, res) => {
             msg: msg,
         });
 
-
     } catch (error) {
         res.status(503).json({ error: error.message });
+
     }
 });
 
@@ -574,6 +591,7 @@ app.get(`/api/chatbot/getReservationList/:phone`, (req, res) => {
         res.status(503).json({ error: error.message });
     }
 });
+
 
 
 

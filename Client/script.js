@@ -51,6 +51,7 @@ class ReservationInfo{
 }
 let reservationInfo = new ReservationInfo();
 let curHandler = (text) => {};
+let socketEventListenersSetup = false; // 소켓 이벤트 리스너 설정 여부를 추적
 
 function setFloating(menus){
     const floatingBar = document.querySelector(".floating-buttons");
@@ -112,7 +113,12 @@ function phoneHandler(input){
     updateHeader(userPhone.slice(-4));
 
     palaceAPI.connectSocket(userPhone);
-    setupSocketEventListeners();
+    
+    // 소켓 이벤트 리스너가 아직 설정되지 않은 경우에만 설정
+    if (!socketEventListenersSetup) {
+        setupSocketEventListeners();
+        socketEventListenersSetup = true;
+    }
 
 
     fetch(`/api/chatbot/certify/${userPhone}`)
@@ -256,7 +262,7 @@ function showCalendar(year, month, container){
         dayCell.textContent = i + 1;
         dayCell.id = new Date(year, month, i + 1);
         dayCell.onclick = () => {
-            const date = new Date(year, month, i + 1).setHours(0, 0, 0, 0);
+            const date = new Date(year, month, i + 1).toLocaleDateString();
             if(!reservationInfo.startDate){
                 reservationInfo.startDate = date;
                 dayCell.classList.add("selected");
@@ -307,13 +313,13 @@ function showCalendar(year, month, container){
     }
 
     if(reservationInfo.startDate){
-        const rangeStart = new Date(reservationInfo.startDate).setHours(0, 0, 0, 0);
-        const rangeEnd = new Date(reservationInfo.endDate? reservationInfo.endDate : reservationInfo.startDate).setHours(0, 0, 0, 0);
+        const rangeStart = new Date(reservationInfo.startDate).toLocaleDateString();
+        const rangeEnd = new Date(reservationInfo.endDate? reservationInfo.endDate : reservationInfo.startDate).toLocaleDateString();
         console.log(rangeStart, rangeEnd);
     
         for(let i = 0; i < 42; i++){
             const dayCell = dayCells[Math.floor(i / 7)][i % 7];
-            const date = new Date(dayCell.id).setHours(0, 0, 0, 0);
+            const date = new Date(dayCell.id).toLocaleDateString();
 
             if(date > rangeStart && date < rangeEnd){
                 dayCell.classList.add("range");
@@ -374,8 +380,6 @@ function showRooms(){
     });
 }
 
-
-
 async function confirmReservation(){
     if(!reservationInfo.roomID) return false;
     if(!reservationInfo.startDate) return false;
@@ -429,6 +433,7 @@ async function checkReservation(){
         if(data.error) {
             appendMessage(data.error, "bot");
             return false;
+
         }
 
         data.msg.forEach(msg => {
@@ -559,7 +564,7 @@ async function handleMenu(type, bAppend = true) {
             reservationInfo.roomID = null;
             reservationInfo.price = null;
             curHandler = defaultHandler;
-            appendMessage("무엇을 도와드릴까요?");
+            appendMessage("아래 메뉴 중에서 선택해주세요.");
             setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
             break;
         case '날짜 변경하기':
@@ -711,20 +716,27 @@ if (typeof io === 'undefined') {
     document.head.appendChild(script);
 }
 
+// 페이지 로드 시 소켓 이벤트 리스너 설정 상태 초기화
+window.addEventListener('load', () => {
+    socketEventListenersSetup = false;
+});
+
 // Socket.IO 이벤트 리스너 설정 함수
 function setupSocketEventListeners() {
     palaceAPI.onSocketEvent('reservation-confirmed', (data) => {
-        // 관리자 승인 후 예약 확정 알림
-        setTimeout(() => {
-            appendMessage('🎉 예약이 확정되었습니다! 팔레스호텔에서 정성껏 모시겠습니다.', 'bot');
-        }, 100);
+        reservationId.forEach(id => {
+            if(id === data.id) {
+                appendMessage('🎉 예약이 확정되었습니다! 팔레스호텔에서 정성껏 모시겠습니다.', 'bot');
+            }
+        });
     });
 
     palaceAPI.onSocketEvent('reservation-cancelled', (data) => {
-        // 관리자 취소 후 예약 취소 알림
-        setTimeout(() => {
-            appendMessage('❌ 객실 마감으로 예약이 취소되었습니다.', 'bot');
-        }, 100);
+        reservationId.forEach(id => {
+            if(id === data.id) {
+                appendMessage('❌ 객실 마감으로 예약이 취소되었습니다.', 'bot');
+            }
+        });
     });
 }
 
