@@ -366,7 +366,6 @@ app.delete("/api/customers/:id", (req, res) => {
         if(id == undefined) return res.status(400).json({ err: "id 누락" });
 
         const rt = customersModule.deleteCustomer(Number(id));
-        console.log(rt);
         res.status(200).json({ msg: "delete customer success" });
     } catch (error) {
         res.status(503).json({ err: error.message });
@@ -424,7 +423,7 @@ app.post(`/api/chatbot/getReservationPrice`, (req, res) => {
         if(!checkinDate) return res.status(400).json({ error: "checkinDate 누락" });
         if(!checkoutDate) return res.status(400).json({ error: "checkoutDate 누락" });
 
-        const customerType = customersModule.getCustomerById(customerID)? 0: 1;
+        const customerType = roomsModule.getReservationListByCustomerID(Number(customerID)).length > 0 ? 0 : 1;
         let discount = customerType == 1 ? discountModule.getDiscount().firstVisitDiscount : discountModule.getDiscount().recentVisitDiscount;
         let [originalPrice, discountedPrice] = getReservationPrice(roomID, checkinDate, checkoutDate, discount);
         
@@ -518,13 +517,13 @@ app.get('/api/chatbot/certify/:phone', (req, res) => {
         const userNick = phone.slice(-4);
         const reservationList = roomsModule.getReservationListByCustomerID(customer.id);
         let msg = [];
-        if(reservationList == undefined) msg = [
-            `🙏 ${userNick}님, 팔레스 호텔을 찾아주셔서 감사합니다.`,
-            "첫 방문 고객님께는 5,000원 더 저렴하게 안내해드립니다."
-        ];
-        else msg = [
+        if(reservationList.length > 0) msg = [
             `🙌 ${userNick}님, 다시 찾아주셔서 감사합니다.`,
             "단골 고객님께는 야놀자보다 5,000원 더 저렴하게 안내해드립니다."
+        ];
+        else msg = [
+            `🙏 ${userNick}님, 팔레스 호텔을 찾아주셔서 감사합니다.`,
+            "첫 방문 고객님께는 5,000원 더 저렴하게 안내해드립니다."
         ];
 
         return res.status(200).json({
@@ -539,6 +538,42 @@ app.get('/api/chatbot/certify/:phone', (req, res) => {
     }
 });
 
+app.get(`/api/chatbot/getReservationList/:phone`, (req, res) => {
+    try {
+        const { phone } = req.params;
+        if(phone == undefined) return res.status(400).json({ error: "phone 누락" });
+
+        const customer = customersModule.getCustomer(phone);
+        if(customer == undefined) return res.status(200).json({
+            floatings: ["고객 등록", "예약하기", "예약 내역", "문의하기"],
+            msg: ["고객 정보가 존재하지 않습니다."],
+        });
+
+        const reservationList = roomsModule.getReservationListByCustomerID(Number(customer.id));
+
+        let msg = ``;
+        if(reservationList.length == 0) msg = "현재 예약 내역이 없습니다.";
+        reservationList.forEach(reservation => {
+            const roomName = roomsModule.getRoomById(reservation.roomID).name;
+            msg += `
+                <button class="history-item" id="reservation-${reservation.id}">
+                    ${roomName}<br>
+                    ${reservation.checkinDate} 입실<br>
+                    ${reservation.checkoutDate} 퇴실<br>
+                    ${reservation.price}원<br>
+                    ${reservation.status == 0 ? "대기" : reservation.status == 1 ? "확정" : "취소"}
+                </button>
+            `;
+        });
+
+        return res.status(200).json({
+            msg: [msg],
+            floatings: ["고객 등록", "예약하기", "예약 내역", "문의하기"],
+        });
+    } catch (error) {
+        res.status(503).json({ error: error.message });
+    }
+});
 
 
 
@@ -627,7 +662,6 @@ app.get('/api/customers', (req, res) => {
                 recentReserve: text
             });
         });
-        console.log(customerList);
         res.status(200).json(customerList);
     }
     catch (error) {

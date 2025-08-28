@@ -138,31 +138,29 @@ function historyHandler(input){
     userPhone = input;
     updateHeader(userPhone.slice(-4));
 
-    const container = document.createElement("div");
-    container.className = "message bot";
-    document.querySelector(".chat-window").appendChild(container);
-
     // 나중에는 등록된 고객인지 확인 후 예약 내역 출력 
     // (등록된 고객이 아니면 헤더 업데이트 x)
-    fetch(`/reservationList?phone=${userPhone}`).then(res => res.json()).then(data => {
-        if(data.length === 0){
-            container.innerHTML = "현재 예약 내역이 없습니다.";
-            setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
+
+    fetch(`/api/chatbot/getReservationList/${userPhone}`).then(res => res.json()).then(data => {
+        if(data.error){
+            appendMessage(data.error, "bot");
             return;
         }
-        data.forEach(reservation => {
-        const item = document.createElement("div");
-        item.className = "reservation";
-        container.appendChild(item);
-
-        const reservationInfo = document.createElement("div");
-        reservationInfo.className = "reservation-info";
-        reservationInfo.textContent = `${reservation.room} ${reservation.start_date}${reservation.end_date? ` ~ ${reservation.end_date}` : ''} ${reservation.state === 0 ? "(대기)" : reservation.state === 1 ? "(확정)" : "(취소)"}`;
-        item.appendChild(reservationInfo);
-
+        data.msg.forEach(msg => {
+            appendMessage(msg, "bot");
         });
+        setFloating(data.floatings);
+        curHandler = defaultHandler;
+
+        const thisChat = document.querySelector(".message.bot:last-child");
+        const historyItems = thisChat.querySelectorAll(".history-item");
+        historyItems.forEach(item => {
+            item.addEventListener("click", () => {
+                appendMessage("예약 취소 구현 예정");
+            });
+        });
+
     });
-    setFloating(["고객 등록", "예약하기", "예약 내역", "문의하기"]);
 
 }
 
@@ -447,6 +445,7 @@ async function checkReservation(){
 function disableLastBotMessage(){
     const botMessages = document.querySelectorAll('.message.bot');
     botMessages[botMessages.length - 1].querySelectorAll('button').forEach(btn => {
+        console.log(btn);
         btn.disabled = true;
         btn.onclick = null;
         btn.style.opacity = '0.8';
@@ -468,7 +467,6 @@ function askPhoneHandler(text){
 
 async function handleMenu(type, bAppend = true) {
     disableLastBotMessage();
-
 
     
         

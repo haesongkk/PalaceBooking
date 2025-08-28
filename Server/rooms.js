@@ -325,8 +325,9 @@ module.exports = {
     getDailyByDate,
     updateDaily,
 
-    createReservation,
     getReservationList,
-    updateReservationStatus,
     getReservationListByCustomerID,
+    createReservation,
+    updateReservationStatus,
+    
 }
