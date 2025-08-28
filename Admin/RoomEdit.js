@@ -56,6 +56,13 @@ class RoomEdit {
                         style="width: 100px; height: 100px;"
                     >
                 `;
+                const preview = roomImagePreview.querySelector(`img[src="${image}"]`);
+                preview.addEventListener('click', () => {
+                    if(confirm('이미지를 삭제하시겠습니까?')) {
+                        this.imageList.splice(this.imageList.indexOf(image), 1);
+                        preview.remove();
+                    }
+                });
             }
 
             const roomImageInput = this.container.querySelector('#room-image-input');
@@ -79,6 +86,13 @@ class RoomEdit {
                                 style="width: 100px; height: 100px;"
                             >
                         `;
+                        const preview = roomImagePreview.querySelector(`img[src="${url}"]`);
+                        preview.addEventListener('click', () => {
+                            if(confirm('이미지를 삭제하시겠습니까?')) {
+                                this.imageList.splice(this.imageList.indexOf(url), 1);
+                                preview.remove();
+                            }
+                        });
                     }
                 });
             });

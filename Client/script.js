@@ -350,26 +350,31 @@ function showRooms(){
             <div class="message bot">
                 <div class="room-viewport">
                     ${data.map(room => `
-                        <div class="room-card">
+                        <div class="room-card" id="${room.id}-${room.name}">
                             <h3>${room.name}</h3>
                             ${JSON.parse(room.image).map(img => `
                                 <img src="${img}" style="width: 100px; height: 100px; object-fit: cover;">
                             `).join('')}
                             <p>${room.description}</p>
-                            <button class="room-select-btn" id="${room.id}" name="${room.name}">선택하기</button>
                         </div>
                     `).join('')}
                 </div>
             </div>
         `;
         const thisChat = document.querySelector(".message.bot:last-child");
-        thisChat.querySelectorAll(".room-select-btn").forEach(btn => {
-            btn.onclick = () => {
-                console.log(btn.name);
-                setFloating(["객실: " + btn.name, "취소하기"]);
-                reservationInfo.roomID = btn.id;
-            }
-        });
+        const viewport = thisChat.querySelector(".room-viewport");
+        const roomCards = viewport.querySelectorAll(".room-card");
+
+        viewport.onscroll = () => {
+            const cardWidth = roomCards[0].clientWidth;
+            const index = Math.floor(viewport.scrollLeft / cardWidth);
+            const curCard = roomCards[index];
+            setFloating(["객실: " + curCard.id.split("-")[1], "취소하기"]);
+            reservationInfo.roomID = curCard.id.split("-")[0];
+        }
+        setFloating(["객실: " + roomCards[0].id.split("-")[1], "취소하기"]);
+        reservationInfo.roomID = roomCards[0].id.split("-")[0];
+
     });
 }
 
@@ -464,13 +469,13 @@ function askPhoneHandler(text){
     curHandler = defaultHandler;
 }
 
-async function handleMenu(type) {
+async function handleMenu(type, bAppend = true) {
     disableLastBotMessage();
 
 
     
         
-    appendMessage(type, "user");
+    if(bAppend) appendMessage(type, "user");
     let menu = type;
     if(type.includes(".")){
         menu = '객실 선택하기';
@@ -565,7 +570,7 @@ async function handleMenu(type) {
         case '날짜 변경하기':
             reservationInfo.startDate = null;
             reservationInfo.endDate = null;
-            handleMenu('날짜 선택하기');
+            handleMenu('날짜 선택하기', false);
             break;
         case '객실 변경하기':
             reservationInfo.roomID = null;
@@ -666,37 +671,6 @@ window.addEventListener('resize', () => {
 });
 
 
-const cuteAdjectives = [
-  "몽글몽글한", "보들보들한", "말랑말랑한", "쫀득한", "수줍은",
-  "도도한", "엉뚱한", "완벽한", "삐약삐약", "냠냠대는",
-  "아기같은", "반짝이는", "알쏭달쏭한", "살금살금", "방긋웃는",
-  "뚱뚱한", "깜찍한", "살짝삐친", "졸린", "해맑은",
-  "반쯤자란", "새초롬한", "비밀스러운", "심통난", "심쿵한"
-];
-const foodAndAnimalNouns = [
-  // 음식
-  "젤리", "쿠키", "마카롱", "붕어빵", "떡볶이",
-  "초밥", "라면", "팥빙수", "치즈볼", "아이스크림",
-  "도넛", "카라멜", "빵", "찹쌀떡", "감자칩",
-
-  // 동물
-  "고양이", "강아지", "토끼", "너구리", "햄스터",
-  "수달", "부엉이", "고슴도치", "펭귄", "다람쥐",
-  "두더지", "곰돌이", "오리", "치타", "사막여우",
-  
-  // 캐릭터 느낌
-  "푸우", "피카츄", "뽀로로", "짱구", "코난",
-  "커비", "라이언", "무지", "어피치", "둘리",
-  "도라에몽", "쿠로미", "헬로키티", "마이멜로디", "짱아"
-];
-
-function generateRandomNickname() {
-  const adj = cuteAdjectives[Math.floor(Math.random() * cuteAdjectives.length)];
-  const noun = foodAndAnimalNouns[Math.floor(Math.random() * foodAndAnimalNouns.length)];
-  console.log("랜덤 닉네임 생성: ", adj, noun);
-  return `${adj} ${noun}`; // 형용사와 명사 사이에 공백!
-}
-
 function updateHeader(nick){
     const el = document.querySelector(".chat-title");
     el.textContent = nick;
@@ -733,106 +707,6 @@ function cancelReservation(id) {
     });
 }
 
-
-function getDayOfWeek(date) {
-    if (typeof date === 'string') date = new Date(date);
-    return date.getDay();
-}
-
-// 선택한 날짜 범위에서 객실 판매/마감 상태 확인
-async function checkRoomAvailability(startDate, endDate, roomName) {
-    console.log('객실 판매/마감 상태 확인:', roomName, 'startDate:', startDate, 'endDate:', endDate);
-    let status = 1;
-    const isOvernight = endDate && new Date(endDate) > new Date(startDate);
-    if(!isOvernight) {
-        endDate = new Date(startDate);
-        endDate.setDate(endDate.getDate() + 1);
-    }
-    for(let dt = new Date(startDate); dt < new Date(endDate); dt.setDate(dt.getDate() + 1)) {
-        const dayOfWeek = getDayOfWeek(dt);
-        const year = dt.getFullYear();
-        const month = dt.getMonth() + 1;
-        const date = dt.getDate();
-        const dateId = year*10000 + month*100 + date;
-        let roomId;
-
-        console.log(year, '년', month, '월', date, '일', 'isOvernight:', isOvernight);
-
-        const defaultSettings = await fetch('/api/defaultSettings').then(res => res.json()).then(data => data.data);
-        defaultSettings.forEach(room => {
-            if(room.roomType === roomName) {
-                roomId = room.id;
-                status = isOvernight ? JSON.parse(room.overnightStatus)[dayOfWeek] : JSON.parse(room.dailyStatus)[dayOfWeek];
-            }
-        });
-        console.log("요일별 조회 결과: ", status);
-
-        if(roomId === null) {
-            console.log('일어날 수 없는 일 발생!');
-            return false;
-        }
-
-        const dailySettings = await fetch(`/api/dailySettings/${month}/${year}/${isOvernight?1:0}`).then(res => res.json()).then(data => data.data);
-        console.log("dateId: ", dateId);
-        dailySettings.forEach(setting => {
-            if(setting.roomId === roomId && setting.dateId === dateId) {
-                status = JSON.parse(setting.status);
-                console.log("날짜별 조회 결과: ", status);
-            }
-        });
-
-        if(status != 1) return false;
-
-
-    }
-    return status ===1;
-}
-
-// 객실 가격 조회 (daily_price 우선, 없으면 rooms 테이블에서 요일별 가격)
-async function getRoomPrice(startDate, endDate, roomName) {
-    let totalPrice = 0;
-    const isOvernight = endDate && new Date(endDate) > new Date(startDate);
-    if(!isOvernight) {
-        endDate = new Date(startDate);
-        endDate.setDate(endDate.getDate() + 1);
-    }
-    for(let dt = new Date(startDate); dt < new Date(endDate); dt.setDate(dt.getDate() + 1)) {
-        const dayOfWeek = getDayOfWeek(dt);
-        const year = dt.getFullYear();
-        const month = dt.getMonth() + 1;
-        const date = dt.getDate();
-        const dateId = year*10000 + month*100 + date;
-        let roomId;
-        let price = 0;
-
-        const defaultSettings = await fetch('/api/defaultSettings').then(res => res.json()).then(data => data.data);
-        defaultSettings.forEach(room => {
-            if(room.roomType === roomName) {
-                roomId = room.id;
-                price = isOvernight ? JSON.parse(room.overnightPrice)[dayOfWeek] : JSON.parse(room.dailyPrice)[dayOfWeek];
-            }
-        });
-
-        console.log("요일별 가격 조회 결과: ", price);
-
-        if(roomId === null) {
-            console.log('일어날 수 없는 일 발생!');
-            return false;
-        }
-
-        const dailySettings = await fetch(`/api/dailySettings/${month}/${year}/${isOvernight?1:0}`).then(res => res.json()).then(data => data.data);
-        dailySettings.forEach(setting => {
-            if(setting.roomId === roomId && setting.dateId === dateId) {
-                price = JSON.parse(setting.price);
-                console.log("날짜별 가격 조회 결과: ", price);
-            }
-        });
-
-        totalPrice += price;
-        
-    }
-    return totalPrice;
-}
 
 
 // Socket.IO 클라이언트 라이브러리 로드
