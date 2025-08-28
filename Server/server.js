@@ -151,21 +151,28 @@ app.get("/api/setting/:bIsOvernight", (req, res) => {
 });
 
 app.get("/api/setting/:bIsOvernight/:roomId", (req, res) => {
-    if(!req.params) return res.status(400).json({ error: "params 오류" });
+	try {
+		if(!req.params) return res.status(400).json({ error: "params 오류" });
 
-    const { bIsOvernight, roomId } = req.params;
-    if(!bIsOvernight) return res.status(400).json({ error: "bIsOvernight 누락" });
-    if(!roomId) return res.status(400).json({ error: "roomId 누락" });
+		const { bIsOvernight, roomId } = req.params;
+		if(bIsOvernight === undefined) return res.status(400).json({ error: "bIsOvernight 누락" });
+		if(roomId === undefined) return res.status(400).json({ error: "roomId 누락" });
+        console.log(bIsOvernight, typeof(bIsOvernight));
+        console.log(roomId, typeof(roomId));
 
-    const rt = roomsModule.getSettingById(Number(roomId), bIsOvernight);
-    if(!rt.ok) return res.status(503).json({ error: rt.msg });
+		const rt = roomsModule.getSettingById(Number(roomId), Number(bIsOvernight));
+		if(!rt.ok) return res.status(503).json({ error: rt.msg });
 
-    const rt2 = roomsModule.getRoomById(Number(roomId));
-    if(!rt2.ok) return res.status(503).json({ error: rt2.msg });
+		const rt2 = roomsModule.getRoomById(Number(roomId));
+		if(!rt2.ok) return res.status(503).json({ error: rt2.msg });
     
-    rt.data.roomName = rt2.data.name;
+		rt.data.roomName = rt2.data.name;
 
-    res.status(200).json(rt.data);
+		res.status(200).json(rt.data);
+		
+	} catch (error) {
+		return res.status(503).json({ error: error.message });
+	}
 });
 
 app.post("/api/setting/:bIsOvernight/:roomId", (req, res) => {

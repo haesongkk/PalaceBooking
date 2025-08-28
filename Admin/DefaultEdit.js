@@ -88,7 +88,7 @@ class DefaultEdit {
 
     loadData() {
 
-        fetch(`/api/setting/${this.bIsOvernight}/${this.roomId}`)
+        fetch(`/api/setting/${this.bIsOvernight?1:0}/${this.roomId}`)
             .then(res => res.json())
             .then(data => {
                 console.log(data);

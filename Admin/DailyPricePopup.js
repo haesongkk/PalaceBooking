@@ -20,6 +20,12 @@ class DailyPricePopup {
         fetch(`/api/daily/${this.isOvernight}/${this.selectedDates[0][0]}/${this.selectedDates[0][1]}/${this.selectedDates[0][2]}`)
         .then(res => res.json())
         .then(data => {
+            if(data.error) {
+                alert(data.error);
+                return false;
+            }
+
+            console.log(data);
             this.container.innerHTML = `
                 <div class="price-table-inner-top-container">
                     <div class="sales-info-bar">
