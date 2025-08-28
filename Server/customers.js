@@ -69,52 +69,20 @@ function saveCustomer(name, phone, memo) {
 
 }
 
-// 모든 고객 조회 API
-function getAllCustomers() {
-    try {
-        const customers = customersDb.prepare(`
-            SELECT 
-                id,
-                name,
-                phone,
-                memo,
-                created_at,
-                updated_at,
-                NULL as last_visit_date
-            FROM customers
-            ORDER BY created_at DESC
+function getCustomerList() {
+    return customersDb.prepare(`
+        SELECT * 
+        FROM customers
         `).all();
-
-        return {
-            status: 200,
-            msg: '고객 조회 성공',
-            customers: customers
-        };
-    } 
-    catch (error) {
-        return {
-            status: 500,
-            msg: error.message,
-            customers: []
-        };
-    }
-    
 }
 
 function deleteCustomer(id) {
-    try {
-        customersDb.prepare('DELETE FROM customers WHERE id = ?').run(id);
-        return {
-            status: 200,
-            msg: '고객 삭제 성공',
-        };
-    }
-    catch (error) {
-        return {
-            status: 500,
-            msg: error.message,
-        };
-    }
+    if(typeof id !== 'number') throw new Error('id must be a number');
+    return customersDb.prepare(`
+        DELETE 
+        FROM customers 
+        WHERE id = ?
+        `).run(id);
 }
 
 function updateCustomer(id, name, phone, memo) {
@@ -176,7 +144,7 @@ function getCustomer(phone) {
 }
 
 module.exports = {
-    getAllCustomers,
+    getCustomerList,
     deleteCustomer,
     updateCustomer,
     searchCustomer,

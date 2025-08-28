@@ -9,10 +9,8 @@ import multer from 'multer';
 import fs from 'fs';
 
 
-import dailySettingsModule from './dailySettings.js';
 import customersModule from "./customers.js";
 import roomsModule from "./rooms.js";
-import defaultSettingsModule from "./defaultSettings.js";
 import discountModule from "./discount.js";
 
 
@@ -375,6 +373,18 @@ app.patch("/api/discount", (req, res) => {
     }
 });
 
+app.delete("/api/customers/:id", (req, res) => {
+    try{
+        const { id } = req.params;
+        if(id == undefined) return res.status(400).json({ err: "id 누락" });
+
+        const rt = customersModule.deleteCustomer(Number(id));
+        res.status(200).json({ msg: "delete customer success" });
+    } catch (error) {
+        res.status(503).json({ err: error.message });
+    }
+});
+
 
 
 
@@ -630,135 +640,8 @@ app.get('/api/chatbot/certify/:phone', (req, res) => {
 
 
 
-// 기본 설정 관리 API !!!!!
-
-
-app.get('/api/defaultSettings', (req, res) => {
-    const result = roomsModule.getSettingList(0);
-    res.status(result.status).json({
-        msg: result.msg,
-        data: result.data
-    });
-});
-
-app.post('/api/defaultSettings/create', (req, res) => {
-    const result = defaultSettingsModule.createDefaultSettings();
-    res.status(result.status).json({
-        msg: result.msg,
-        data: result.data
-    });
-});
-
-app.post('/api/defaultSettings/update', (req, res) => {
-    const { 
-        id, 
-        roomType, 
-        overnightStatus, 
-        overnightPrice, 
-        overnightOpenClose, 
-        dailyStatus, 
-        dailyPrice,
-        dailyOpenClose, 
-        dailyUsageTime 
-    } = req.body;
-
-    console.log(req.body);
-    const result = defaultSettingsModule.updateDefaultSettings(
-        id, 
-        roomType, 
-        overnightStatus, 
-        overnightPrice, 
-        overnightOpenClose, 
-        dailyStatus, 
-        dailyPrice, 
-        dailyOpenClose, 
-        dailyUsageTime
-    );
-    
-    res.status(result.status).json({
-        msg: result.msg,
-        data: result.data
-    });
-});
-
-app.delete('/api/defaultSettings/:id', (req, res) => {
-    const { id } = req.params;
-    const result = defaultSettingsModule.deleteDefaultSettings(id);
-    res.status(result.status).json({
-        msg: result.msg,
-        data: result.data
-    });
-});
-
-
-// 예약 관리 API !!!!!
-db.prepare(`
-    CREATE TABLE IF NOT EXISTS reservations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT,
-      phone TEXT,
-      room TEXT,
-      start_date TEXT,
-      end_date TEXT,
-      state INTEGER DEFAULT 0
-    )
-  `).run();
-
-app.post('/api/admin/confirm', (req, res) => {
-    const { id } = req.body;
-    if (!id) {
-        return res.status(400).json({ error: '예약 ID가 필요합니다.' });
-    }
-    const stmt = db.prepare(`UPDATE reservations SET state = 1 WHERE id = ? AND state = 0`);
-    const info = stmt.run(id);
-    if (info.changes > 0) {
-        // 예약자 전화번호 조회
-        const row = db.prepare('SELECT phone FROM reservations WHERE id = ?').get(id);
-        // 관리자에게 실시간 알림
-        if (io) io.to("admin").emit("reservation-updated");
-        // 해당 예약자에게 실시간 확정 알림
-        if (row && row.phone) io.to(`user_${row.phone}`).emit("reservation-confirmed", { id });
-        res.json({ success: true });
-    } else {
-        res.status(404).json({ error: '예약을 찾을 수 없거나 이미 처리된 예약입니다.' });
-    }
-});
-
-
-
-app.post("/api/cancel", (req, res) => {
-    const { id } = req.body;
-    if (!id) {
-        return res.status(400).json({ error: "예약 ID가 필요합니다." });
-    }
-
-    // 예약자 전화번호 조회
-    const row = db.prepare('SELECT phone FROM reservations WHERE id = ?').get(id);
-    const phone = row ? row.phone : null;
-
-    // 취소 상태로 변경 (삭제하지 않고 기록 보존)
-    const stmt = db.prepare(`
-        UPDATE reservations SET state = -1 WHERE id = ? AND state != -1
-    `);
-    const info = stmt.run(id);
-
-    if (info.changes > 0) {
-        // 관리자에게 실시간 알림
-        if (io) io.to("admin").emit("reservation-updated");
-        // 해당 예약자에게 실시간 취소 알림
-        if (phone) io.to(`user_${phone}`).emit("reservation-cancelled", { id });
-        res.json({ success: true });
-    } else {
-        res.status(404).json({ error: "예약을 찾을 수 없거나 이미 취소된 예약입니다." });
-    }
-});
-
-
-
-
 
 // 비밀번호 확인 API !!!!!
-const loginIpMap = new Map();
 app.get('/api/admin/login/:password', (req, res) => {
     // 무차별 대입 방어 필요
     const { password } = req.params;
@@ -773,7 +656,6 @@ app.get('/api/admin/login/:password', (req, res) => {
         });
     }
 });
-
 
 
 
@@ -826,12 +708,32 @@ app.post('/api/customers', (req, res) => {
 
 // customerList.js 132
 app.get('/api/customers', (req, res) => {
-    const result = customersModule.getAllCustomers();
-    
-    res.status(result.status).json({
-        msg: result.msg,
-        data: result.customers
-    });     
+    try {
+        const rt = customersModule.getCustomerList();
+        let customerList = []
+        rt.forEach(customer => {
+            const reservations = roomsModule.getReservationListByCustomerID(customer.id);
+            let recentReserve = null;
+
+            if(reservations === undefined) recentReserve = null;
+            else recentReserve = reservations[0];
+
+            const text = recentReserve ? recentReserve.checkinDate + " ~ " + recentReserve.checkoutDate : "-";
+
+            
+            customerList.push({
+                id: customer.id,
+                name: customer.name,
+                phone: customer.phone,
+                memo: customer.memo,
+                recentReserve: text
+            });
+        });
+        res.status(200).json(customerList);
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // customerList.js 137

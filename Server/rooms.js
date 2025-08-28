@@ -370,6 +370,7 @@ function getReservationListByCustomerID(customerID) {
     return roomsDB.prepare(`
         SELECT * FROM reservations
         WHERE customerID = ?
+        ORDER BY id DESC
     `).all(customerID);
 }
 
