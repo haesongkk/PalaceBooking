@@ -165,6 +165,25 @@ body {
   }
 }
 
+.room-viewport {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.room-viewport::-webkit-scrollbar { display: none; }
+
+.room-card {
+  flex: 0 0 100%;            /* 카드 = 뷰포트 한 칸 */
+  scroll-snap-align: center; /* 스냅 지점 */
+  border: 1px solid #444;
+  border-radius: 12px;
+  background: #2e2e4a;
+  padding: 10px;
+  text-align: left;
+}
+
 /* 스크롤바 숨기기 */
 .chat-window::-webkit-scrollbar {
   width: 0;
@@ -553,4 +572,19 @@ body {
 
 .message + .message {
   margin-top: 12px;
+}
+
+.history-item {
+    width: 100%;
+    height: fit-content;
+    background-color: #3d3d60;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 10px;
+    margin: 0;
+
+    box-sizing: border-box;
+    
+
 }

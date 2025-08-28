@@ -1,18 +1,23 @@
 const Database = require("better-sqlite3");
-const path = require("path");
-
 const customersDb = new Database("customers.db");
 
-customersDb.prepare(`
+customersDb.exec(`
   CREATE TABLE IF NOT EXISTS customers (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     phone TEXT NOT NULL,
-    memo TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`).run();
+    memo TEXT
+  );
+`);
+
+function getCustomerById(id) {
+    if(typeof id !== 'number') throw new Error('id must be a number');
+
+    return customersDb.prepare(`
+        SELECT * FROM customers 
+        WHERE id = ?
+    `).get(id);
+}
 
 function saveCustomer(name, phone, memo) {
     if(!name) return { 
@@ -64,52 +69,20 @@ function saveCustomer(name, phone, memo) {
 
 }
 
-// 모든 고객 조회 API
-function getAllCustomers() {
-    try {
-        const customers = customersDb.prepare(`
-            SELECT 
-                id,
-                name,
-                phone,
-                memo,
-                created_at,
-                updated_at,
-                NULL as last_visit_date
-            FROM customers
-            ORDER BY created_at DESC
-        `).all();
-
-        return {
-            status: 200,
-            msg: '고객 조회 성공',
-            customers: customers
-        };
-    } 
-    catch (error) {
-        return {
-            status: 500,
-            msg: error.message,
-            customers: []
-        };
-    }
-    
+function getCustomerList() {
+    return customersDb.prepare(`
+        SELECT * 
+        FROM customers
+    `).all();
 }
 
 function deleteCustomer(id) {
-    try {
-        customersDb.prepare('DELETE FROM customers WHERE id = ?').run(id);
-        return {
-            status: 200,
-            msg: '고객 삭제 성공',
-        };
-    }
-    catch (error) {
-        return {
-            status: 500,
-            msg: error.message,
-        };
-    }
+    if(typeof id !== 'number') throw new Error('id must be a number');
+    return customersDb.prepare(`
+        DELETE 
+        FROM customers 
+        WHERE id = ?
+    `).run(id);
 }
 
 function updateCustomer(id, name, phone, memo) {
@@ -165,28 +138,17 @@ function registerCustomer(phone) {
 }
 
 function getCustomer(phone) {
-    const customer = customersDb.prepare(
+    return customersDb.prepare(
         'SELECT * FROM customers WHERE phone = ?'
     ).get(phone);
-
-    if(!customer) return {
-        status: 404,
-        msg: '고객 정보가 존재하지 않습니다.',
-        data: null
-    };
-
-    return {
-        status: 200,
-        msg: '고객 조회 성공',
-        data: customer
-    };
 }
 
 module.exports = {
-    getAllCustomers,
+    getCustomerList,
     deleteCustomer,
     updateCustomer,
     searchCustomer,
     registerCustomer,
-    getCustomer
+    getCustomer,
+    getCustomerById
 };

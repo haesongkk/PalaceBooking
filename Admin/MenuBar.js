@@ -4,7 +4,7 @@ class MenuBar {
         this.container.className = 'menu-bar';
 
         this.buttons = [];
-        for (const name of ['고객 등록', '예약 승인', '요금표 관리', '판매 캘린더']) {
+        for (const name of ['고객 등록', '예약 승인', '요금표 관리', '판매 캘린더', '객실 관리']) {
             const button = document.createElement('button');
             //button.className = 'menu-button';
             button.textContent = name;
@@ -41,6 +41,9 @@ class MenuBar {
                 break;
             case '판매 캘린더':
                 tabContent = new DailyPrice();
+                break;
+            case '객실 관리':
+                tabContent = new RoomList();
                 break;
         }
         mainCanvas.append(tabContent, tabName);
