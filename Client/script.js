@@ -154,7 +154,7 @@ function historyHandler(input){
 
 }
 
-function showCalendar(year, month, container){
+function showCalendar(year, month, container, nights = 1){
     container.innerHTML = "";
 
     let displayYear = year;
@@ -251,23 +251,12 @@ function showCalendar(year, month, container){
             if(!reservationInfo.startDate){
                 reservationInfo.startDate = date;
                 dayCell.classList.add("selected");
-            }
-            else{
-                if(!reservationInfo.endDate && date > reservationInfo.startDate){
-                    reservationInfo.endDate = date;
-                }
-                else if(!reservationInfo.endDate && date < reservationInfo.startDate){
-                    reservationInfo.endDate = reservationInfo.startDate;
-                    reservationInfo.startDate = date;
-
-                }
-                else if(!reservationInfo.endDate && date === reservationInfo.startDate){
-                    reservationInfo.startDate = null;
-                }
-                else if(reservationInfo.endDate){
-                    reservationInfo.startDate = date;
-                    reservationInfo.endDate = null;
-                }
+            } else if (reservationInfo.startDate == date){
+                reservationInfo.startDate = null;
+                dayCell.classList.remove("selected");
+            } else {
+                reservationInfo.startDate = date;
+                dayCell.classList.add("selected");
             }
             showCalendar(year, month, container);
             
@@ -298,7 +287,44 @@ function showCalendar(year, month, container){
         });
     }
 
+
     if(reservationInfo.startDate){
+        if(document.querySelector(".chat-window").querySelector(".message.bot:last-child").id == "calendarBox"){
+            appendMessage(`
+                숙박 범위를 설정할 부분입니다.
+            `, "bot");
+        } 
+        reservationInfo.endDate = new Date(reservationInfo.startDate);
+        reservationInfo.endDate.setDate(reservationInfo.startDate.getDate() + nights);
+        reservationInfo.endDate = new Date(reservationInfo.endDate);
+        const child = document.querySelector(".chat-window").querySelector(".message.bot:last-child");
+
+        const addNights = () => {
+            nights++;
+            showCalendar(year, month, container, nights);
+        }
+        const subNights = () => {
+            if(nights == 0) return;
+            nights--;
+            showCalendar(year, month, container, nights);
+        }
+
+        child.innerHTML = `
+        <div style="display: flex; flex-direction: row; gap: 10px;">
+            총 숙박 일수: ${nights}박
+            <button onclick="subNights()">-</button>
+            <button onclick="addNights()">+</button>
+        </div>
+        ${reservationInfo.startDate.toLocaleDateString()} 입실 <br>
+        ${reservationInfo.endDate.toLocaleDateString()} 퇴실 <br>
+        `;
+
+        const buttons = child.querySelectorAll("button");
+        buttons[0].onclick = subNights;
+        buttons[1].onclick = addNights;
+
+
+
         const rangeEnd = new Date(reservationInfo.endDate? reservationInfo.endDate : reservationInfo.startDate);
     
         for(let i = 0; i < 42; i++){
