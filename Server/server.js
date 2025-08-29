@@ -6,9 +6,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import multer from 'multer';
 
 
-import customersModule from "./customers.js";
 import roomsModule from "./rooms.js";
-import discountModule from "./discount.js";
 
 
 const app = express();
@@ -26,8 +24,33 @@ app.use(bodyParser.json());
 
 app.use(express.static("../Client"));
 app.use('/admin', express.static('../Admin'));
-
 app.use('/img', express.static('./img'));
+
+io.on("connection", (socket) => {
+    // 클라이언트가 본인 전화번호로 join할 수 있도록 이벤트 준비
+    socket.on("join", (phone) => {
+        socket.join(`user_${phone}`);
+    });
+    // 관리자 페이지는 'admin' 방에 join
+    socket.on("admin", () => {
+        socket.join("admin");
+    });
+});
+
+server.listen(PORT, "0.0.0.0", () => {
+    const interfaces = os.networkInterfaces();
+    let ip = "localhost";
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            if (iface.family === "IPv4" && !iface.internal) {
+                ip = iface.address;
+            }
+        }
+    }
+    console.log(`서버 실행됨: http://${ip}:${PORT}`);
+    console.log(`관리자 페이지 : http://${ip}:${PORT}/admin`);
+
+});
 
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -298,7 +321,7 @@ app.get(`/api/reservation`, (req, res) => {
         const reservations = roomsModule.getReservationList();
         let reservationList = [];
         reservations.forEach(reservation => {
-            const customer = customersModule.getCustomerById(reservation.customerID);
+            const customer = roomsModule.getCustomerById(reservation.customerID);
             if(customer == undefined) throw new Error("customer not found");
             const room = roomsModule.getRoomById(reservation.roomID);
             if(room == undefined) throw new Error("room not found");
@@ -340,7 +363,7 @@ app.patch("/api/reservation/:id", (req, res) => {
 
 app.get("/api/discount", (req, res) => {
     try {
-        const { firstVisitDiscount, recentVisitDiscount } = discountModule.getDiscount();
+        const { firstVisitDiscount, recentVisitDiscount } = roomsModule.getDiscount();
         res.status(200).json({
             msg: "get discount success",
             data: {
@@ -365,7 +388,7 @@ app.patch("/api/discount", (req, res) => {
             return res.status(400).json({ err: "no recentVisitDiscount" });
         }
 
-        const info = discountModule.setDiscount(firstVisitDiscount, recentVisitDiscount);
+        const info = roomsModule.setDiscount(firstVisitDiscount, recentVisitDiscount);
         if(info.changes == 0) {
             return res.status(400).json({ err: "patch discount failed: no changes" });
         } else {
@@ -382,7 +405,7 @@ app.delete("/api/customers/:id", (req, res) => {
         if(id == undefined) return res.status(400).json({ err: "id 누락" });
 
 
-        const rt = customersModule.deleteCustomer(Number(id));
+        const rt = roomsModule.deleteCustomer(Number(id));
         res.status(200).json({ msg: "delete customer success" });
     } catch (error) {
         res.status(503).json({ err: error.message });
@@ -443,7 +466,7 @@ app.post(`/api/chatbot/getReservationPrice`, (req, res) => {
         if(!checkoutDate) return res.status(400).json({ error: "checkoutDate 누락" });
 
         const customerType = roomsModule.getReservationListByCustomerID(Number(customerID)).length > 0 ? 0 : 1;
-        let discount = customerType == 1 ? discountModule.getDiscount().firstVisitDiscount : discountModule.getDiscount().recentVisitDiscount;
+        let discount = customerType == 1 ? roomsModule.getDiscount().firstVisitDiscount : roomsModule.getDiscount().recentVisitDiscount;
         let [originalPrice, discountedPrice] = getReservationPrice(roomID, checkinDate, checkoutDate, discount);
         
         if(originalPrice == -1) {
@@ -517,7 +540,7 @@ app.post(`/api/chatbot/confirmReservation`, (req, res) => {
 
 app.post('/api/customers/register/:phone', (req, res) => {
     const { phone } = req.params;
-    const result = customersModule.registerCustomer(phone);
+    const result = roomsModule.registerCustomer(phone);
     res.status(result.status).json({
         msg: result.msg,
     });
@@ -528,7 +551,7 @@ app.get('/api/chatbot/certify/:phone', (req, res) => {
     try{
         const { phone } = req.params;
         if(phone == undefined) return res.status(400).json({ error: "phone 누락" });
-        const customer = customersModule.getCustomer(phone);
+        const customer = roomsModule.getCustomer(phone);
         if(customer == undefined) return res.status(200).json({
             floatings: ["고객 등록", "예약하기", "예약 내역", "문의하기"],
             msg: ["고객 정보가 존재하지 않습니다. 고객 등록을 먼저 진행해주세요."],
@@ -564,7 +587,7 @@ app.get(`/api/chatbot/getReservationList/:phone`, (req, res) => {
         const { phone } = req.params;
         if(phone == undefined) return res.status(400).json({ error: "phone 누락" });
 
-        const customer = customersModule.getCustomer(phone);
+        const customer = roomsModule.getCustomer(phone);
         if(customer == undefined) return res.status(200).json({
             floatings: ["고객 등록", "예약하기", "예약 내역", "문의하기"],
             msg: ["고객 정보가 존재하지 않습니다."],
@@ -619,38 +642,13 @@ app.get('/api/admin/login/:password', (req, res) => {
 
 
 
-// 소켓 연결 관리
-io.on("connection", (socket) => {
-    // 클라이언트가 본인 전화번호로 join할 수 있도록 이벤트 준비
-    socket.on("join", (phone) => {
-        socket.join(`user_${phone}`);
-    });
-    // 관리자 페이지는 'admin' 방에 join
-    socket.on("admin", () => {
-        socket.join("admin");
-    });
-});
 
-server.listen(PORT, "0.0.0.0", () => {
-    const interfaces = os.networkInterfaces();
-    let ip = "localhost";
-    for (const name of Object.keys(interfaces)) {
-        for (const iface of interfaces[name]) {
-            if (iface.family === "IPv4" && !iface.internal) {
-                ip = iface.address;
-            }
-        }
-    }
-    console.log(`서버 실행됨: http://${ip}:${PORT}`);
-    console.log(`관리자 페이지 : http://${ip}:${PORT}/admin`);
-
-});
 
 
 // customerInfo.js 67
 app.post('/api/customers', (req, res) => {
     const { id, name, phone, memo } = req.body;
-    const result = customersModule.updateCustomer(id,  name, phone, memo);
+    const result = roomsModule.updateCustomer(id,  name, phone, memo);
     
     res.status(result.status).json({
         msg: result.msg,
@@ -660,7 +658,7 @@ app.post('/api/customers', (req, res) => {
 // customerList.js 132
 app.get('/api/customers', (req, res) => {
     try {
-        const rt = customersModule.getCustomerList();
+        const rt = roomsModule.getCustomerList();
         let customerList = []
         rt.forEach(customer => {
             const reservations = roomsModule.getReservationListByCustomerID(customer.id);
@@ -690,10 +688,63 @@ app.get('/api/customers', (req, res) => {
 
 app.get('/api/customers/search/:number', (req, res) => {
     const { number } = req.params;
-    const result = customersModule.searchCustomer(number);
+    const result = roomsModule.searchCustomer(number);
     res.status(result.status).json({
         msg: result.msg,
         data: result.customers
     });
 
 });
+
+class ChatBot {
+    constructor(res) {
+        this.res = res;
+    }
+
+    push(msg) {
+        this.res.write(msg);
+    }
+
+    remove() {
+        this.res.end();
+    }
+}
+
+const chatBotMap = new Map();
+app.get(`/chatbot/init`, (req, res) => {
+    try {
+        const { pageId } = req.query;
+        chatBotMap.set(pageId, new ChatBot(res));
+    }
+    catch (error) {
+        res.status(503).json({ error: error.message });
+    }
+});
+
+app.post(`/chatbot/update`, (req, res) => { 
+    try {
+        const { pageId, msg } = req.body;
+        const { floatings, messages } = chatBotMap.get(pageId).update(msg);
+        res.status(200).json({
+            floatings: floatings,
+            messages: messages,
+        });
+    }
+    catch (error) {
+        res.status(503).json({ error: error.message });
+    }
+});
+
+app.get(`/chatbot/final`, (req, res) => {
+    try {
+        const { pageId } = req.query;
+        chatBotMap.delete(pageId);
+        res.status(200).json({
+            msg: "success",
+        });
+    }
+    catch (error) {
+        res.status(503).json({ error: error.message });
+    }
+});
+

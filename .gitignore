@@ -1,13 +1,4 @@
 *.db
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.bmp
-*.webp
-*.ico
-*.svg
-*.mp4
 node_modules/
 Test/
 User/
