@@ -561,13 +561,14 @@ app.get('/api/chatbot/certify/:phone', (req, res) => {
         const userNick = phone.slice(-4);
         const reservationList = roomsModule.getReservationListByCustomerID(customer.id);
         let msg = [];
+        const discount = roomsModule.getDiscount();
         if(reservationList.length > 0) msg = [
             `🙌 ${userNick}님, 다시 찾아주셔서 감사합니다.`,
-            "단골 고객님께는 야놀자보다 5,000원 더 저렴하게 안내해드립니다."
+            `단골 고객님께는 야놀자보다 ${discount.recentVisitDiscount.toLocaleString()}원 더 저렴하게 안내해드립니다.`
         ];
         else msg = [
             `🙏 ${userNick}님, 팔레스 호텔을 찾아주셔서 감사합니다.`,
-            "첫 방문 고객님께는 5,000원 더 저렴하게 안내해드립니다."
+            `첫 방문 고객님께는 ${discount.firstVisitDiscount.toLocaleString()}원 더 저렴하게 안내해드립니다.`
         ];
 
         return res.status(200).json({
