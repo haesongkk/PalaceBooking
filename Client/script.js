@@ -1,19 +1,3 @@
-
-let calendarYear = new Date().getFullYear();
-let calendarMonth = new Date().getMonth();
-let calendarEnabled = true;
-
-let rangeStart = null;
-let rangeEnd = null;
-let selectedRoom = '';
-
-let selectedMode = "date-first";
-let selectedProduct = "";
-
-let logBuffer = [];
-let userNick = null; // ex: "몽글몽글한 젤리(1234)"
-let finalAmount = 0; // 전역 변수로 선언
-
 const botMessages = {
     welcome: [
         "팔레스 호텔 팀이 함께 인사드립니다!",
@@ -53,6 +37,13 @@ let reservationInfo = new ReservationInfo();
 let curHandler = (text) => {};
 let socketEventListenersSetup = false; // 소켓 이벤트 리스너 설정 여부를 추적
 
+let userPhone = "01090909090";
+let userID = null;
+
+
+
+
+
 function setFloating(menus){
     const floatingBar = document.querySelector(".floating-buttons");
     floatingBar.innerHTML = "";
@@ -67,13 +58,6 @@ function setFloating(menus){
     });
 }
 
-let username;
-let userPhone = "01090909090";
-let userID = null;
-let recentStartDate;
-let recentEndDate;
-let recentRoomType;
-let isFirstVisit = true;
 
 function registerHandler(input)
 {
