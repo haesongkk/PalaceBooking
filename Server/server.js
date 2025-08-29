@@ -584,7 +584,7 @@ app.get('/api/chatbot/certify/:phone', (req, res) => {
         const discount = roomsModule.getDiscount();
         if(reservationList.length > 0) msg = [
             `🙌 ${userNick}님, 다시 찾아주셔서 감사합니다.`,
-            `단골 고객님께는 야놀자보다 ${discount.recentVisitDiscount.toLocaleString()}원 더 저렴하게 안내해드립니다.`
+            `단골 고객님께는 ${discount.recentVisitDiscount.toLocaleString()}원 더 저렴하게 안내해드립니다.`
         ];
         else msg = [
             `🙏 ${userNick}님, 팔레스 호텔을 찾아주셔서 감사합니다.`,
