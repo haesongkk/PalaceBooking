@@ -493,8 +493,8 @@ app.post(`/api/chatbot/getReservationPrice`, (req, res) => {
             // → 진작에 함께 삭제되었어야함 ㅜㅜㅜ
             const room = roomsModule.getRoomById(Number(roomID));
             const szRoomName = room ? room.name : "삭제된 객실";
-            const szStartDate = new Date(checkinDate).toLocaleDateString();
-            const szEndDate = new Date(checkoutDate).toLocaleDateString();
+            const szStartDate = new Date(checkinDate).toLocaleDateString("ko-KR");
+            const szEndDate = new Date(checkoutDate).toLocaleDateString("ko-KR");
             const szCustomerType = customerType == 1 ? "첫 예약 고객" : "단골 고객";
             const szOrginalPrice = originalPrice.toLocaleString();
             const szDiscountedPrice = discountedPrice.toLocaleString();
