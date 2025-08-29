@@ -290,9 +290,8 @@ function showCalendar(year, month, container, nights = 1){
 
     if(reservationInfo.startDate){
         if(document.querySelector(".chat-window").querySelector(".message.bot:last-child").id == "calendarBox"){
-            appendMessage(`
-                숙박 범위를 설정할 부분입니다.
-            `, "bot");
+            appendMessage("며칠 숙박 예정이신가요?", "bot");
+            appendMessage("[숙박 범위 채팅]", "bot");
         } 
         reservationInfo.endDate = new Date(reservationInfo.startDate);
         reservationInfo.endDate.setDate(reservationInfo.startDate.getDate() + nights);
@@ -310,10 +309,12 @@ function showCalendar(year, month, container, nights = 1){
         }
 
         child.innerHTML = `
-        <div style="display: flex; flex-direction: row; gap: 10px;">
-            총 숙박 일수: ${nights}박
-            <button onclick="subNights()">-</button>
-            <button onclick="addNights()">+</button>
+        <div class="nights-container">
+            <strong>총 숙박 일수: ${nights}박 ${nights+1}일</strong>
+            <div class="nights-btn-container">
+                <button class="nights-btn" onclick="subNights()">-</button>
+                <button class="nights-btn" onclick="addNights()">+</button>
+            </div>
         </div>
         ${reservationInfo.startDate.toLocaleDateString()} 입실 <br>
         ${reservationInfo.endDate.toLocaleDateString()} 퇴실 <br>
@@ -340,8 +341,11 @@ function showCalendar(year, month, container, nights = 1){
             }
         }
 
+        const start = new Date(reservationInfo.startDate).setHours(0, 0, 0, 0);
+        const end = new Date(reservationInfo.endDate).setHours(0, 0, 0, 0);
+
         let text = new Date(reservationInfo.startDate).toLocaleDateString();
-        if(reservationInfo.endDate){
+        if(start != end){
             text += " 입실 ~ " + new Date(rangeEnd).toLocaleDateString() + " 퇴실";
         } else {
             text += " 대실";
@@ -367,7 +371,7 @@ function showRooms(){
                             ${JSON.parse(room.image).map(img => `
                                 <img src="/api/image/${img}" style="width: 100px; height: 100px; object-fit: cover;">
                             `).join('')}
-                            <p>${room.description}</p>
+                            <h5>${room.description.replaceAll("\n", "<br>")}</h5>
                         </div>
                     `).join('')}
                 </div>
@@ -460,11 +464,23 @@ async function checkReservation(){
 
 function disableLastBotMessage(){
     const botMessages = document.querySelectorAll('.message.bot');
-    botMessages[botMessages.length - 1].querySelectorAll('button').forEach(btn => {
+    const lastBotMessage = botMessages[botMessages.length - 1];
+    
+    // 버튼들 비활성화
+    lastBotMessage.querySelectorAll('button').forEach(btn => {
         btn.disabled = true;
         btn.onclick = null;
         btn.style.opacity = '0.8';
-    })
+    });
+    
+    // 메시지 자체에 overflow hidden 추가
+    lastBotMessage.classList.add("overflow-hidden");
+    
+    // 메시지 내부의 모든 스크롤 가능한 요소들에 overflow hidden 적용
+    lastBotMessage.querySelectorAll('.room-viewport, .calendar-container, .nights-container, .nights-btn-container').forEach(element => {
+        element.style.overflow = 'hidden';
+        element.style.pointerEvents = 'none'; // 추가로 클릭도 막기
+    });
 }
 
 function askHandler(text){

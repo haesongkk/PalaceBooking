@@ -276,7 +276,10 @@ function createReservation(customerID, roomID, checkinDate, checkoutDate, price,
 }
 
 function getReservationList() {
-    return roomsDB.prepare(`SELECT * FROM reservations`).all();
+    return roomsDB.prepare(`
+        SELECT * FROM reservations
+        ORDER BY id DESC
+    `).all();
 }
 
 function updateReservationStatus(id, status) {

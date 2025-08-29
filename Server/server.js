@@ -159,7 +159,7 @@ app.get("/api/setting/:bIsOvernight", (req, res) => {
         const settingList = roomsModule.getSettingList(Number(bIsOvernight));
         settingList.forEach(setting => {
             const room = roomsModule.getRoomById(setting.roomId);
-            setting.roomName = room.name;
+            setting.roomName = room ? room.name : "삭제된 객실";
         });
         res.status(200).json(settingList);
     } catch (error) {
@@ -179,7 +179,7 @@ app.get("/api/setting/:bIsOvernight/:roomId", (req, res) => {
 		const setting = roomsModule.getSettingById(Number(roomId), Number(bIsOvernight));
 
 		const room = roomsModule.getRoomById(Number(roomId));
-		setting.roomName = room.name;
+		setting.roomName = room ? room.name : "삭제된 객실";
 
 		res.status(200).json(setting);
 		
@@ -244,7 +244,7 @@ app.get("/api/daily/:bIsOvernight/:year/:month/:date", (req, res) => {
 
             data.push({
                 roomId: setting.roomId,
-                roomName: room.name,
+                roomName: room ? room.name : "삭제된 객실",
                 bOvernight: setting.bOvernight,
                 year: year,
                 month: month,
@@ -321,16 +321,19 @@ app.get(`/api/reservation`, (req, res) => {
         const reservations = roomsModule.getReservationList();
         let reservationList = [];
         reservations.forEach(reservation => {
+            // !!!!! 수정 필요 !!!!!
+            // 고객이나 객실 정보가 삭제되어서 없다면?!
+            // → 진작에 함께 삭제되었어야함 ㅜㅜㅜ
             const customer = roomsModule.getCustomerById(reservation.customerID);
-            if(customer == undefined) throw new Error("customer not found");
+            // if(customer == undefined) return;
             const room = roomsModule.getRoomById(reservation.roomID);
-            if(room == undefined) throw new Error("room not found");
+            // if(room == undefined) return;
 
             reservationList.push({
                 id: reservation.id,
-                customerName: customer.name,
-                customerPhone: customer.phone,
-                roomName: room.name,
+                customerName: customer ? customer.name : "삭제된 고객",
+                customerPhone: customer ? customer.phone : "-",
+                roomName: room ? room.name : "삭제된 객실",
                 checkinDate: reservation.checkinDate,
                 checkoutDate: reservation.checkoutDate,
                 price: reservation.price,
@@ -422,14 +425,19 @@ function getReservationPrice(roomId, checkinDate, checkoutDate, discount){
     let originalPrice = 0;
     let discountedPrice = 0;
 
-    const startDate = new Date(checkinDate);
-    const endDate = new Date(checkoutDate);
+    const startDate = new Date(checkinDate).setHours(0, 0, 0, 0);
+    const endDate = new Date(checkoutDate).setHours(0, 0, 0, 0);
+
+
+
+    let isOvernight = true;
+    if(startDate == endDate) isOvernight = false;
 
     let checkDate = new Date(startDate);
-    while(checkDate < endDate){
+    do {
         let setting;
         const daily = roomsModule.getDailyByDate(
-            1, 
+            isOvernight ? 1 : 0, 
             checkDate.getFullYear(), 
             checkDate.getMonth() + 1, 
             checkDate.getDate()
@@ -440,7 +448,7 @@ function getReservationPrice(roomId, checkinDate, checkoutDate, discount){
         }
         else {
             const dayOfWeek = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate()).getDay();
-            const tmp = roomsModule.getSettingById(Number(roomId), 1);
+            const tmp = roomsModule.getSettingById(Number(roomId), isOvernight ? 1 : 0);
             setting = {
                 status: JSON.parse(tmp.status)[dayOfWeek],
                 price: JSON.parse(tmp.price)[dayOfWeek],
@@ -452,7 +460,8 @@ function getReservationPrice(roomId, checkinDate, checkoutDate, discount){
         
         discountedPrice -= discount;
         checkDate.setDate(checkDate.getDate() + 1);
-    }
+    } while(checkDate < endDate);
+
     discountedPrice += originalPrice;
     return [originalPrice, discountedPrice];
 }
@@ -479,7 +488,11 @@ app.post(`/api/chatbot/getReservationPrice`, (req, res) => {
         if(originalPrice != -1){
             let msg = [];
             
-            const szRoomName = roomsModule.getRoomById(Number(roomID)).name;
+            // !!!!! 수정 필요 !!!!!
+            // 고객이나 객실 정보가 삭제되어서 없다면?!
+            // → 진작에 함께 삭제되었어야함 ㅜㅜㅜ
+            const room = roomsModule.getRoomById(Number(roomID));
+            const szRoomName = room ? room.name : "삭제된 객실";
             const szStartDate = new Date(checkinDate).toLocaleDateString();
             const szEndDate = new Date(checkoutDate).toLocaleDateString();
             const szCustomerType = customerType == 1 ? "첫 예약 고객" : "단골 고객";
@@ -487,8 +500,15 @@ app.post(`/api/chatbot/getReservationPrice`, (req, res) => {
             const szDiscountedPrice = discountedPrice.toLocaleString();
             const szDiscount = discount.toLocaleString();
 
-            msg.push(`${szRoomName} ${szStartDate} 입실 ~ ${szEndDate} 퇴실`);
-            msg.push(`${szCustomerType} 1박 당 ${szDiscount}원 할인 적용!`);
+            const isOvernight = szStartDate != szEndDate;
+            if(isOvernight) {
+                msg.push(`${szRoomName} ${szStartDate} 입실 ~ ${szEndDate} 퇴실`);
+            } else {
+                msg.push(`${szRoomName} ${szStartDate} 대실`);
+            }
+
+
+            msg.push(`${szCustomerType} ${isOvernight ? "1박 당" : ""} ${szDiscount}원 할인 적용!`);
             msg.push(`기준가: ${szOrginalPrice}원 → 할인 가격: ${szDiscountedPrice}원`);
             msg.push(`예약하시겠습니까?`);
 
@@ -599,7 +619,7 @@ app.get(`/api/chatbot/getReservationList/:phone`, (req, res) => {
         let msg = ``;
         if(reservationList.length == 0) msg = "현재 예약 내역이 없습니다.";
         reservationList.forEach(reservation => {
-            const roomName = roomsModule.getRoomById(reservation.roomID).name;
+            const roomName = roomsModule.getRoomById(reservation.roomID)?.name || "삭제된 객실";
             msg += `
                 <button class="history-item" id="reservation-${reservation.id}">
                     ${roomName}<br>

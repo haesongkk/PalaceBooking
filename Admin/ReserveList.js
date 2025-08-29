@@ -109,7 +109,11 @@ class ReserveList {
                         <td>${reservation.customerName}</td>
                         <td>${reservation.customerPhone}</td>
                         <td>${reservation.roomName}</td>
-                        <td>${reservation.checkinDate} 입실 ~ ${reservation.checkoutDate} 퇴실</td>
+                        ${reservation.checkinDate == reservation.checkoutDate ? `
+                            <td>${reservation.checkinDate} 대실</td>
+                        ` : `
+                            <td>${reservation.checkinDate} 입실 ~ ${reservation.checkoutDate} 퇴실</td>
+                        `}
                         <td>
                             ${reservation.status === 0 ? `
                                 <button class="confirm" id="confirm-${reservation.id}">확정</button>
