@@ -440,8 +440,8 @@ async function checkReservation(){
         body: JSON.stringify({
             customerID: userID,
             roomID: reservationInfo.roomID,
-            checkinDate: reservationInfo.startDate,
-            checkoutDate: reservationInfo.endDate
+            checkinDate: new Date(reservationInfo.startDate).toLocaleDateString(),
+            checkoutDate: new Date(reservationInfo.endDate).toLocaleDateString()
         })
     }).then(res => res.json()).then(data => {
         console.log(data);
