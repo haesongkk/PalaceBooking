@@ -1,19 +1,3 @@
-
-let calendarYear = new Date().getFullYear();
-let calendarMonth = new Date().getMonth();
-let calendarEnabled = true;
-
-let rangeStart = null;
-let rangeEnd = null;
-let selectedRoom = '';
-
-let selectedMode = "date-first";
-let selectedProduct = "";
-
-let logBuffer = [];
-let userNick = null; // ex: "몽글몽글한 젤리(1234)"
-let finalAmount = 0; // 전역 변수로 선언
-
 const botMessages = {
     welcome: [
         "팔레스 호텔 팀이 함께 인사드립니다!",
@@ -53,6 +37,13 @@ let reservationInfo = new ReservationInfo();
 let curHandler = (text) => {};
 let socketEventListenersSetup = false; // 소켓 이벤트 리스너 설정 여부를 추적
 
+let userPhone = "01090909090";
+let userID = null;
+
+
+
+
+
 function setFloating(menus){
     const floatingBar = document.querySelector(".floating-buttons");
     floatingBar.innerHTML = "";
@@ -67,13 +58,6 @@ function setFloating(menus){
     });
 }
 
-let username;
-let userPhone = "01090909090";
-let userID = null;
-let recentStartDate;
-let recentEndDate;
-let recentRoomType;
-let isFirstVisit = true;
 
 function registerHandler(input)
 {
@@ -170,7 +154,7 @@ function historyHandler(input){
 
 }
 
-function showCalendar(year, month, container){
+function showCalendar(year, month, container, nights = 1){
     container.innerHTML = "";
 
     let displayYear = year;
@@ -267,23 +251,12 @@ function showCalendar(year, month, container){
             if(!reservationInfo.startDate){
                 reservationInfo.startDate = date;
                 dayCell.classList.add("selected");
-            }
-            else{
-                if(!reservationInfo.endDate && date > reservationInfo.startDate){
-                    reservationInfo.endDate = date;
-                }
-                else if(!reservationInfo.endDate && date < reservationInfo.startDate){
-                    reservationInfo.endDate = reservationInfo.startDate;
-                    reservationInfo.startDate = date;
-
-                }
-                else if(!reservationInfo.endDate && date === reservationInfo.startDate){
-                    reservationInfo.startDate = null;
-                }
-                else if(reservationInfo.endDate){
-                    reservationInfo.startDate = date;
-                    reservationInfo.endDate = null;
-                }
+            } else if (reservationInfo.startDate == date){
+                reservationInfo.startDate = null;
+                dayCell.classList.remove("selected");
+            } else {
+                reservationInfo.startDate = date;
+                dayCell.classList.add("selected");
             }
             showCalendar(year, month, container);
             
@@ -314,7 +287,45 @@ function showCalendar(year, month, container){
         });
     }
 
+
     if(reservationInfo.startDate){
+        if(document.querySelector(".chat-window").querySelector(".message.bot:last-child").id == "calendarBox"){
+            appendMessage("며칠 숙박 예정이신가요?", "bot");
+            appendMessage("[숙박 범위 채팅]", "bot");
+        } 
+        reservationInfo.endDate = new Date(reservationInfo.startDate);
+        reservationInfo.endDate.setDate(reservationInfo.startDate.getDate() + nights);
+        reservationInfo.endDate = new Date(reservationInfo.endDate);
+        const child = document.querySelector(".chat-window").querySelector(".message.bot:last-child");
+
+        const addNights = () => {
+            nights++;
+            showCalendar(year, month, container, nights);
+        }
+        const subNights = () => {
+            if(nights == 0) return;
+            nights--;
+            showCalendar(year, month, container, nights);
+        }
+
+        child.innerHTML = `
+        <div class="nights-container">
+            <strong>총 숙박 일수: ${nights}박 ${nights+1}일</strong>
+            <div class="nights-btn-container">
+                <button class="nights-btn" onclick="subNights()">-</button>
+                <button class="nights-btn" onclick="addNights()">+</button>
+            </div>
+        </div>
+        ${reservationInfo.startDate.toLocaleDateString()} 입실 <br>
+        ${reservationInfo.endDate.toLocaleDateString()} 퇴실 <br>
+        `;
+
+        const buttons = child.querySelectorAll("button");
+        buttons[0].onclick = subNights;
+        buttons[1].onclick = addNights;
+
+
+
         const rangeEnd = new Date(reservationInfo.endDate? reservationInfo.endDate : reservationInfo.startDate);
     
         for(let i = 0; i < 42; i++){
@@ -330,8 +341,11 @@ function showCalendar(year, month, container){
             }
         }
 
+        const start = new Date(reservationInfo.startDate).setHours(0, 0, 0, 0);
+        const end = new Date(reservationInfo.endDate).setHours(0, 0, 0, 0);
+
         let text = new Date(reservationInfo.startDate).toLocaleDateString();
-        if(reservationInfo.endDate){
+        if(start != end){
             text += " 입실 ~ " + new Date(rangeEnd).toLocaleDateString() + " 퇴실";
         } else {
             text += " 대실";
@@ -357,7 +371,7 @@ function showRooms(){
                             ${JSON.parse(room.image).map(img => `
                                 <img src="/api/image/${img}" style="width: 100px; height: 100px; object-fit: cover;">
                             `).join('')}
-                            <p>${room.description}</p>
+                            <h5>${room.description.replaceAll("\n", "<br>")}</h5>
                         </div>
                     `).join('')}
                 </div>
@@ -450,11 +464,23 @@ async function checkReservation(){
 
 function disableLastBotMessage(){
     const botMessages = document.querySelectorAll('.message.bot');
-    botMessages[botMessages.length - 1].querySelectorAll('button').forEach(btn => {
+    const lastBotMessage = botMessages[botMessages.length - 1];
+    
+    // 버튼들 비활성화
+    lastBotMessage.querySelectorAll('button').forEach(btn => {
         btn.disabled = true;
         btn.onclick = null;
         btn.style.opacity = '0.8';
-    })
+    });
+    
+    // 메시지 자체에 overflow hidden 추가
+    lastBotMessage.classList.add("overflow-hidden");
+    
+    // 메시지 내부의 모든 스크롤 가능한 요소들에 overflow hidden 적용
+    lastBotMessage.querySelectorAll('.room-viewport, .calendar-container, .nights-container, .nights-btn-container').forEach(element => {
+        element.style.overflow = 'hidden';
+        element.style.pointerEvents = 'none'; // 추가로 클릭도 막기
+    });
 }
 
 function askHandler(text){

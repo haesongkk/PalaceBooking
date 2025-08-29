@@ -18,7 +18,7 @@ class RoomList {
                 },
                 body: JSON.stringify({
                     name: '새 객실',
-                    image: JSON.stringify(['/uploads/default.png']),
+                    image: `[]`,
                     description: '새 객실 설명'
                 })
             })

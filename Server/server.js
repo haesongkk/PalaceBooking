@@ -6,9 +6,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import multer from 'multer';
 
 
-import customersModule from "./customers.js";
 import roomsModule from "./rooms.js";
-import discountModule from "./discount.js";
 
 
 const app = express();
@@ -26,8 +24,33 @@ app.use(bodyParser.json());
 
 app.use(express.static("../Client"));
 app.use('/admin', express.static('../Admin'));
-
 app.use('/img', express.static('./img'));
+
+io.on("connection", (socket) => {
+    // 클라이언트가 본인 전화번호로 join할 수 있도록 이벤트 준비
+    socket.on("join", (phone) => {
+        socket.join(`user_${phone}`);
+    });
+    // 관리자 페이지는 'admin' 방에 join
+    socket.on("admin", () => {
+        socket.join("admin");
+    });
+});
+
+server.listen(PORT, "0.0.0.0", () => {
+    const interfaces = os.networkInterfaces();
+    let ip = "localhost";
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            if (iface.family === "IPv4" && !iface.internal) {
+                ip = iface.address;
+            }
+        }
+    }
+    console.log(`서버 실행됨: http://${ip}:${PORT}`);
+    console.log(`관리자 페이지 : http://${ip}:${PORT}/admin`);
+
+});
 
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -136,7 +159,7 @@ app.get("/api/setting/:bIsOvernight", (req, res) => {
         const settingList = roomsModule.getSettingList(Number(bIsOvernight));
         settingList.forEach(setting => {
             const room = roomsModule.getRoomById(setting.roomId);
-            setting.roomName = room.name;
+            setting.roomName = room ? room.name : "삭제된 객실";
         });
         res.status(200).json(settingList);
     } catch (error) {
@@ -156,7 +179,7 @@ app.get("/api/setting/:bIsOvernight/:roomId", (req, res) => {
 		const setting = roomsModule.getSettingById(Number(roomId), Number(bIsOvernight));
 
 		const room = roomsModule.getRoomById(Number(roomId));
-		setting.roomName = room.name;
+		setting.roomName = room ? room.name : "삭제된 객실";
 
 		res.status(200).json(setting);
 		
@@ -221,7 +244,7 @@ app.get("/api/daily/:bIsOvernight/:year/:month/:date", (req, res) => {
 
             data.push({
                 roomId: setting.roomId,
-                roomName: room.name,
+                roomName: room ? room.name : "삭제된 객실",
                 bOvernight: setting.bOvernight,
                 year: year,
                 month: month,
@@ -298,16 +321,19 @@ app.get(`/api/reservation`, (req, res) => {
         const reservations = roomsModule.getReservationList();
         let reservationList = [];
         reservations.forEach(reservation => {
-            const customer = customersModule.getCustomerById(reservation.customerID);
-            if(customer == undefined) throw new Error("customer not found");
+            // !!!!! 수정 필요 !!!!!
+            // 고객이나 객실 정보가 삭제되어서 없다면?!
+            // → 진작에 함께 삭제되었어야함 ㅜㅜㅜ
+            const customer = roomsModule.getCustomerById(reservation.customerID);
+            // if(customer == undefined) return;
             const room = roomsModule.getRoomById(reservation.roomID);
-            if(room == undefined) throw new Error("room not found");
+            // if(room == undefined) return;
 
             reservationList.push({
                 id: reservation.id,
-                customerName: customer.name,
-                customerPhone: customer.phone,
-                roomName: room.name,
+                customerName: customer ? customer.name : "삭제된 고객",
+                customerPhone: customer ? customer.phone : "-",
+                roomName: room ? room.name : "삭제된 객실",
                 checkinDate: reservation.checkinDate,
                 checkoutDate: reservation.checkoutDate,
                 price: reservation.price,
@@ -340,7 +366,7 @@ app.patch("/api/reservation/:id", (req, res) => {
 
 app.get("/api/discount", (req, res) => {
     try {
-        const { firstVisitDiscount, recentVisitDiscount } = discountModule.getDiscount();
+        const { firstVisitDiscount, recentVisitDiscount } = roomsModule.getDiscount();
         res.status(200).json({
             msg: "get discount success",
             data: {
@@ -365,7 +391,7 @@ app.patch("/api/discount", (req, res) => {
             return res.status(400).json({ err: "no recentVisitDiscount" });
         }
 
-        const info = discountModule.setDiscount(firstVisitDiscount, recentVisitDiscount);
+        const info = roomsModule.setDiscount(firstVisitDiscount, recentVisitDiscount);
         if(info.changes == 0) {
             return res.status(400).json({ err: "patch discount failed: no changes" });
         } else {
@@ -382,7 +408,7 @@ app.delete("/api/customers/:id", (req, res) => {
         if(id == undefined) return res.status(400).json({ err: "id 누락" });
 
 
-        const rt = customersModule.deleteCustomer(Number(id));
+        const rt = roomsModule.deleteCustomer(Number(id));
         res.status(200).json({ msg: "delete customer success" });
     } catch (error) {
         res.status(503).json({ err: error.message });
@@ -399,14 +425,19 @@ function getReservationPrice(roomId, checkinDate, checkoutDate, discount){
     let originalPrice = 0;
     let discountedPrice = 0;
 
-    const startDate = new Date(checkinDate);
-    const endDate = new Date(checkoutDate);
+    const startDate = new Date(checkinDate).setHours(0, 0, 0, 0);
+    const endDate = new Date(checkoutDate).setHours(0, 0, 0, 0);
+
+
+
+    let isOvernight = true;
+    if(startDate == endDate) isOvernight = false;
 
     let checkDate = new Date(startDate);
-    while(checkDate < endDate){
+    do {
         let setting;
         const daily = roomsModule.getDailyByDate(
-            1, 
+            isOvernight ? 1 : 0, 
             checkDate.getFullYear(), 
             checkDate.getMonth() + 1, 
             checkDate.getDate()
@@ -417,7 +448,7 @@ function getReservationPrice(roomId, checkinDate, checkoutDate, discount){
         }
         else {
             const dayOfWeek = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate()).getDay();
-            const tmp = roomsModule.getSettingById(Number(roomId), 1);
+            const tmp = roomsModule.getSettingById(Number(roomId), isOvernight ? 1 : 0);
             setting = {
                 status: JSON.parse(tmp.status)[dayOfWeek],
                 price: JSON.parse(tmp.price)[dayOfWeek],
@@ -429,7 +460,8 @@ function getReservationPrice(roomId, checkinDate, checkoutDate, discount){
         
         discountedPrice -= discount;
         checkDate.setDate(checkDate.getDate() + 1);
-    }
+    } while(checkDate < endDate);
+
     discountedPrice += originalPrice;
     return [originalPrice, discountedPrice];
 }
@@ -443,7 +475,7 @@ app.post(`/api/chatbot/getReservationPrice`, (req, res) => {
         if(!checkoutDate) return res.status(400).json({ error: "checkoutDate 누락" });
 
         const customerType = roomsModule.getReservationListByCustomerID(Number(customerID)).length > 0 ? 0 : 1;
-        let discount = customerType == 1 ? discountModule.getDiscount().firstVisitDiscount : discountModule.getDiscount().recentVisitDiscount;
+        let discount = customerType == 1 ? roomsModule.getDiscount().firstVisitDiscount : roomsModule.getDiscount().recentVisitDiscount;
         let [originalPrice, discountedPrice] = getReservationPrice(roomID, checkinDate, checkoutDate, discount);
         
         if(originalPrice == -1) {
@@ -456,7 +488,11 @@ app.post(`/api/chatbot/getReservationPrice`, (req, res) => {
         if(originalPrice != -1){
             let msg = [];
             
-            const szRoomName = roomsModule.getRoomById(Number(roomID)).name;
+            // !!!!! 수정 필요 !!!!!
+            // 고객이나 객실 정보가 삭제되어서 없다면?!
+            // → 진작에 함께 삭제되었어야함 ㅜㅜㅜ
+            const room = roomsModule.getRoomById(Number(roomID));
+            const szRoomName = room ? room.name : "삭제된 객실";
             const szStartDate = new Date(checkinDate).toLocaleDateString();
             const szEndDate = new Date(checkoutDate).toLocaleDateString();
             const szCustomerType = customerType == 1 ? "첫 예약 고객" : "단골 고객";
@@ -464,8 +500,15 @@ app.post(`/api/chatbot/getReservationPrice`, (req, res) => {
             const szDiscountedPrice = discountedPrice.toLocaleString();
             const szDiscount = discount.toLocaleString();
 
-            msg.push(`${szRoomName} ${szStartDate} 입실 ~ ${szEndDate} 퇴실`);
-            msg.push(`${szCustomerType} 1박 당 ${szDiscount}원 할인 적용!`);
+            const isOvernight = szStartDate != szEndDate;
+            if(isOvernight) {
+                msg.push(`${szRoomName} ${szStartDate} 입실 ~ ${szEndDate} 퇴실`);
+            } else {
+                msg.push(`${szRoomName} ${szStartDate} 대실`);
+            }
+
+
+            msg.push(`${szCustomerType} ${isOvernight ? "1박 당" : ""} ${szDiscount}원 할인 적용!`);
             msg.push(`기준가: ${szOrginalPrice}원 → 할인 가격: ${szDiscountedPrice}원`);
             msg.push(`예약하시겠습니까?`);
 
@@ -517,7 +560,7 @@ app.post(`/api/chatbot/confirmReservation`, (req, res) => {
 
 app.post('/api/customers/register/:phone', (req, res) => {
     const { phone } = req.params;
-    const result = customersModule.registerCustomer(phone);
+    const result = roomsModule.registerCustomer(phone);
     res.status(result.status).json({
         msg: result.msg,
     });
@@ -528,7 +571,7 @@ app.get('/api/chatbot/certify/:phone', (req, res) => {
     try{
         const { phone } = req.params;
         if(phone == undefined) return res.status(400).json({ error: "phone 누락" });
-        const customer = customersModule.getCustomer(phone);
+        const customer = roomsModule.getCustomer(phone);
         if(customer == undefined) return res.status(200).json({
             floatings: ["고객 등록", "예약하기", "예약 내역", "문의하기"],
             msg: ["고객 정보가 존재하지 않습니다. 고객 등록을 먼저 진행해주세요."],
@@ -538,13 +581,14 @@ app.get('/api/chatbot/certify/:phone', (req, res) => {
         const userNick = phone.slice(-4);
         const reservationList = roomsModule.getReservationListByCustomerID(customer.id);
         let msg = [];
+        const discount = roomsModule.getDiscount();
         if(reservationList.length > 0) msg = [
             `🙌 ${userNick}님, 다시 찾아주셔서 감사합니다.`,
-            "단골 고객님께는 야놀자보다 5,000원 더 저렴하게 안내해드립니다."
+            `단골 고객님께는 야놀자보다 ${discount.recentVisitDiscount.toLocaleString()}원 더 저렴하게 안내해드립니다.`
         ];
         else msg = [
             `🙏 ${userNick}님, 팔레스 호텔을 찾아주셔서 감사합니다.`,
-            "첫 방문 고객님께는 5,000원 더 저렴하게 안내해드립니다."
+            `첫 방문 고객님께는 ${discount.firstVisitDiscount.toLocaleString()}원 더 저렴하게 안내해드립니다.`
         ];
 
         return res.status(200).json({
@@ -564,7 +608,7 @@ app.get(`/api/chatbot/getReservationList/:phone`, (req, res) => {
         const { phone } = req.params;
         if(phone == undefined) return res.status(400).json({ error: "phone 누락" });
 
-        const customer = customersModule.getCustomer(phone);
+        const customer = roomsModule.getCustomer(phone);
         if(customer == undefined) return res.status(200).json({
             floatings: ["고객 등록", "예약하기", "예약 내역", "문의하기"],
             msg: ["고객 정보가 존재하지 않습니다."],
@@ -575,7 +619,7 @@ app.get(`/api/chatbot/getReservationList/:phone`, (req, res) => {
         let msg = ``;
         if(reservationList.length == 0) msg = "현재 예약 내역이 없습니다.";
         reservationList.forEach(reservation => {
-            const roomName = roomsModule.getRoomById(reservation.roomID).name;
+            const roomName = roomsModule.getRoomById(reservation.roomID)?.name || "삭제된 객실";
             msg += `
                 <button class="history-item" id="reservation-${reservation.id}">
                     ${roomName}<br>
@@ -619,38 +663,13 @@ app.get('/api/admin/login/:password', (req, res) => {
 
 
 
-// 소켓 연결 관리
-io.on("connection", (socket) => {
-    // 클라이언트가 본인 전화번호로 join할 수 있도록 이벤트 준비
-    socket.on("join", (phone) => {
-        socket.join(`user_${phone}`);
-    });
-    // 관리자 페이지는 'admin' 방에 join
-    socket.on("admin", () => {
-        socket.join("admin");
-    });
-});
 
-server.listen(PORT, "0.0.0.0", () => {
-    const interfaces = os.networkInterfaces();
-    let ip = "localhost";
-    for (const name of Object.keys(interfaces)) {
-        for (const iface of interfaces[name]) {
-            if (iface.family === "IPv4" && !iface.internal) {
-                ip = iface.address;
-            }
-        }
-    }
-    console.log(`서버 실행됨: http://${ip}:${PORT}`);
-    console.log(`관리자 페이지 : http://${ip}:${PORT}/admin`);
-
-});
 
 
 // customerInfo.js 67
 app.post('/api/customers', (req, res) => {
     const { id, name, phone, memo } = req.body;
-    const result = customersModule.updateCustomer(id,  name, phone, memo);
+    const result = roomsModule.updateCustomer(id,  name, phone, memo);
     
     res.status(result.status).json({
         msg: result.msg,
@@ -660,7 +679,7 @@ app.post('/api/customers', (req, res) => {
 // customerList.js 132
 app.get('/api/customers', (req, res) => {
     try {
-        const rt = customersModule.getCustomerList();
+        const rt = roomsModule.getCustomerList();
         let customerList = []
         rt.forEach(customer => {
             const reservations = roomsModule.getReservationListByCustomerID(customer.id);
@@ -690,10 +709,63 @@ app.get('/api/customers', (req, res) => {
 
 app.get('/api/customers/search/:number', (req, res) => {
     const { number } = req.params;
-    const result = customersModule.searchCustomer(number);
+    const result = roomsModule.searchCustomer(number);
     res.status(result.status).json({
         msg: result.msg,
         data: result.customers
     });
 
 });
+
+class ChatBot {
+    constructor(res) {
+        this.res = res;
+    }
+
+    push(msg) {
+        this.res.write(msg);
+    }
+
+    remove() {
+        this.res.end();
+    }
+}
+
+const chatBotMap = new Map();
+app.get(`/chatbot/init`, (req, res) => {
+    try {
+        const { pageId } = req.query;
+        chatBotMap.set(pageId, new ChatBot(res));
+    }
+    catch (error) {
+        res.status(503).json({ error: error.message });
+    }
+});
+
+app.post(`/chatbot/update`, (req, res) => { 
+    try {
+        const { pageId, msg } = req.body;
+        const { floatings, messages } = chatBotMap.get(pageId).update(msg);
+        res.status(200).json({
+            floatings: floatings,
+            messages: messages,
+        });
+    }
+    catch (error) {
+        res.status(503).json({ error: error.message });
+    }
+});
+
+app.get(`/chatbot/final`, (req, res) => {
+    try {
+        const { pageId } = req.query;
+        chatBotMap.delete(pageId);
+        res.status(200).json({
+            msg: "success",
+        });
+    }
+    catch (error) {
+        res.status(503).json({ error: error.message });
+    }
+});
+
