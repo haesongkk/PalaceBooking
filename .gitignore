@@ -1,4 +1,6 @@
 *.db
+.env
+
 node_modules/
 Test/
 User/

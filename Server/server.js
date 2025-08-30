@@ -7,10 +7,10 @@ import multer from 'multer';
 
 
 import roomsModule from "./rooms.js";
-
+import 'dotenv/config';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 
 import os from 'os';
 
@@ -524,6 +524,31 @@ app.post(`/api/chatbot/getReservationPrice`, (req, res) => {
 
 });
 
+import axios from 'axios';
+/**
+ * @description SMS 발송
+ * @param {string} receiver - 수신자 번호
+ * @param {string} msg - 메시지 내용
+ * @returns {Promise<AxiosResponse>} - 알리고 API 응답
+ */
+function sendSMS(receiver, msg) {
+    if(typeof receiver != "string") throw new Error("receiver is not a string");
+    if(typeof msg != "string") throw new Error("msg is not a string");
+
+    const params = new URLSearchParams();
+    params.append("key", process.env.ALIGO_API_KEY);
+    params.append("userid", process.env.ALIGO_USERID);
+    params.append("sender", process.env.SMS_FROM);    
+    params.append("receiver", receiver); 
+    params.append("msg", msg);
+    params.append("testmode_yn", "Y"); // 테스트 모드
+
+    return axios.post("https://apis.aligo.in/send/", params, {
+        timeout: 10000,
+        headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" }
+    });
+}
+
 // 나중에는 챗봇 인스턴스로 관리하게 수정할 것.
 app.post(`/api/chatbot/confirmReservation`, (req, res) => {
     try {
@@ -535,8 +560,7 @@ app.post(`/api/chatbot/confirmReservation`, (req, res) => {
         if(price == undefined) return res.status(400).json({ error: "price 누락" });
 
         roomsModule.createReservation(customerID, roomID, checkinDate, checkoutDate, price, 0);
-
-        if(io) io.to("admin").emit("reservation-updated");
+        
         res.status(200).json({ 
             floatings: ["고객 등록", "예약하기", "예약 내역", "문의하기"],
             msg: [
@@ -544,7 +568,19 @@ app.post(`/api/chatbot/confirmReservation`, (req, res) => {
                 "결제는 체크인 시, ‘현장’에서 진행됩니다.",
                 "무엇을 도와드릴까요?"
             ],
-         });
+        });
+
+        
+        
+        if(io) io.to("admin").emit("reservation-updated");
+
+        sendSMS("01041367950", `새로운 예약이 들어왔습니다. \n www.palacebooking.onrender.com`).then(r => {
+            const code = Number(r.data.result_code);
+            if(code < 0) throw new Error(r.data.result_msg);
+        }).catch(error => {
+            console.error("SMS 발송 실패: ", error.message);
+        });
+
 
     } catch (error) {
         res.status(503).json({ error: error.message });
