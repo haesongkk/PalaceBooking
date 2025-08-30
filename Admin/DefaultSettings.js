@@ -46,14 +46,14 @@ class DefaultSettings {
                 console.log(room);
                 const statusList = JSON.parse(room.status);
                 const priceList = JSON.parse(room.price);
-                const openCloseList = JSON.parse(room.openClose);
-                const usageTimeList = JSON.parse(room.usageTime);
+                const openCloseList = JSON.parse(room.openclose);
+                const usageTimeList = JSON.parse(room.usagetime);
                
                 const innerContainer = document.createElement('div');
                 innerContainer.className = 'price-table-inner-container';
                 innerContainer.innerHTML = `
                     <div class="price-table-inner-top-container">
-                        <h3>${room.roomName}</h3>
+                        <h3>${room.roomname}</h3>
                         <button class="edit">수정</button>
                     </div>
                     <table>
@@ -94,7 +94,7 @@ class DefaultSettings {
                 const editButton = innerContainer.querySelector('.edit');
                 editButton.addEventListener('click', () => {
                     this.onEditButtonClick(
-                        room.roomId, 
+                        room.roomid, 
                         this.currentRoomType === 'overnight'
                     );
                 });
