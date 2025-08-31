@@ -1,5 +1,6 @@
 class LoginPage {
     constructor() {
+        
 
         this.background = document.createElement('div');
         
@@ -102,6 +103,24 @@ class LoginPage {
             this.onSubmit(passwordInput);
         });
         loginBox.appendChild(loginButton);
+
+
+        const token = localStorage.getItem('palace-admin-token');
+        console.log(token);
+        if(token) {
+            fetch(`/api/admin/${token}`, {
+                method: 'post',
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                if(data.msg === 'success') this.onLoginSuccess();
+            });
+        }
         
     }
     
@@ -111,10 +130,15 @@ class LoginPage {
         
         const response = await fetch(`/api/admin/login/${password}`);
         const result = await response.json();
+        console.log(result);
 
-
-        if(result.msg === 'success') this.onLoginSuccess();
-        else console.log(result.msg);
+        if(result != -1) {
+            localStorage.setItem('palace-admin-token', result);
+            this.onLoginSuccess();
+        }
+        else {
+            alert('비밀번호가 일치하지 않습니다.');
+        }
 
         passwordInput.value = '';
     }

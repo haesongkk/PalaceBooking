@@ -573,11 +573,29 @@ app.post('/api/chatbot/confirmReservation', async (req, res) => {
 });
 
 /* ------------------------------ Auth Temp ----------------------------- */
-
+let adminToken = -1;
 app.get('/api/admin/login/:password', (req, res) => {
-  const { password } = req.params;
-  if (password === '123') res.json({ msg: 'success' });
-  else res.json({ msg: 'fail' });
+  try{
+    const { password } = req.params;
+    if (password === '123') {
+      adminToken = Date.now();
+      console.log(adminToken);
+      res.json(adminToken);
+    }
+    else res.json(-1);
+  } catch (error) {
+    res.status(503).json({ error: error.message });
+  }
+});
+
+app.post(`/api/admin/:token`, (req, res) => {
+  try{
+    const { token } = req.params;
+    if (Number(token) == adminToken) res.json({ msg: 'success' });
+    else res.json({ msg: 'fail' });
+  } catch (error) {
+    res.status(503).json({ error: error.message });
+  }
 });
 
 /* --------------------------- Chatbot Streams -------------------------- */
