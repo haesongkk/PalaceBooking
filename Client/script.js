@@ -365,7 +365,7 @@ function showRooms(){
         document.querySelector(".chat-window").innerHTML += `
             <div class="message bot">
                 <div class="room-viewport">
-                    ${data.map(room => `
+                    ${data.map((room, index) => `
                         <div class="room-card" id="${room.id}-${room.name}">
                             <h3>${room.name}</h3>
                             ${room.images.map(img => `
@@ -375,18 +375,28 @@ function showRooms(){
                         </div>
                     `).join('')}
                 </div>
+                <div id = "hint-txt">
+                    <strong>→ 다음 객실 보기</strong>
+                </div>
+                
+
             </div>
         `;
         const thisChat = document.querySelector(".message.bot:last-child");
         const viewport = thisChat.querySelector(".room-viewport");
         const roomCards = viewport.querySelectorAll(".room-card");
-
+        const hintTxt = thisChat.querySelector("#hint-txt");
         viewport.onscroll = () => {
             const cardWidth = roomCards[0].clientWidth;
             const index = Math.floor(viewport.scrollLeft / cardWidth);
             const curCard = roomCards[index];
             setFloating(["객실: " + curCard.id.split("-")[1], "취소하기"]);
             reservationInfo.roomID = curCard.id.split("-")[0];
+            if(index == roomCards.length - 1){
+                hintTxt.innerHTML = " ";
+            } else {
+                hintTxt.innerHTML = "<strong>→ 다음 객실 보기</strong>";
+            }
         }
         setFloating(["객실: " + roomCards[0].id.split("-")[1], "취소하기"]);
         reservationInfo.roomID = roomCards[0].id.split("-")[0];
