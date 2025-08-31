@@ -50,8 +50,8 @@ class DailyPricePopup {
                     </thead>
                     <tbody id="form-rows">
                         ${data.map(item => `
-                            <tr id="${item.roomId}">
-                                <td>${item.roomName}</td>
+                            <tr id="${item.roomid}">
+                                <td>${item.roomname}</td>
                                 <td id="status-cell-${item.roomid}">
                                     <button class="status-btn ${item.status === 1 ? 'active' : ''}">판매</button>
                                     <button class="status-btn ${item.status === 0 ? 'active' : ''}">마감</button>

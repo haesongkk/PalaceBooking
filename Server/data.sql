@@ -1,4 +1,6 @@
-DROP TABLE rooms;
+-- DROP SCHEMA public CASCADE;
+--CREATE SCHEMA public;
+
 CREATE TABLE IF NOT EXISTS rooms (
     id           SERIAL PRIMARY KEY,
     name         TEXT,

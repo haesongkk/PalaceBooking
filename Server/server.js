@@ -190,7 +190,7 @@ app.get('/api/daily/:bIsOvernight/:year/:month', async (req, res) => {
     if (year === undefined) return res.status(400).json({ error: 'year 누락' });
     if (month === undefined) return res.status(400).json({ error: 'month 누락' });
 
-    const dailyList = await roomsModule.getDailyListByMonth(bIsOvernight ? 1 : 0, Number(year), Number(month));
+    const dailyList = await roomsModule.getDailyListByMonth(bIsOvernight == '1' ? 1 : 0, Number(year), Number(month));
     res.status(200).json(dailyList);
   } catch (error) {
     return res.status(503).json({ error: error.message });
@@ -377,16 +377,15 @@ app.get('/api/customers', async (req, res) => {
     const customerList = await Promise.all(
       rt.map(async (customer) => {
         const reservations = await roomsModule.getReservationListByCustomerID(customer.id);
-        const recentReserve = reservations?.[0] ?? null;
-        const text = recentReserve
-          ? `${recentReserve.checkindate} ~ ${recentReserve.checkoutdate}`
+        const text = reservations.length > 0
+          ? `${reservations[0].checkindate} ~ ${reservations[0].checkoutdate}`
           : '-';
         return {
           id: customer.id,
           name: customer.name,
           phone: customer.phone,
           memo: customer.memo,
-          recentReserve: text,
+          recentreserve: text,
         };
       })
     );
