@@ -368,7 +368,7 @@ function showRooms(){
                     ${data.map(room => `
                         <div class="room-card" id="${room.id}-${room.name}">
                             <h3>${room.name}</h3>
-                            ${JSON.parse(room.image).map(img => `
+                            ${room.images.map(img => `
                                 <img src="/api/image/${img}" style="width: 100px; height: 100px; object-fit: cover;">
                             `).join('')}
                             <h5>${room.description.replaceAll("\n", "<br>")}</h5>

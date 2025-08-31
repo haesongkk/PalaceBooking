@@ -45,9 +45,8 @@ class RoomEdit {
             `;
 
             const roomImagePreview = this.container.querySelector('.room-image-preview');
-            const imageList = JSON.parse(data.image);
 
-            for(const image of imageList) {
+            for(const image of data.images) {
                 this.imageList.push(image);
                 const preview = document.createElement('img');
                 roomImagePreview.appendChild(preview);
@@ -110,7 +109,7 @@ class RoomEdit {
             body: JSON.stringify({
                 name: this.container.querySelector('#room-name').value,
                 description: this.container.querySelector('#room-description').value,
-                imagePathList: this.imageList
+                images: this.imageList
             })
         });
         this.submitCallback();

@@ -166,8 +166,8 @@ class DailyPrice {
         this.dailySettings = await fetch(`/api/daily/${this.isOvernight? 1 : 0}/${this.curYear}/${this.curMonth+1}`).then(res => res.json());
 
         this.defaultSettings.forEach(defaultSetting => {
-            const {roomId, roomName} = defaultSetting;
-            this.roomNameMap[roomId] = roomName;
+            const {roomid, roomname} = defaultSetting;
+            this.roomNameMap[roomid] = roomname;
         });
         console.log(this.roomNameMap);
         this.renderCalendar();
@@ -265,14 +265,14 @@ class DailyPrice {
         this.defaultSettings.forEach(defaultSetting => {
             const status = JSON.parse(defaultSetting.status);
             const price = JSON.parse(defaultSetting.price);
-            const openClose = JSON.parse(defaultSetting.openClose);
-            const usageTime = JSON.parse(defaultSetting.usageTime);
+            const openClose = JSON.parse(defaultSetting.openclose);
+            const usageTime = JSON.parse(defaultSetting.usagetime);
 
             for(let i = 0; i< 7; i++) {
                 this.dateCells.forEach(row => {
                     this.setCellData(
                         row[i],
-                        defaultSetting.roomId, 
+                        defaultSetting.roomid, 
                         status[i], 
                         price[i], 
                         openClose[i], 
@@ -286,18 +286,18 @@ class DailyPrice {
 
         this.dailySettings.forEach(daily => {
             const {
-                roomId, year, month, day, 
-                status, price, open, close, usageTime
+                roomid, year, month, day, 
+                status, price, open, close, usagetime
             } = daily;
 
             const {row, col} = this.getCalendarCoord(parseInt(day));
             this.setCellData(
                 this.dateCells[row][col],
-                roomId, 
+                roomid, 
                 status,
                 price,
                 [open, close],
-                usageTime
+                usagetime
             );
 
 

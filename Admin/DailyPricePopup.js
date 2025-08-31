@@ -25,7 +25,6 @@ class DailyPricePopup {
                 return false;
             }
 
-            console.log(data);
             this.container.innerHTML = `
                 <div class="price-table-inner-top-container">
                     <div class="sales-info-bar">
@@ -51,25 +50,25 @@ class DailyPricePopup {
                     </thead>
                     <tbody id="form-rows">
                         ${data.map(item => `
-                            <tr id="${item.roomId}">
-                                <td>${item.roomName}</td>
-                                <td id="status-cell-${item.roomId}">
+                            <tr id="${item.roomid}">
+                                <td>${item.roomname}</td>
+                                <td id="status-cell-${item.roomid}">
                                     <button class="status-btn ${item.status === 1 ? 'active' : ''}">판매</button>
                                     <button class="status-btn ${item.status === 0 ? 'active' : ''}">마감</button>
                                 </td>
-                                <td id="price-cell-${item.roomId}">
+                                <td id="price-cell-${item.roomid}">
                                     <input class="price-input" type="text" value="${item.price}">
                                     <span>원</span>
                                 </td>
-                                <td id="time-range-cell-${item.roomId}">
+                                <td id="time-range-cell-${item.roomid}">
                                     <input class="custom-dropdown" type="text" value="${item.open}">
                                     <span>시~</span>
                                     <input class="custom-dropdown" type="text" value="${item.close}">
                                     <span>시</span>
                                 </td>
                                 ${this.isOvernight ? '' : `
-                                <td id="usage-time-cell-${item.roomId}">
-                                    <input class="custom-dropdown" type="text" value="${item.usageTime}">
+                                <td id="usage-time-cell-${item.roomid}">
+                                    <input class="custom-dropdown" type="text" value="${item.usagetime}">
                                     <span>시간</span>
                                 </t d>
                                 `}
@@ -79,7 +78,7 @@ class DailyPricePopup {
                 </table>
             `;
             data.forEach(item => {
-                const statusBtns = this.container.querySelector(`#status-cell-${item.roomId}`).querySelectorAll('.status-btn');
+                const statusBtns = this.container.querySelector(`#status-cell-${item.roomid}`).querySelectorAll('.status-btn');
                 statusBtns.forEach(btn => {
                     btn.onclick = () => {
                         statusBtns.forEach(btn => btn.classList.remove('active'));
@@ -135,12 +134,12 @@ class DailyPricePopup {
             }
 
             settingList.push({
-                roomId: Number(roomId),
+                roomid: Number(roomId),
                 status: Number(status),
                 price: Number(price),
                 open: openClose[0],
                 close: openClose[1],
-                usageTime: Number(usageTime),
+                usagetime: Number(usageTime),
             });
 
         });

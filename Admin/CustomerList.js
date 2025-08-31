@@ -101,7 +101,7 @@ class CustomerList {
                     <td>${customer.name}</td>
                     <td>${customer.phone}</td>
                     <td>${customer.memo}</td>
-                    <td>${customer.recentReserve}</td>
+                    <td>${customer.recentreserve}</td>
                     <td>
                         <button class="customer-table-edit-button">수정</button>
                         <button class="customer-table-delete-button">삭제</button>
@@ -133,12 +133,12 @@ class CustomerList {
             const recentReserves = recentReservesRes.data;
             
             this.customers.forEach(customer => {
-                customer.recentReserve = recentReserves[customer.phone] || null;
+                customer.recentreserve = recentReserves[customer.phone] || null;
             });
         } catch (error) {
             console.error('최근 예약 정보를 가져오는 중 오류:', error);
             this.customers.forEach(customer => {
-                customer.recentReserve = null;
+                customer.recentreserve = null;
             });
         }
         

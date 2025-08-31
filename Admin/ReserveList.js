@@ -106,13 +106,13 @@ class ReserveList {
                 this.tbody.innerHTML += `
                     <tr>
                         <td>${reservation.id}</td>
-                        <td>${reservation.customerName}</td>
-                        <td>${reservation.customerPhone}</td>
-                        <td>${reservation.roomName}</td>
-                        ${reservation.checkinDate == reservation.checkoutDate ? `
-                            <td>${reservation.checkinDate} 대실</td>
+                        <td>${reservation.customername}</td>
+                        <td>${reservation.customerphone}</td>
+                        <td>${reservation.roomname}</td>
+                        ${reservation.checkindate == reservation.checkoutdate ? `
+                            <td>${reservation.checkindate} 대실</td>
                         ` : `
-                            <td>${reservation.checkinDate} 입실 ~ ${reservation.checkoutDate} 퇴실</td>
+                            <td>${reservation.checkindate} 입실 ~ ${reservation.checkoutdate} 퇴실</td>
                         `}
                         <td>
                             ${reservation.status === 0 ? `

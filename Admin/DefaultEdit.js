@@ -92,11 +92,11 @@ class DefaultEdit {
             .then(res => res.json())
             .then(data => {
                 console.log(data);
-                const roomName = data.roomName;
+                const roomName = data.roomname;
                 const statusList = JSON.parse(data.status);
                 const priceList = JSON.parse(data.price);
-                const openCloseList = JSON.parse(data.openClose);
-                const usageTimeList = JSON.parse(data.usageTime);
+                const openCloseList = JSON.parse(data.openclose);
+                const usageTimeList = JSON.parse(data.usagetime);
 
                 this.container.querySelector('#room-name').textContent = roomName;
                 for(let i = 0; i < 7; i++) {
@@ -165,8 +165,8 @@ class DefaultEdit {
             body: JSON.stringify({
                 status: JSON.stringify(statusList),
                 price: JSON.stringify(priceList),
-                openClose: JSON.stringify(openCloseList),
-                usageTime: JSON.stringify(usageTimeList)
+                openclose: JSON.stringify(openCloseList),
+                usagetime: JSON.stringify(usageTimeList)
             })
         }).then(res => res.json()).then(data => {
             if(data.error) {
