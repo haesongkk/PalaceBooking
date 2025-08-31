@@ -358,6 +358,56 @@ function showCalendar(year, month, container, nights = 1){
     }
 
 
+    const chatWindow = document.querySelector('.chat-window');
+    if (chatWindow) {
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+}
+
+
+
+function showAllImages(roomName, images) {
+    // 기존 모달이 있다면 제거
+    const existingModal = document.querySelector('.image-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // 모달 생성
+    const modal = document.createElement('div');
+    modal.className = 'image-modal';
+    modal.innerHTML = `
+        <div class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>${roomName} - 모든 이미지</h3>
+                    <button class="close-btn" onclick="closeImageModal()">×</button>
+                </div>
+                <div class="modal-images">
+                    ${images.map(img => `
+                        <img src="/api/image/${img}" alt="${roomName}">
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // 모달 외부 클릭 시 닫기
+    modal.querySelector('.modal-overlay').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) {
+            closeImageModal();
+        }
+    });
+}
+
+function closeImageModal() {
+    const modal = document.querySelector('.image-modal');
+    if (modal) {
+        modal.remove();
+    }
 }
 
 function showRooms(){
@@ -365,31 +415,55 @@ function showRooms(){
         document.querySelector(".chat-window").innerHTML += `
             <div class="message bot">
                 <div class="room-viewport">
-                    ${data.map(room => `
+                    ${data.map((room, index) => `
                         <div class="room-card" id="${room.id}-${room.name}">
                             <h3>${room.name}</h3>
-                            ${room.images.map(img => `
-                                <img src="/api/image/${img}" style="width: 100px; height: 100px; object-fit: cover;">
-                            `).join('')}
+                            <div class="room-images-gallery" onclick="showAllImages('${room.name}', ${JSON.stringify(room.images).replace(/"/g, '&quot;')})">
+                                ${room.images.slice(0, 3).map(img => `
+                                    <img src="/api/image/${img}">
+                                `).join('')}
+                                ${Array(3 - Math.min(room.images.length, 3)).fill().map(() => `
+                                    <div class="empty-image-placeholder"></div>
+                                `).join('')}
+                                ${room.images.length > 3 ? `
+                                    <div class="more-images-btn">
+                                        +${room.images.length - 3}
+                                    </div>
+                                ` : ''}
+                            </div>
                             <h5>${room.description.replaceAll("\n", "<br>")}</h5>
                         </div>
                     `).join('')}
                 </div>
+                <div id = "hint-txt">
+                    <strong>→ 다음 객실 보기</strong>
+                </div>
+                
+
             </div>
         `;
         const thisChat = document.querySelector(".message.bot:last-child");
         const viewport = thisChat.querySelector(".room-viewport");
         const roomCards = viewport.querySelectorAll(".room-card");
-
+        const hintTxt = thisChat.querySelector("#hint-txt");
         viewport.onscroll = () => {
             const cardWidth = roomCards[0].clientWidth;
             const index = Math.floor(viewport.scrollLeft / cardWidth);
             const curCard = roomCards[index];
             setFloating(["객실: " + curCard.id.split("-")[1], "취소하기"]);
             reservationInfo.roomID = curCard.id.split("-")[0];
+            if(index == roomCards.length - 1){
+                hintTxt.innerHTML = " ";
+            } else {
+                hintTxt.innerHTML = "<strong>→ 다음 객실 보기</strong>";
+            }
         }
         setFloating(["객실: " + roomCards[0].id.split("-")[1], "취소하기"]);
         reservationInfo.roomID = roomCards[0].id.split("-")[0];
+        const chatWindow = document.querySelector('.chat-window');
+        if (chatWindow) {
+          chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
 
     });
 }
@@ -398,14 +472,17 @@ async function confirmReservation(){
     if(!reservationInfo.roomID) return false;
     if(!reservationInfo.startDate) return false;
 
+
+
+
     await fetch(`/api/chatbot/confirmReservation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             customerID: userID,
             roomID: Number(reservationInfo.roomID),
-            checkinDate: new Date(reservationInfo.startDate).toLocaleDateString(),
-            checkoutDate: new Date(reservationInfo.endDate).toLocaleDateString(),
+            checkinDate: new Date(reservationInfo.startDate).toLocaleDateString("ko-KR"),
+            checkoutDate: new Date(reservationInfo.endDate).toLocaleDateString("ko-KR"),
             price: 0
         })
     }).then(res => res.json()).then(data => {
@@ -431,8 +508,9 @@ async function checkReservation(){
     if(!reservationInfo.roomID) return false;
     if(!reservationInfo.startDate) return false;
 
-    reservationInfo.startDate = new Date(reservationInfo.startDate).toLocaleDateString();
-    if(!reservationInfo.endDate) reservationInfo.endDate = new Date(reservationInfo.startDate).toLocaleDateString();
+    reservationInfo.startDate = new Date(reservationInfo.startDate).toLocaleDateString("ko-KR");
+    if(!reservationInfo.endDate) reservationInfo.endDate = new Date(reservationInfo.startDate).toLocaleDateString("ko-KR");
+
 
     const ok = await fetch(`/api/chatbot/getReservationPrice`, {
         method: 'POST',
@@ -440,8 +518,8 @@ async function checkReservation(){
         body: JSON.stringify({
             customerID: userID,
             roomID: reservationInfo.roomID,
-            checkinDate: new Date(reservationInfo.startDate).toLocaleDateString(),
-            checkoutDate: new Date(reservationInfo.endDate).toLocaleDateString()
+            checkinDate: reservationInfo.startDate,
+            checkoutDate: new Date(reservationInfo.endDate).toLocaleDateString("ko-KR")
         })
     }).then(res => res.json()).then(data => {
         console.log(data);
@@ -634,6 +712,7 @@ function appendMessage(text, sender = "bot", type = "text") {
             img.style.borderRadius = "8px";
             img.style.marginTop = "8px";
             msg.appendChild(img);
+            
         }
     } else {
         msg.innerHTML = text;
@@ -675,14 +754,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // 자동 스크롤 MutationObserver
-    const chatWindow = document.querySelector('.chat-window');
-    if (chatWindow) {
-        const observer = new MutationObserver(() => {
-            chatWindow.scrollTop = chatWindow.scrollHeight;
-        });
-        observer.observe(chatWindow, { childList: true, subtree: true });
-    }
+    // 자동 스크롤 MutationObserver (비활성화 - 충돌 방지)
+    // const chatWindow = document.querySelector('.chat-window');
+    // if (chatWindow) {
+    //     const observer = new MutationObserver(() => {
+    //         chatWindow.scrollTop = chatWindow.scrollHeight;
+    //     });
+    //     observer.observe(chatWindow, { childList: true, subtree: true });
+    // }
 });
 
 window.onload = () => {

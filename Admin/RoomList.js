@@ -3,14 +3,14 @@ class RoomList {
         this.container = document.createElement('div');
         this.container.className = 'room-list-container';
         this.container.innerHTML = `
-            <div class="room-settings-top-container">
-                <button class="room-settings-add-button">객실 추가</button>
+            <div class="room-list-top-container">
+                <button class="room-list-add-button">객실 추가</button>
             </div>
             <div class="room-list-bottom-container">
             </div>
         `;
 
-        this.container.querySelector('.room-settings-add-button').onclick = () => {
+        this.container.querySelector('.room-list-add-button').onclick = () => {
             fetch('/api/rooms', {
                 method: 'POST',
                 headers: {
@@ -44,26 +44,31 @@ class RoomList {
         .then(data => {
             data.forEach(room => {
                 const roomItem = `
-                    <div class="room-settings-item">
-                        <h3>${room.name}</h3>
+                    <div class="room-list-item">
+                        <div class="room-list-item-top">
+                            <h3>${room.name}</h3>
+                            <div class="room-settings-buttons">
+                                <button 
+                                    class="room-settings-edit-button" 
+                                    id="${room.id}"
+                                >수정</button>
+                                <button 
+                                    class="room-settings-delete-button" 
+                                    id="${room.id}"
+                                >삭제</button>
+                            </div>
+                        </div>
+                        <div class="room-list-item-images">
                         ${room.images.map(image => `
                             <img 
                                 src="/api/image/${image}" 
                                 style="width: 100px; height: 100px;"
                             >`).join('')}
+                        </div>
                         ${room.description.split('\n').map(line => `
                             <br>${line}
                             `).join('')}
-                        <div class="room-settings-buttons">
-                            <button 
-                                class="room-settings-edit-button" 
-                                id="${room.id}"
-                            >수정</button>
-                            <button 
-                                class="room-settings-delete-button" 
-                                id="${room.id}"
-                            >삭제</button>
-                        </div>
+                        
                     </div>
                 `;
 

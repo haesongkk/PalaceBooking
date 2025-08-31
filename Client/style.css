@@ -168,22 +168,209 @@ body {
 .room-viewport {
   display: flex;
   overflow-x: auto;
+  overflow-y: hidden;
   scroll-snap-type: x mandatory;
   -ms-overflow-style: none;
   scrollbar-width: none;
-
+  gap: 16px;
+  padding: 8px 8px;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  width: 100%;
 }
-.room-viewport::-webkit-scrollbar { display: none; }
+
+.room-viewport::-webkit-scrollbar { 
+  display: none; 
+}
 
 .room-card {
-  flex: 0 0 100%;            /* 카드 = 뷰포트 한 칸 */
-  scroll-snap-align: center; /* 스냅 지점 */
-  border: 1px solid #444;
-  border-radius: 12px;
-  background: #22223b;
+  flex: 0 0 calc(100% - 32px);  /* 카드 = 뷰포트 한 칸 - 간격 - 패딩 */
+  scroll-snap-align: center;     /* 스냅 지점 */
+  border: 1px solid rgba(255, 214, 0, 0.3);
+  border-radius: 16px;
+  background: linear-gradient(135deg, #2a2a44 0%, #1f1f2e 100%);
   color: var(--color-white);
-  padding: 10px 20px;
+  padding: 16px;
   text-align: left;
+  position: relative;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  min-height: 200px;
+  max-height: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  touch-action: pan-x;
+  user-select: none;
+}
+
+.room-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-primary);
+  box-shadow: 0 8px 30px rgba(255, 214, 0, 0.2);
+}
+
+.room-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+  color: var(--color-primary);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.room-card h5 {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+  flex: 1;
+  overflow: visible;
+  word-break: break-word;
+}
+
+.room-card img {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  object-fit: cover;
+  width: calc((100% - 12px) / 3);
+  height: 80px;
+  flex-shrink: 0;
+}
+
+.room-card img:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* 이미지 갤러리 컨테이너 */
+.room-images-gallery {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  margin-bottom: 12px;
+  max-height: 80px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.room-images-gallery:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(255, 214, 0, 0.2);
+}
+
+/* 빈 이미지 플레이스홀더 */
+.empty-image-placeholder {
+  width: calc((100% - 12px) / 3);
+  height: 80px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
+}
+
+/* 더보기 버튼 */
+.more-images-btn {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: bold;
+  pointer-events: none;
+  z-index: 1;
+  transition: all 0.2s ease;
+}
+
+/* 모바일에서 갤러리 최적화 */
+@media (max-width: 480px) {
+  .room-images-gallery {
+    gap: 4px;
+    max-height: 80px;
+  }
+}
+
+/* 스크롤 인디케이터 */
+.room-viewport::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.room-viewport::before {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 4px;
+  background: var(--color-primary);
+  border-radius: 2px;
+  animation: scroll-indicator 2s ease-in-out infinite;
+}
+
+@keyframes scroll-indicator {
+  0%, 100% { transform: translateX(-50%) translateX(-20px); }
+  50% { transform: translateX(-50%) translateX(20px); }
+}
+
+/* 모바일 최적화 */
+@media (max-width: 480px) {
+  .room-card {
+    padding: 14px;
+    min-height: 180px;
+    max-height: 220px;
+    gap: 10px;
+  }
+  
+  .room-card h3 {
+    font-size: 16px;
+    margin: 0 0 4px 0;
+  }
+  
+  .room-card h5 {
+    font-size: 12px;
+  }
+  
+  .room-card img {
+    width: calc((100% - 8px) / 3) !important;
+    height: 70px !important;
+  }
+  
+  .empty-image-placeholder {
+    width: calc((100% - 8px) / 3) !important;
+    height: 70px !important;
+  }
+}
+
+/* 터치 최적화 */
+.room-viewport {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  touch-action: pan-x;
+}
+
+.room-card {
+  touch-action: pan-x;
 }
 
 /* 스크롤바 숨기기 */
@@ -576,6 +763,35 @@ body {
   margin-top: 12px;
 }
 
+/* 힌트 텍스트 스타일링 */
+#hint-txt {
+  text-align: center;
+  padding: 12px 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 500;
+  animation: hint-pulse 2s ease-in-out infinite;
+  position: relative;
+}
+
+#hint-txt strong {
+  color: var(--color-primary);
+  text-shadow: 0 2px 4px rgba(255, 214, 0, 0.3);
+}
+
+@keyframes hint-pulse {
+  0%, 100% { opacity: 0.7; transform: translateX(0); }
+  50% { opacity: 1; transform: translateX(4px); }
+}
+
+/* 모바일에서 힌트 텍스트 최적화 */
+@media (max-width: 480px) {
+  #hint-txt {
+    font-size: 13px;
+    padding: 10px 0;
+  }
+}
+
 .history-item {
     width: 100%;
     height: fit-content;
@@ -634,4 +850,132 @@ body {
 
     line-height: 1;
     vertical-align: middle;
+ }
+
+/* 이미지 모달 스타일 */
+.image-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    position: relative;
+    background: var(--color-panel);
+    border-radius: 16px;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: modal-fade-in 0.3s ease;
+}
+
+@keyframes modal-fade-in {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.modal-header h3 {
+    color: var(--color-white);
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: var(--color-white);
+    font-size: 24px;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.close-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.modal-images {
+    padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.modal-images img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 12px;
+    transition: transform 0.2s;
+    cursor: pointer;
+}
+
+.modal-images img:hover {
+    transform: scale(1.05);
+}
+
+/* 모바일에서 모달 최적화 */
+@media (max-width: 480px) {
+    .modal-content {
+        max-width: 95vw;
+        max-height: 95vh;
+    }
+    
+    .modal-header {
+        padding: 12px 16px;
+    }
+    
+    .modal-header h3 {
+        font-size: 16px;
+    }
+    
+    .modal-images {
+        padding: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+    }
+    
+    .modal-images img {
+        height: 150px;
+    }
 }
