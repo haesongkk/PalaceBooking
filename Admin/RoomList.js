@@ -18,7 +18,7 @@ class RoomList {
                 },
                 body: JSON.stringify({
                     name: '새 객실',
-                    image: `[]`,
+                    images: [],
                     description: '새 객실 설명'
                 })
             })
@@ -46,13 +46,13 @@ class RoomList {
                 const roomItem = `
                     <div class="room-settings-item">
                         <h3>${room.name}</h3>
-                        ${JSON.parse(room.image).map(image => `
+                        ${room.images.map(image => `
                             <img 
                                 src="/api/image/${image}" 
                                 style="width: 100px; height: 100px;"
                             >`).join('')}
                         ${room.description.split('\n').map(line => `
-                            <p>${line}</p>
+                            <br>${line}
                             `).join('')}
                         <div class="room-settings-buttons">
                             <button 

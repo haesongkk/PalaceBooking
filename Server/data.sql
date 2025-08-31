@@ -1,8 +1,9 @@
-CREATE TABLE IF NOT EXISTS room (
+DROP TABLE rooms;
+CREATE TABLE IF NOT EXISTS rooms (
     id           SERIAL PRIMARY KEY,
-    name         TEXT NOT NULL,
-    image        TEXT NOT NULL,
-    description  TEXT NOT NULL
+    name         TEXT,
+    images       INTEGER[],
+    description  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS image (

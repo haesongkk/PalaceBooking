@@ -96,11 +96,11 @@ app.get('/api/rooms/:id', async (req, res) => {
 
 app.post('/api/rooms', async (req, res) => {
   try {
-    const { name, image, description } = req.body;
-    if (name == null) return res.status(400).json({ error: 'name 누락' });
-    if (image == null) return res.status(400).json({ error: 'image 누락' });
-    if (description == null) return res.status(400).json({ error: 'description 누락' });
-    const id = await roomsModule.createRoom(name, image, description);
+    const { name, images, description } = req.body;
+    if (name == undefined) return res.status(400).json({ error: 'name 누락' });
+    if (images == undefined) return res.status(400).json({ error: 'images 누락' });
+    if (description == undefined) return res.status(400).json({ error: 'description 누락' });
+    const id = await roomsModule.createRoom(name, images, description);
     res.status(200).json(id);
   } catch (error) {
     res.status(503).json({ error: error.message });
@@ -110,11 +110,13 @@ app.post('/api/rooms', async (req, res) => {
 app.put('/api/rooms/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, imagePathList, description } = req.body;
-    if (id == null) return res.status(400).json({ error: 'id 누락' });
-    if (name == null) return res.status(400).json({ error: 'name 누락' });
-    if (description == null) return res.status(400).json({ error: 'description 누락' });
-    await roomsModule.updateRoom(Number(id), name, JSON.stringify(imagePathList), description);
+    const { name, images, description } = req.body;
+    if (id == undefined) return res.status(400).json({ error: 'id 누락' });
+    if (name == undefined) return res.status(400).json({ error: 'name 누락' });
+    if (description == undefined) return res.status(400).json({ error: 'description 누락' });
+    if(images == undefined) return res.status(400).json({ error: 'images 누락' });
+
+    await roomsModule.updateRoom(Number(id), name, images, description);
     res.status(200).json({ msg: 'update room success' });
   } catch (error) {
     res.status(503).json({ error: error.message });

@@ -2,11 +2,6 @@
 const { Pool } = require('pg');
 const fs = require('fs');
 
-console.log("DATABASE_URL: ", process.env.DATABASE_URL);
-if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL not set. Put External Database URL into your .env');
-}
-
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }, // Render DB 필수
@@ -27,10 +22,6 @@ async function q(sql, params) {
 
 // --- 이미지 ---
 async function createImage(data, mime, size) {
-  if (!(data instanceof Buffer)) return { status: 400, msg: 'data must be a Buffer' };
-  if (typeof mime !== 'string')  return { status: 400, msg: 'mime must be a string' };
-  if (typeof size !== 'number')  return { status: 400, msg: 'size must be a number' };
-
   const { rows } = await q(
     `INSERT INTO image (data, mime, size)
      VALUES ($1, $2, $3)
@@ -47,38 +38,41 @@ async function getImageById(id) {
 
 // --- 방(Room) ---
 async function getRoomList() {
-  const { rows } = await q(`SELECT * FROM room`);
+  const { rows } = await pool.query(`SELECT * FROM rooms`);
   return rows;
 }
 
 async function getRoomById(id) {
-  const { rows } = await q(`SELECT * FROM room WHERE id = $1`, [id]);
-  return rows[0] || null;
+  const { rows } = await pool.query(`SELECT * FROM rooms WHERE id = $1`, [id]);
+  return rows[0];
 }
 
-async function updateRoom(id, szName, szImagePaths, szDescription) {
-  return q(
-    `UPDATE room SET name = $1, image = $2, description = $3 WHERE id = $4`,
-    [szName, szImagePaths, szDescription, id]
-  );
+async function updateRoom(id, name, images, description) {
+  await pool.query(`
+    UPDATE rooms 
+    SET name = $1, images = $2, description = $3 
+    WHERE id = $4
+    `, [name, images, description, id]);
 }
 
 async function deleteRoom(id) {
-  await q(`DELETE FROM room   WHERE id = $1`, [id]);
-  await q(`DELETE FROM setting WHERE roomid = $1`, [id]);
-  await q(`DELETE FROM daily   WHERE roomid = $1`, [id]);
+  await pool.query(`DELETE FROM rooms   WHERE id = $1`, [id]);
+  await pool.query(`DELETE FROM setting WHERE roomid = $1`, [id]);
+  await pool.query(`DELETE FROM daily   WHERE roomid = $1`, [id]);
 }
 
-async function createRoom(szName, szImagePath, szDescription) {
-  const ins = await q(
-    `INSERT INTO room (name, image, description) VALUES ($1,$2,$3) RETURNING id`,
-    [szName, szImagePath, szDescription]
-  );
+async function createRoom(name, images, description) {
+  const ins = await pool.query(`
+    INSERT INTO rooms 
+    (name, images, description) 
+    VALUES ($1,$2,$3) 
+    RETURNING id
+    `, [name, images, description]);
   const roomId = ins.rows[0].id;
 
   // 기본 설정 (대실)
-  await q(
-    `INSERT INTO setting (roomid, bovernight, status, price, openclose, usagetime)
+  await pool.query(`INSERT INTO setting 
+    (roomid, bovernight, status, price, openclose, usagetime)
      VALUES ($1, 0, $2, $3, $4, $5)`,
     [
       roomId,
