@@ -178,7 +178,13 @@ async function getReservationList() {
 }
 
 async function updateReservationStatus(id, status) {
-  return q(`UPDATE reservations SET status = $1 WHERE id = $2`, [status, id]);
+  const { rows } = await q(`
+    UPDATE reservations 
+    SET status = $1 
+    WHERE id = $2
+    RETURNING *
+    `, [status, id]);
+  return rows[0] || null;
 }
 
 async function getReservationListByCustomerID(customerid) {
@@ -258,24 +264,13 @@ async function searchCustomer(number) {
   return { status: 200, msg: '고객 검색 성공', customers: rows };
 }
 
-async function registerCustomer(phone) {
-  const { rows } = await q(`SELECT * FROM customers WHERE phone = $1`, [phone]);
-  if (rows.length) return { status: 400, msg: '이미 등록된 고객입니다.' };
-
-  const id = Date.now();
-  await q(
-    `INSERT INTO customers (id, name, phone, memo) VALUES ($1,$2,$3,$4)`,
-    [id, '익명', phone, '']
-  );
-  return { status: 200, msg: '고객 등록 성공' };
-}
-
 async function getCustomer(phone) {
   const { rows } = await q(`SELECT * FROM customers WHERE phone = $1`, [phone]);
   return rows[0] || null;
 }
 
 module.exports = {
+  pool,
   getImageById,
   createImage,
 

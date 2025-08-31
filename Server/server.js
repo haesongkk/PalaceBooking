@@ -305,8 +305,20 @@ app.patch('/api/reservation/:id', async (req, res) => {
     const { status } = req.body;
     if (id == null) return res.status(400).json({ error: 'id 누락' });
     if (status == null) return res.status(400).json({ error: 'status 누락' });
-    await roomsModule.updateReservationStatus(Number(id), Number(status));
+    const updated = await roomsModule.updateReservationStatus(Number(id), Number(status));
     res.status(200).json({ msg: 'update reservation status success' });
+    
+    if(updated.status != 1 && updated.status != -1) return;
+
+    const { phone } = await roomsModule.getCustomerById(Number(updated.customerid));
+    const { name } = await roomsModule.getRoomById(Number(updated.roomid));
+
+    // 나중에 더 상세한 예약 내역 설명으로 변경 + 결제링크까지?!
+    const msg = `${name} ${updated.checkindate == updated.checkoutdate ? updated.checkindate : `${updated.checkindate} 입실 ~ ${updated.checkoutdate} 퇴실`} 예약이 ${updated.status==1 ? '확정' : '취소'}되었습니다.`;
+    sendSMS(phone, msg);
+    
+
+
   } catch (error) {
     res.status(503).json({ error: error.message });
   }
@@ -579,7 +591,6 @@ app.get('/api/admin/login/:password', (req, res) => {
     const { password } = req.params;
     if (password === '123') {
       adminToken = Date.now();
-      console.log(adminToken);
       res.json(adminToken);
     }
     else res.json(-1);
@@ -642,8 +653,29 @@ app.get('/chatbot/final', (req, res) => {
 app.post('/api/customers/register/:phone', async (req, res) => {
   try {
     const { phone } = req.params;
-    const result = await roomsModule.registerCustomer(phone);
-    res.status(result.status).json({ msg: result.msg });
+
+    const select = await roomsModule.pool.query(`
+      SELECT * FROM customers 
+      WHERE phone = $1
+    `, [phone]);
+    if (select.rows.length > 0) return res.status(400).json({ msg: '이미 등록된 고객입니다.' });
+
+    const id = Date.now();
+    const insert = await roomsModule.pool.query(`
+      INSERT INTO customers 
+      (id, name, phone, memo) 
+      VALUES ($1,$2,$3,$4)
+      `,[id, '익명', phone, '']);
+
+    sendSMS(phone, '고객 등록 성공')
+    .then((r) => {
+      res.status(200).json({ msg: '고객 등록 성공' });
+    })
+    .catch((error) => {
+      console.error('SMS 발송 실패: ', error.message);
+      res.status(500).json({ msg: error.message });
+    });
+
   } catch (e) {
     res.status(500).json({ msg: e.message });
   }
