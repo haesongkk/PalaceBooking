@@ -38,7 +38,10 @@ async function getImageById(id) {
 
 // --- 방(Room) ---
 async function getRoomList() {
-  const { rows } = await pool.query(`SELECT * FROM rooms`);
+  const { rows } = await pool.query(`
+    SELECT * FROM rooms
+    ORDER BY id DESC
+  `);
   return rows;
 }
 
