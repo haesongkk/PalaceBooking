@@ -1,12 +1,12 @@
 class RoomList {
     constructor() {
         this.container = document.createElement('div');
-        this.container.className = 'room-settings-container';
+        this.container.className = 'room-list-container';
         this.container.innerHTML = `
             <div class="room-settings-top-container">
                 <button class="room-settings-add-button">객실 추가</button>
             </div>
-            <div class="room-settings-bottom-container">
+            <div class="room-list-bottom-container">
             </div>
         `;
 
@@ -36,7 +36,7 @@ class RoomList {
     }
 
     updateRoomList() {
-        const bottomContainer = this.container.querySelector('.room-settings-bottom-container');
+        const bottomContainer = this.container.querySelector('.room-list-bottom-container');
         bottomContainer.innerHTML = '';
 
         fetch('/api/rooms')
