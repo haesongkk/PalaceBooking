@@ -300,7 +300,6 @@ module.exports = {
   deleteCustomer,
   updateCustomer,
   searchCustomer,
-  registerCustomer,
   getCustomer,
   getCustomerById,
 };
