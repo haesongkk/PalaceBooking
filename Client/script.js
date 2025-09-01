@@ -246,7 +246,7 @@ function showCalendar(year, month, container, nights = 1){
         dayCell.textContent = i + 1;
         dayCell.id = new Date(year, month, i + 1);
         dayCell.onclick = () => {
-            const date = new Date(year, month, i + 1);
+            const date = new Date(year, month, i + 1).toLocaleDateString("ko-KR");
             
             if(!reservationInfo.startDate){
                 reservationInfo.startDate = date;
@@ -293,9 +293,10 @@ function showCalendar(year, month, container, nights = 1){
             appendMessage("며칠 숙박 예정이신가요?", "bot");
             appendMessage("[숙박 범위 채팅]", "bot");
         } 
-        reservationInfo.endDate = new Date(reservationInfo.startDate);
-        reservationInfo.endDate.setDate(reservationInfo.startDate.getDate() + nights);
-        reservationInfo.endDate = new Date(reservationInfo.endDate);
+        const [year, month, day] = reservationInfo.startDate.replace(/\.$/, "").split(".").map(s => s.trim()).filter(Boolean);
+        const date = new Date(Number(year), Number(month) - 1, Number(day));
+        date.setDate(date.getDate() + nights);
+        reservationInfo.endDate = date.toLocaleDateString("ko-KR");
         const child = document.querySelector(".chat-window").querySelector(".message.bot:last-child");
 
         const addNights = () => {
@@ -316,8 +317,8 @@ function showCalendar(year, month, container, nights = 1){
                 <button class="nights-btn" onclick="addNights()">+</button>
             </div>
         </div>
-        ${reservationInfo.startDate.toLocaleDateString()} 입실 <br>
-        ${reservationInfo.endDate.toLocaleDateString()} 퇴실 <br>
+        ${reservationInfo.startDate} 입실 <br>
+        ${reservationInfo.endDate} 퇴실 <br>
         `;
 
         const buttons = child.querySelectorAll("button");
@@ -344,9 +345,9 @@ function showCalendar(year, month, container, nights = 1){
         const start = new Date(reservationInfo.startDate).setHours(0, 0, 0, 0);
         const end = new Date(reservationInfo.endDate).setHours(0, 0, 0, 0);
 
-        let text = new Date(reservationInfo.startDate).toLocaleDateString();
+        let text = reservationInfo.startDate;
         if(start != end){
-            text += " 입실 ~ " + new Date(rangeEnd).toLocaleDateString() + " 퇴실";
+            text += " 입실 ~ " + reservationInfo.endDate + " 퇴실";
         } else {
             text += " 대실";
         }
@@ -481,8 +482,8 @@ async function confirmReservation(){
         body: JSON.stringify({
             customerID: userID,
             roomID: Number(reservationInfo.roomID),
-            checkinDate: new Date(reservationInfo.startDate).toLocaleDateString("ko-KR"),
-            checkoutDate: new Date(reservationInfo.endDate).toLocaleDateString("ko-KR"),
+            checkinDate: reservationInfo.startDate,
+            checkoutDate: reservationInfo.endDate,
             price: 0
         })
     }).then(res => res.json()).then(data => {
@@ -508,8 +509,7 @@ async function checkReservation(){
     if(!reservationInfo.roomID) return false;
     if(!reservationInfo.startDate) return false;
 
-    reservationInfo.startDate = new Date(reservationInfo.startDate).toLocaleDateString("ko-KR");
-    if(!reservationInfo.endDate) reservationInfo.endDate = new Date(reservationInfo.startDate).toLocaleDateString("ko-KR");
+    if(!reservationInfo.endDate) reservationInfo.endDate = reservationInfo.startDate;
 
 
     const ok = await fetch(`/api/chatbot/getReservationPrice`, {
@@ -519,7 +519,7 @@ async function checkReservation(){
             customerID: userID,
             roomID: reservationInfo.roomID,
             checkinDate: reservationInfo.startDate,
-            checkoutDate: new Date(reservationInfo.endDate).toLocaleDateString("ko-KR")
+            checkoutDate: reservationInfo.endDate
         })
     }).then(res => res.json()).then(data => {
         console.log(data);
