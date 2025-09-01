@@ -16,35 +16,28 @@ class RoomEdit {
         .then(res => res.json())
         .then(data => {
             this.container.innerHTML = `
-                <div class="room-edit-name">
-                    <h3>객실 이름</h3>
-                    <input 
-                        type="text" 
-                        id="room-name" 
-                        value="${data.name}"
-                        placeholder="객실 이름을 입력해주세요."
-                    >
-                </div>
-                <div class="room-edit-image">
-                    <h3>객실 이미지</h3>
-                    <div class="room-image-preview">
-                    </div>
-                    <input 
-                        type="file" 
-                        id="room-image-input" 
-                        multiple
-                    >
-                </div>
-                <div class="room-edit-description">
-                    <h3>객실 설명</h3>
-                    <textarea 
-                        id="room-description" 
-                        placeholder="객실 설명을 입력해주세요."
-                    >${data.description}</textarea>
-                </div>
+                <label>객실 이름</label>
+                <input 
+                    type="text" 
+                    id="room-name" 
+                    value="${data.name}"
+                    placeholder="객실 이름을 입력해주세요."
+                >
+                <label>객실 이미지</label>
+                <input 
+                    type="file" 
+                    id="room-image-input" 
+                    multiple
+                >
+                <div class="room-edit-preview"></div>
+                <label>객실 설명</label>
+                <textarea 
+                    id="room-description" 
+                    placeholder="객실 설명을 입력해주세요."
+                >${data.description}</textarea>
             `;
 
-            const roomImagePreview = this.container.querySelector('.room-image-preview');
+            const roomImagePreview = this.container.querySelector('.room-edit-preview');
 
             for(const image of data.images) {
                 this.imageList.push(image);

@@ -2,6 +2,7 @@ class DiscountEdit {
     constructor(onSubmitCallback) {
         this.onSubmitCallback = onSubmitCallback;
         this.rootElement = document.createElement('div');
+        this.rootElement.className = 'discount-edit-container';
 
         fetch(`/api/discount`)
             .then(res => res.json())
@@ -20,26 +21,18 @@ class DiscountEdit {
                 }
 
                 this.rootElement.innerHTML = `
-                    <div class="first-visit-discount-container">
-                        <h3 class="first-visit-discount-title">
-                            첫 방문 할인 금액 (원/1박)
-                        </h3>
-                        <input class="first-visit-discount-input" value="${json.data.firstVisitDiscount}">
-                    </div>
-                    <div class="recent-visit-discount-container">
-                        <h3 class="recent-visit-discount-title">
-                            최근 방문 할인 금액 (원/1박)
-                        </h3>
-                        <input class="recent-visit-discount-input" value="${json.data.recentVisitDiscount}">
-                    </div>
+                    <label>첫 방문 할인 금액 (원/1박)</label>
+                    <input id = "first-visit-discount-input" value="${json.data.firstVisitDiscount}">
+                    <label>최근 방문 할인 금액 (원/1박)</label>
+                    <input id = "recent-visit-discount-input" value="${json.data.recentVisitDiscount}">
                 `;
             })
             .catch(err => console.error(err));
     }
 
     async submit() {
-        const szFirstVisitDiscount = this.rootElement.querySelector('.first-visit-discount-input').value;
-        const szRecentVisitDiscount = this.rootElement.querySelector('.recent-visit-discount-input').value;
+        const szFirstVisitDiscount = this.rootElement.querySelector('#first-visit-discount-input').value;
+        const szRecentVisitDiscount = this.rootElement.querySelector('#recent-visit-discount-input').value;
 
         if(!/^-?\d+$/.test(szFirstVisitDiscount) || !/^-?\d+$/.test(szRecentVisitDiscount)) {
             alert("할인 금액은 숫자여야 합니다.");
