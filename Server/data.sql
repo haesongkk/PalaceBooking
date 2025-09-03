@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS rooms (
     name         TEXT,
     images       INTEGER[],
     description  TEXT
+    -- imgpath    TEXT[]
 );
 
 CREATE TABLE IF NOT EXISTS image (
@@ -44,7 +45,10 @@ CREATE TABLE IF NOT EXISTS reservations (
     checkindate  TEXT    NOT NULL,
     checkoutdate TEXT    NOT NULL,
     price        INTEGER NOT NULL,
-    status       INTEGER NOT NULL
+    status       INTEGER NOT NULL -- 대기, 확정, 고객 취소, 관리자 취소 등
+
+    --checkin      DATE,
+    --checkout     DATE,
 );
 
 CREATE TABLE IF NOT EXISTS discount (
@@ -57,8 +61,52 @@ VALUES (1, 5000, 5000)
 ON CONFLICT (id) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS customers (
-    id    BIGINT PRIMARY KEY,    -- Date.now() 사용
+    id    BIGINT PRIMARY KEY,   
     name  TEXT NOT NULL,
     phone TEXT NOT NULL UNIQUE,
     memo  TEXT
 );
+
+
+
+
+
+
+CREATE TABLE IF NOT EXISTS logs (
+    id          SERIAL PRIMARY KEY,
+    message     TEXT NOT NULL,
+    timestamp   TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS chats (
+    id          SERIAL PRIMARY KEY,
+    chatbotid   INTEGER,
+    isbot       BOOLEAN NOT NULL,
+    timestamp   TIMESTAMP NOT NULL,
+    message     TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+    roomid      INTEGER REFERENCES rooms(id) NOT NULL,
+    isovernight BOOLEAN NOT NULL,
+
+    dow         INTEGER,
+    date        DATE,
+
+    onsale      BOOLEAN NOT NULL,
+    price       INTEGER NOT NULL,
+
+    opentime    INTEGER CHECK (opentime BETWEEN 0 AND 23),
+    closetime   INTEGER CHECK (closetime BETWEEN 0 AND 23),
+    usagetime   INTEGER CHECK (usagetime BETWEEN 0 AND 12),
+
+    CONSTRAINT uq_settings 
+    UNIQUE (roomid, isovernight, dow, date) 
+);
+
+
+CREATE TABLE IF NOT EXISTS variables (
+    firstvisitdiscount  INTEGER DEFAULT 0,
+    recentvisitdiscount INTEGER DEFAULT 0
+);
+

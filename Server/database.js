@@ -272,6 +272,27 @@ async function getCustomer(phone) {
   return rows[0] || null;
 }
 
+async function getTableList() {
+  const { rows } = await q(`
+    SELECT * FROM information_schema.tables 
+    WHERE table_schema = 'public'
+  `);
+  return rows;
+}
+
+async function getTableColumnList(tableName) {
+  const { rows } = await q(`
+    SELECT * FROM information_schema.columns 
+    WHERE table_name = $1
+  `, [tableName]);
+  return rows;
+}
+
+async function getTableRowList(tableName) {
+  const { rows } = await q(`SELECT * FROM ${tableName}`);
+  return rows;
+}
+
 module.exports = {
   pool,
   getImageById,
@@ -305,4 +326,8 @@ module.exports = {
   searchCustomer,
   getCustomer,
   getCustomerById,
+
+  getTableList,
+  getTableColumnList,
+  getTableRowList,
 };
