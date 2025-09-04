@@ -8,11 +8,56 @@ const pool = new Pool({
 });
 
 // --- 스키마 생성 (모듈 로드시 1회) ---
+const AWS = require('aws-sdk');
+const s3 = new AWS.S3({
+  region: process.env.AWS_REGION,
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+});
+
+
+async function uploadImageToS3(buffer, mime) {
+  const { Location } = await s3.upload({
+    Bucket: process.env.S3_BUCKET_NAME,
+    Key: `rooms/${Date.now()}.${mime.split('/')[1]}`,
+    Body: buffer,
+    ContentType: mime,
+  }).promise();
+  return Location;
+}
+
+async function immigrateImage() {
+
+  const { rows } = await pool.query(`SELECT * FROM image`);
+  const imgMap = {};
+  for (const image of rows) {
+    const path = await uploadImageToS3(image.data, image.mime);
+    imgMap[image.id] = path;
+  }
+
+  const rooms = await pool.query(`SELECT * FROM rooms`);
+  for (const room of rooms.rows) {
+    const imgpath = room.images.map(imageid => imgMap[imageid]);
+
+    await pool.query(`
+      UPDATE rooms 
+      SET imgpath = $1 
+      WHERE id = $2
+    `, [imgpath, room.id]);
+  }
+}
 async function ensureSchema() {
   const ddl = fs.readFileSync('./data.sql', 'utf-8');
   await pool.query(ddl);
+  // immigrateImage();
 }
 const ready = ensureSchema();
+
+
+
+
+
+
 
 // --- Helpers ---
 async function q(sql, params) {
@@ -42,6 +87,19 @@ async function getRoomList() {
     SELECT * FROM rooms
     ORDER BY id DESC
   `);
+  await Promise.all(rows.map(async row => {
+    row.imgpath = await Promise.all(row.imgpath.map(async location => {
+      const url = new URL(location);
+      const key = decodeURIComponent(url.pathname.slice(1));
+      const signedUrl = await s3.getSignedUrl('getObject', {
+        Bucket: process.env.S3_BUCKET_NAME,
+        Key: key,
+        Expires: 60 * 60 * 24 * 7,
+      });
+      return signedUrl;
+    }));
+  }));
+
   return rows;
 }
 

@@ -6,8 +6,9 @@ CREATE TABLE IF NOT EXISTS rooms (
     name         TEXT,
     images       INTEGER[],
     description  TEXT
-    -- imgpath    TEXT[]
 );
+
+ALTER TABLE rooms ADD COLUMN IF NOT EXISTS imgpath TEXT[];
 
 CREATE TABLE IF NOT EXISTS image (
     id    SERIAL PRIMARY KEY,
