@@ -413,22 +413,26 @@ function closeImageModal() {
 
 function showRooms(){
     fetch(`api/rooms`).then(res => res.json()).then(data => {
+        if(data.error){
+            appendMessage(data.error, "bot");
+            return;
+        }
         document.querySelector(".chat-window").innerHTML += `
             <div class="message bot">
                 <div class="room-viewport">
                     ${data.map((room, index) => `
                         <div class="room-card" id="${room.id}-${room.name}">
                             <h3>${room.name}</h3>
-                            <div class="room-images-gallery" onclick="showAllImages('${room.name}', ${JSON.stringify(room.images).replace(/"/g, '&quot;')})">
-                                ${room.images.slice(0, 3).map(img => `
-                                    <img src="/api/image/${img}">
+                            <div class="room-images-gallery">
+                                ${room.imgpath.slice(0, 3).map(img => `
+                                    <img src="${img}">
                                 `).join('')}
-                                ${Array(3 - Math.min(room.images.length, 3)).fill().map(() => `
+                                ${Array(3 - Math.min(room.imgpath.length, 3)).fill().map(() => `
                                     <div class="empty-image-placeholder"></div>
                                 `).join('')}
-                                ${room.images.length > 3 ? `
+                                ${room.imgpath.length > 3 ? `
                                     <div class="more-images-btn">
-                                        +${room.images.length - 3}
+                                        +${room.imgpath.length - 3}
                                     </div>
                                 ` : ''}
                             </div>

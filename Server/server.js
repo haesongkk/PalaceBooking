@@ -19,8 +19,11 @@ const io = new SocketIOServer(server, { cors: { origin: '*' } });
 app.use(cors());
 app.use(bodyParser.json());
 
-app.use(express.static('../Client'));
+app.use(express.static('../Client_v2'));
+app.use('/old', express.static('../Client'));
 app.use('/admin', express.static('../Admin'));
+app.use('/dev', express.static('../Dev'));
+
 app.use('/img', express.static('./img'));
 
 io.on('connection', (socket) => {
@@ -750,6 +753,50 @@ app.get('/api/chatbot/getReservationList/:phone', async (req, res) => {
     return res.status(200).json({
       msg: [msg],
       floatings: ['고객 등록', '예약하기', '예약 내역', '문의하기'],
+    });
+  } catch (error) {
+    res.status(503).json({ error: error.message });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Dev APIs
+
+app.get('/api/dev/tableList', async (req, res) => {
+  try {
+    const tableList = await roomsModule.getTableList();
+    res.status(200).json(tableList);
+  } catch (error) {
+    res.status(503).json({ error: error.message });
+  }
+});
+
+app.get('/api/dev/table/:tableName', async (req, res) => {
+  try {
+    const { tableName } = req.params;
+    const columnList = await roomsModule.getTableColumnList(tableName);
+    const rowList = await roomsModule.getTableRowList(tableName);
+    res.status(200).json({ 
+      columnList: columnList, 
+      rowList: rowList 
     });
   } catch (error) {
     res.status(503).json({ error: error.message });
