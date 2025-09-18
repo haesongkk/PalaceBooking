@@ -19,7 +19,8 @@ const io = new SocketIOServer(server, { cors: { origin: '*' } });
 app.use(cors());
 app.use(bodyParser.json());
 
-app.use(express.static('../Client'));
+app.use(express.static('../Client_v2'));
+app.use('/old', express.static('../Client'));
 app.use('/admin', express.static('../Admin'));
 app.use('/dev', express.static('../Dev'));
 
