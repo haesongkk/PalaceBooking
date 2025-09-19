@@ -802,3 +802,30 @@ app.get('/api/dev/table/:tableName', async (req, res) => {
     res.status(503).json({ error: error.message });
   }
 });
+
+
+// 클라이언트 v2 만들도록.
+app.post('/api/user/reservation-request', async (req, res) => {
+    try {
+        const { strCheckInDate, nNights, strRoom, strPhone } = req.body;
+
+        // 최소 검증
+        if (!strCheckInDate || typeof nNights !== 'number' || !strRoom || !strPhone) {
+            return res.status(400).json({ ok: false, error: 'INVALID_PAYLOAD' });
+        }
+
+        // 날짜 파싱 확인 (옵션)
+        const dt = new Date(strCheckInDate);
+        if (isNaN(dt.getTime())) {
+            return res.status(400).json({ ok: false, error: 'INVALID_DATE' });
+        }
+
+        // TODO: DB 저장 or 알림 발송 등 처리
+        console.log('[예약요청]', { strCheckInDate, nNights, strRoom, strPhone });
+
+        return res.status(200).json({ ok: true });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ ok: false, error: 'SERVER_ERROR' });
+    }
+});
