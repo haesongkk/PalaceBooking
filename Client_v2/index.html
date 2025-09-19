@@ -531,7 +531,84 @@
         html {
             scroll-padding-bottom: var(--footer-space);
         }
-       
+
+        /* ==== Modal (popup) ==== */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,.45);
+            z-index: 200; /* footer(70)보다 위 */
+        }
+
+            .modal-backdrop.show {
+                display: flex;
+                animation: fade .25s ease;
+            }
+
+        @media (prefers-reduced-motion: reduce) {
+            .modal-backdrop.show {
+                animation: none;
+            }
+        }
+
+        .modal {
+            width: min(720px,92vw);
+            max-height: 86vh;
+            overflow: auto;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,.2);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--line);
+            position: sticky;
+            top: 0;
+            background: var(--surface);
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
+        }
+
+        .modal-title {
+            margin: 0;
+            font-weight: 800;
+        }
+
+        .modal-close {
+            background: #fff;
+            border: 1px solid var(--line);
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+            .modal-close:hover {
+                background: #F3F4F6;
+            }
+
+        .modal-body {
+            padding: 14px;
+        }
+
+        /*하단바 팝업 시 뒷 배경 움직임 보정*/
+        :root {
+            --sbw: 0px;
+        }
+        /* 스크롤바 너비 변수 */
+        body.no-scroll {
+            overflow: hidden; /* 배경 스크롤 잠금 */
+            padding-right: var(--sbw); /* 스크롤바 자리만큼 우측 패딩 */
+        }
     </style>
 </head>
 <body>
@@ -601,6 +678,39 @@
             <button id="btnHistory" class="fbtn" type="button">예약 내역</button>
         </div>
     </nav>
+    <!-- 모달: 객실 소개 (데모) -->
+    <div id="modalRooms" class="modal-backdrop" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalRoomsTitle">
+            <div class="modal-header">
+                <h2 id="modalRoomsTitle" class="modal-title">객실 소개</h2>
+                <button class="modal-close" type="button" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-top:0;color:var(--muted)">객실과 혜택 요약입니다. (임시 내용)</p>
+                <ul style="margin:0;padding-left:18px">
+                    <li>스탠다드 · TV · 와이파이</li>
+                    <li>2베드 · 가족/지인</li>
+                    <li>2PC · 듀얼 PC</li>
+                    <li>멀티2 · 간단 파티</li>
+                    <li>도보특가 · 도보 고객 전용</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모달: 예약 내역 (데모) -->
+    <div id="modalHistory" class="modal-backdrop" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalHistoryTitle">
+            <div class="modal-header">
+                <h2 id="modalHistoryTitle" class="modal-title">예약 내역</h2>
+                <button class="modal-close" type="button" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-top:0;color:var(--muted)">최근 예약 내역이 여기에 표시됩니다. (데모)</p>
+                <p>예: 09월 21일(토) · 스탠다드 1박 · 36,000원</p>
+            </div>
+        </div>
+    </div>
     <script>
         (function () {
             const titleEl = document.getElementById('calTitle');
@@ -624,6 +734,42 @@
             const btnStartOver = document.getElementById('btnStartOver');
             const btnRoomsInfo = document.getElementById('btnRoomsInfo');
             const btnHistory = document.getElementById('btnHistory');
+
+            // 하단바 팝업창
+            const modalRooms = document.getElementById('modalRooms');
+            const modalHistory = document.getElementById('modalHistory');
+
+            let lastFocused = null;
+            // 하단바 팝업창 너비 패딩 보정
+            function getScrollbarWidth() {
+                return window.innerWidth - document.documentElement.clientWidth;
+            }
+            function openModal(el) {
+                if (!el) return;
+                lastFocused = document.activeElement;
+                el.classList.add('show');
+                el.removeAttribute('aria-hidden');
+
+                // 스크롤바 너비 계산 후 padding 보정
+                const sbw = getScrollbarWidth();
+                document.documentElement.style.setProperty('--sbw', sbw + 'px');
+                document.body.classList.add('no-scroll');
+
+                const closeBtn = el.querySelector('.modal-close');
+                closeBtn && closeBtn.focus();
+            }
+
+            function closeModal(el) {
+                if (!el) return;
+                el.classList.remove('show');
+                el.setAttribute('aria-hidden', 'true');
+
+                // 복구
+                document.body.classList.remove('no-scroll');
+                document.documentElement.style.removeProperty('--sbw');
+
+                if (lastFocused) lastFocused.focus();
+            }
 
             const rooms = [
                 { id: 1, name: '스탠다드', orig: 40000, sale: 36000 },
@@ -747,15 +893,15 @@
 
                     const rate = discountRate(r.orig, r.sale); // 예: 10(%)
                     btn.innerHTML = `
-                    <div class="room-name">
-                        ${r.name}
-                        ${rate > 0 ? `<span class="discount-badge">-${rate}%</span>` : ''}
-                    </div>
-                    <div class="price">
-                        <span class="orig">${formatKRW(r.orig)}</span>
-                        <span class="sale">${formatKRW(r.sale)}</span>
-                    </div>
-                `;
+                            <div class="room-name">
+                                ${r.name}
+                                ${rate > 0 ? `<span class="discount-badge">-${rate}%</span>` : ''}
+                            </div>
+                            <div class="price">
+                                <span class="orig">${formatKRW(r.orig)}</span>
+                                <span class="sale">${formatKRW(r.sale)}</span>
+                            </div>
+                        `;
 
                     btn.addEventListener('click', () => {
                         if (!isConfirmed) return; // 날짜/박수 확정 전엔 객실 선택 불가
@@ -788,9 +934,9 @@
                         // 요약 내용 업데이트
                         const checkout = addDays(selectedDate, nights); // 종료일 = 체크인 + 박수
                         bookingSummary.innerHTML = `
-                <p class="period">${formatLabel(selectedDate)} - ${formatLabel(checkout)} ${daysText(nights)}</p>
-                <p class="pay"><span class="emph-room">${r.name}</span> 결제금액: <span class="pay-amount">${formatKRW(r.sale * nights)}</span></p>
-            `;
+                        <p class="period">${formatLabel(selectedDate)} - ${formatLabel(checkout)} ${daysText(nights)}</p>
+                        <p class="pay"><span class="emph-room">${r.name}</span> 결제금액: <span class="pay-amount">${formatKRW(r.sale * nights)}</span></p>
+                    `;
 
                         bookingToggle.classList.add('open');
                         bookingToggle.removeAttribute('aria-hidden');
@@ -806,6 +952,14 @@
 
             function addDays(date, days) {
                 return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+            }
+
+            // ===== API endpoint & ISO helpers =====
+            const RESERVE_API_URL = '/api/user/reservation-request';
+
+            // 달력에서 고른 체크인 날짜를 UTC 00:00:00Z로 고정한 ISO 문자열
+            function toISODateUTC(d) {
+                return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString();
             }
 
             // 달력
@@ -944,22 +1098,24 @@
             render();
             updateStepperUI();
             btnStartOver.addEventListener('click', resetFlow);
-            
-            btnRoomsInfo.addEventListener('click', () => {
-                // 객실 목록이 이미 보이면 그 위치로 스크롤
-                //if (roomListEl && roomListEl.classList.contains('show')) {
-                //    roomListEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                //} else {
-                //    // 아직 확정 전이라 목록이 없다면 안내
-                //    alert('먼저 날짜와 숙박일을 확정해 주세요.');
-                //}
-                alert('객실 소개 기능은 준비 중입니다');
+            btnRoomsInfo.addEventListener('click', () => openModal(modalRooms)); //alert('객실 소개 기능은 준비 중입니다');
+            btnHistory.addEventListener('click', () => openModal(modalHistory));
+
+            [modalRooms, modalHistory].forEach(modal => {
+                // X 버튼으로 닫기
+                modal.querySelector('.modal-close')?.addEventListener('click', () => closeModal(modal));
+                // 백드롭(바깥) 클릭으로 닫기
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) closeModal(modal);
+                });
             });
-            
-            btnHistory.addEventListener('click', () => {
-                // TODO: 예약 내역 화면으로 연결
-                // location.href = '/reservations'; // 실제 라우트가 있다면 이렇게
-                alert('예약 내역 기능은 준비 중입니다.');
+
+            // ESC로 닫기
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    if (modalRooms.classList.contains('show')) closeModal(modalRooms);
+                    if (modalHistory.classList.contains('show')) closeModal(modalHistory);
+                }
             });
             // 하단바 높이에 맞춰 본문 하단 여백을 동적으로 설정
             (function () {
@@ -994,39 +1150,57 @@
                 sendBtn.disabled = !(onlyDigits.length >= 10 && onlyDigits.length <= 11);
             });
 
-            sendBtn.addEventListener('click', () => {
+            sendBtn.addEventListener('click', async () => {
                 if (sendBtn.disabled) return;
-                // 여기서 서버에 전송. (현재는 데모)
-                console.log('전화번호 전송:', phoneInput.value);
-                // 버튼 피드백
-                sendBtn.textContent = '전송됨';
-                sendBtn.disabled = true;
-                phoneInput.disabled = true;      // 입력창 비활성화
-                phoneInput.blur();               // 커서도 제거
 
-                // 전송 성공 안내 문구 출력
-                sendResult.textContent = '감사합니다. 예약 접수가 완료되었습니다. 최대한 빠르게 예약 확정 여부를 문자로 안내해 드리겠습니다.';
-                sendResult.classList.add('show');
+                // 값 확보 & 검증
+                const phone = phoneInput.value.replace(/\D/g, '');
+                if (!selectedDate) { alert('체크인 날짜를 선택해 주세요.'); return; }
+                if (!selectedRoom) { alert('객실을 선택해 주세요.'); return; }
+                if (!(phone.length >= 10 && phone.length <= 11)) { alert('휴대전화번호를 확인해 주세요.'); return; }
 
-                //btnStartOver.addEventListener('click', resetFlow);
+                // 서버 스펙에 맞춘 페이로드
+                const payload = {
+                    strCheckInDate: toISODateUTC(selectedDate), // 예: '2025-09-19T00:00:00.000Z'
+                    nNights: nights,                     // 0도 허용
+                    strRoom: selectedRoom.name,          // '스탠다드' 등
+                    strPhone: phone                       // '01012345678'
+                };
 
-                //btnRoomsInfo.addEventListener('click', () => {
-                //    // 객실 목록이 이미 보이면 그 위치로 스크롤
-                //    if (roomListEl && roomListEl.classList.contains('show')) {
-                //        roomListEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                //    } else {
-                //        // 아직 확정 전이라 목록이 없다면 안내
-                //        alert('먼저 날짜와 숙박일을 확정해 주세요.');
-                //    }
-                //});
+                try {
+                    // UI 잠금
+                    sendBtn.textContent = '전송중...';
+                    sendBtn.disabled = true;
+                    phoneInput.disabled = true;
 
-                //btnHistory.addEventListener('click', () => {
-                //    // TODO: 예약 내역 화면으로 연결
-                //    // location.href = '/reservations'; // 실제 라우트가 있다면 이렇게
-                //    alert('예약 내역 기능은 준비 중입니다.');
-                //});
+                    const res = await fetch(RESERVE_API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                    // 성공 피드백
+                    sendBtn.textContent = '전송됨';
+                    sendResult.textContent = '감사합니다. 예약 접수가 완료되었습니다. 최대한 빠르게 예약 확정 여부를 문자로 안내해 드리겠습니다.';
+                    sendResult.classList.add('show');
+
+                    // 디버그 로그
+                    console.log('예약 전송 성공:', payload);
+
+                } catch (err) {
+                    console.error('예약 전송 실패:', err);
+                    // 롤백
+                    sendBtn.textContent = '전송';
+                    sendBtn.disabled = false;
+                    phoneInput.disabled = false;
+                    sendResult.textContent = '전송에 실패했습니다. 잠시 후 다시 시도해 주세요. ()';
+                    sendResult.classList.add('show');
+                }
             });
-        })();
+
+    })();
 
     </script>
 </body>
