@@ -996,17 +996,35 @@
 
             sendBtn.addEventListener('click', () => {
                 if (sendBtn.disabled) return;
-                // 여기서 서버에 전송. (현재는 데모)
-                console.log('전화번호 전송:', phoneInput.value);
-                // 버튼 피드백
-                sendBtn.textContent = '전송됨';
-                sendBtn.disabled = true;
-                phoneInput.disabled = true;      // 입력창 비활성화
-                phoneInput.blur();               // 커서도 제거
 
-                // 전송 성공 안내 문구 출력
-                sendResult.textContent = '감사합니다. 예약 접수가 완료되었습니다. 최대한 빠르게 예약 확정 여부를 문자로 안내해 드리겠습니다.';
-                sendResult.classList.add('show');
+                const dateStr = selectedDate.getFullYear() + '-' + (selectedDate.getMonth() + 1) + '-' + selectedDate.getDate();
+
+                fetch('/api/client/reservation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        date: dateStr,
+                        night: nights,
+                        roomType: selectedRoom.name,
+                        phone: phoneInput.value
+                    })
+                }).then(res => res.json()).then(data => {
+                    if(data.error) {
+                        sendResult.textContent = data.error;
+                    } else {
+                        sendResult.textContent = '감사합니다. 예약 접수가 완료되었습니다. 최대한 빠르게 예약 확정 여부를 문자로 안내해 드리겠습니다.';
+                    }
+                    // 버튼 피드백
+                    sendBtn.textContent = '전송됨';
+                    sendBtn.disabled = true;
+                    phoneInput.disabled = true;      // 입력창 비활성화
+                    phoneInput.blur();               // 커서도 제거
+
+                    // 전송 성공 안내 문구 출력
+                    sendResult.classList.add('show');
+                });
+                
+                
 
                 //btnStartOver.addEventListener('click', resetFlow);
 

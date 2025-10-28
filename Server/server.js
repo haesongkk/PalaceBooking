@@ -531,9 +531,7 @@ app.post('/api/chatbot/getReservationPrice', async (req, res) => {
   }
 });
 
-/**
- * @description SMS 발송
- */
+
 function sendSMS(receiver, msg) {
   if (typeof receiver != 'string') throw new Error('receiver is not a string');
   if (typeof msg != 'string') throw new Error('msg is not a string');
@@ -552,29 +550,25 @@ function sendSMS(receiver, msg) {
   });
 }
 
-app.post('/api/chatbot/confirmReservation', async (req, res) => {
-  try {
-    const { customerID, roomID, checkinDate, checkoutDate, price } = req.body;
-    if (customerID == null) return res.status(400).json({ error: 'customerID 누락' });
-    if (roomID == null) return res.status(400).json({ error: 'roomID 누락' });
-    if (checkinDate == null) return res.status(400).json({ error: 'checkinDate 누락' });
-    if (checkoutDate == null) return res.status(400).json({ error: 'checkoutDate 누락' });
-    if (price == null) return res.status(400).json({ error: 'price 누락' });
 
-    await roomsModule.createReservation(customerID, roomID, checkinDate, checkoutDate, price, 0);
+app.post('/api/client/reservation', async (req, res) => {
+  const { date, night, roomType, phone } = req.body;
 
-    res.status(200).json({
-      floatings: ['고객 등록', '예약하기', '예약 내역', '문의하기'],
-      msg: [
-        '객실 상황에 따라 예약 가능 여부를 먼저 확인한 뒤, 문자로 안내드립니다.',
-        '결제는 체크인 시, ‘현장’에서 진행됩니다.',
-        '무엇을 도와드릴까요?',
-      ],
-    });
+    if(date == null || typeof date != 'string') 
+      return res.status(400).json({ error: 'date is required and must be a string' });
+    if(night == null || typeof night != 'number') 
+      return res.status(400).json({ error: 'night is required and must be a number' });
+    if(roomType == null || typeof roomType != 'string') 
+      return res.status(400).json({ error: 'roomType is required and must be a string' });
+    if(phone == null || typeof phone != 'string') 
+      return res.status(400).json({ error: 'phone is required and must be a string' });
 
-    if (io) io.to('admin').emit('reservation-updated');
-
-    sendSMS('01041367950', `새로운 예약이 들어왔습니다. \n www.palacebooking.onrender.com`)
+    res.status(200).json({ msg: 'reservation success' });
+    
+    // 데이터베이스 구조 변경 이후 수정 필요
+    //await roomsModule.createReservation(customerID, roomID, checkinDate, checkoutDate, price, 0);
+    
+    sendSMS(process.env.SMS_FROM, "새로운 예약이 들어왔습니다.")
       .then((r) => {
         const code = Number(r.data.result_code);
         if (code < 0) throw new Error(r.data.result_msg);
@@ -582,10 +576,9 @@ app.post('/api/chatbot/confirmReservation', async (req, res) => {
       .catch((error) => {
         console.error('SMS 발송 실패: ', error.message);
       });
-  } catch (error) {
-    res.status(503).json({ error: error.message });
-  }
 });
+
+
 
 /* ------------------------------ Auth Temp ----------------------------- */
 let adminToken = -1;
@@ -612,193 +605,21 @@ app.post(`/api/admin/:token`, (req, res) => {
   }
 });
 
-/* --------------------------- Chatbot Streams -------------------------- */
-
-class ChatBot {
-  constructor(res) { this.res = res; }
-  push(msg) { this.res.write(msg); }
-  remove() { this.res.end(); }
-}
-
-const chatBotMap = new Map();
-
-app.get('/chatbot/init', (req, res) => {
-  try {
-    const { pageId } = req.query;
-    chatBotMap.set(pageId, new ChatBot(res));
-  } catch (error) {
-    res.status(503).json({ error: error.message });
-  }
-});
-
-app.post('/chatbot/update', (req, res) => {
-  try {
-    const { pageId, msg } = req.body;
-    const { floatings, messages } = chatBotMap.get(pageId).update(msg);
-    res.status(200).json({ floatings, messages });
-  } catch (error) {
-    res.status(503).json({ error: error.message });
-  }
-});
-
-app.get('/chatbot/final', (req, res) => {
-  try {
-    const { pageId } = req.query;
-    chatBotMap.delete(pageId);
-    res.status(200).json({ msg: 'success' });
-  } catch (error) {
-    res.status(503).json({ error: error.message });
-  }
-});
 
 /* --------------------------- Customer Auth ---------------------------- */
 
+app.post('/api/chatbot/confirmReservation', async (req, res) => {
+  res.status(400).json({ msg: 'deleted api' });
+});
+
 app.post('/api/customers/register/:phone', async (req, res) => {
-  try {
-    const { phone } = req.params;
-
-    const select = await roomsModule.pool.query(`
-      SELECT * FROM customers 
-      WHERE phone = $1
-    `, [phone]);
-    if (select.rows.length > 0) return res.status(400).json({ msg: '이미 등록된 고객입니다.' });
-
-    const id = Date.now();
-    const insert = await roomsModule.pool.query(`
-      INSERT INTO customers 
-      (id, name, phone, memo) 
-      VALUES ($1,$2,$3,$4)
-      `,[id, '익명', phone, '']);
-
-    sendSMS(phone, '고객 등록 성공')
-    .then((r) => {
-      res.status(200).json({ msg: '고객 등록 성공' });
-    })
-    .catch((error) => {
-      console.error('SMS 발송 실패: ', error.message);
-      res.status(500).json({ msg: error.message });
-    });
-
-  } catch (e) {
-    res.status(500).json({ msg: e.message });
-  }
+  res.status(404).json({ msg: 'deleted api' });
 });
 
 app.get('/api/chatbot/certify/:phone', async (req, res) => {
-  try {
-    const { phone } = req.params;
-    if (phone == null) return res.status(400).json({ error: 'phone 누락' });
-
-    const customer = await roomsModule.getCustomer(phone);
-    if (!customer)
-      return res.status(200).json({
-        floatings: ['고객 등록', '예약하기', '예약 내역', '문의하기'],
-        msg: ['고객 정보가 존재하지 않습니다. 고객 등록을 먼저 진행해주세요.'],
-      });
-
-    const userNick = phone.slice(-4);
-    const reservationList = await roomsModule.getReservationListByCustomerID(customer.id);
-    const discount = await roomsModule.getDiscount();
-
-    const msg =
-      reservationList.length > 0
-        ? [
-            `🙌 ${userNick}님, 다시 찾아주셔서 감사합니다.`,
-            `단골 고객님께는 ${discount.recentvisitdiscount.toLocaleString()}원 더 저렴하게 안내해드립니다.`,
-          ]
-        : [
-            `🙏 ${userNick}님, 팔레스 호텔을 찾아주셔서 감사합니다.`,
-            `첫 방문 고객님께는 ${discount.firstvisitdiscount.toLocaleString()}원 더 저렴하게 안내해드립니다.`,
-          ];
-
-    return res.status(200).json({
-      id: customer.id,
-      floatings: ['날짜 선택하기', '객실 선택하기', '취소하기'],
-      msg,
-    });
-  } catch (error) {
-    res.status(503).json({ error: error.message });
-  }
+  res.status(404).json({ msg: 'deleted api' });
 });
 
 app.get('/api/chatbot/getReservationList/:phone', async (req, res) => {
-  try {
-    const { phone } = req.params;
-    if (phone == null) return res.status(400).json({ error: 'phone 누락' });
-
-    const customer = await roomsModule.getCustomer(phone);
-    if (!customer)
-      return res.status(200).json({
-        floatings: ['고객 등록', '예약하기', '예약 내역', '문의하기'],
-        msg: ['고객 정보가 존재하지 않습니다.'],
-      });
-
-    const reservationList = await roomsModule.getReservationListByCustomerID(Number(customer.id));
-
-    let msg = ``;
-    if (reservationList.length === 0) msg = '현재 예약 내역이 없습니다.';
-    for (const reservation of reservationList) {
-      const roomName = (await roomsModule.getRoomById(reservation.roomid))?.name || '삭제된 객실';
-      msg += `
-        <button class="history-item" id="reservation-${reservation.id}">
-          ${roomName}<br>
-          ${reservation.checkindate} 입실<br>
-          ${reservation.checkoutdate} 퇴실<br>
-          ${reservation.price}원<br>
-          ${reservation.status == 0 ? '대기' : reservation.status == 1 ? '확정' : '취소'}
-        </button>
-      `;
-    }
-
-    return res.status(200).json({
-      msg: [msg],
-      floatings: ['고객 등록', '예약하기', '예약 내역', '문의하기'],
-    });
-  } catch (error) {
-    res.status(503).json({ error: error.message });
-  }
-});
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Dev APIs
-
-app.get('/api/dev/tableList', async (req, res) => {
-  try {
-    const tableList = await roomsModule.getTableList();
-    res.status(200).json(tableList);
-  } catch (error) {
-    res.status(503).json({ error: error.message });
-  }
-});
-
-app.get('/api/dev/table/:tableName', async (req, res) => {
-  try {
-    const { tableName } = req.params;
-    const columnList = await roomsModule.getTableColumnList(tableName);
-    const rowList = await roomsModule.getTableRowList(tableName);
-    res.status(200).json({ 
-      columnList: columnList, 
-      rowList: rowList 
-    });
-  } catch (error) {
-    res.status(503).json({ error: error.message });
-  }
+  res.status(404).json({ msg: 'deleted api' });
 });
