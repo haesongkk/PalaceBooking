@@ -460,7 +460,6 @@ app.post('/api/client/rooms', async (req, res) => {
     discount: discount
   }));
   
-  
   const isOvernight = night == 0 ? false : true;
   for(let i = 0; i < night; i++) {
     const checkDate = new Date(date);
@@ -468,7 +467,7 @@ app.post('/api/client/rooms', async (req, res) => {
     const year = checkDate.getFullYear();
     const month = checkDate.getMonth() + 1;
     const day = checkDate.getDate();
-    const dayOfWeek = new Date(year, month+1, day).getDay();
+    const dayOfWeek = new Date(year, month-1, day).getDay();
     const dateStr = `${year}-${month}-${day}`;
 
     const daily = await roomsModule.getDailyByDate(isOvernight ? 1 : 0, year, month, day);
@@ -488,7 +487,6 @@ app.post('/api/client/rooms', async (req, res) => {
           status: JSON.parse(setting.status)[dayOfWeek]
         });
       }
-
     }
 
   }
@@ -525,7 +523,6 @@ app.post('/api/client/reservation', async (req, res) => {
 
 
 
-/* ------------------------------ Auth Temp ----------------------------- */
 let adminToken = -1;
 app.get('/api/admin/login/:password', (req, res) => {
   try{
@@ -551,7 +548,6 @@ app.post(`/api/admin/:token`, (req, res) => {
 });
 
 
-/* --------------------------- Customer Auth ---------------------------- */
 
 app.post('/api/chatbot/confirmReservation', async (req, res) => {
   res.status(400).json({ msg: 'deleted api' });
