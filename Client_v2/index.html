@@ -348,6 +348,17 @@
             box-shadow: 0 0 0 3px rgba(59,130,246,.15);
         }
 
+        .room-card:disabled {
+            opacity: .5;
+        }
+        .room-name:disabled {
+            opacity: .5;
+        }
+        .price:disabled {
+            opacity: .5;
+        }
+        
+
         .room-name {
             font-weight: 700;
         }
@@ -739,21 +750,45 @@
             // 객실 선택 박스
             function renderRooms() {
                 roomListEl.innerHTML = '';
-                rooms.forEach(r => {
+                const dateStr = selectedDate.getFullYear() + '-' + (selectedDate.getMonth() + 1) + '-' + selectedDate.getDate();
+                fetch('/api/client/rooms', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        date: dateStr,
+                        night: nights
+                    })
+                }).then(res => res.json()).then(data => data.rooms.forEach(r => {
                     const btn = document.createElement('button');
                     btn.type = 'button';
                     btn.className = 'room-card';
                     btn.setAttribute('data-id', r.id);
 
-                    const rate = discountRate(r.orig, r.sale); // 예: 10(%)
+                    console.log(r.slots);
+
+                    let status = true;
+                    for(const s of r.slots) {
+                        if(s.status == 0) {
+                            status = false;
+                            break;
+                        }
+                    }
+                    btn.disabled = !status;
+
+                    const orig = r.slots.reduce((acc, s) => acc < Number(s.price) ? acc : Number(s.price || Number.MAX_SAFE_INTEGER), Number.MAX_SAFE_INTEGER);
+                    const sale = orig - r.discount;
+                    const rate = discountRate(orig, sale); 
+                    const total = r.slots.reduce((acc, s) => acc + (Number(s.price) - Number(r.discount) || 0), 0);
                     btn.innerHTML = `
                     <div class="room-name">
                         ${r.name}
                         ${rate > 0 ? `<span class="discount-badge">-${rate}%</span>` : ''}
                     </div>
                     <div class="price">
-                        <span class="orig">${formatKRW(r.orig)}</span>
-                        <span class="sale">${formatKRW(r.sale)}</span>
+                        <span class="orig">${formatKRW(orig)}</span>
+                        <span class="sale">${formatKRW(sale)}</span>
                     </div>
                 `;
 
@@ -789,7 +824,7 @@
                         const checkout = addDays(selectedDate, nights); // 종료일 = 체크인 + 박수
                         bookingSummary.innerHTML = `
                 <p class="period">${formatLabel(selectedDate)} - ${formatLabel(checkout)} ${daysText(nights)}</p>
-                <p class="pay"><span class="emph-room">${r.name}</span> 결제금액: <span class="pay-amount">${formatKRW(r.sale * nights)}</span></p>
+                <p class="pay"><span class="emph-room">${r.name}</span> 결제금액: <span class="pay-amount">${formatKRW(total)}</span></p>
             `;
 
                         bookingToggle.classList.add('open');
@@ -800,7 +835,7 @@
                     });
 
                     roomListEl.appendChild(btn);
-                });
+                }));
                 roomListEl.classList.add('show'); // 표시
             }
 

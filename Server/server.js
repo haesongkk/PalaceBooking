@@ -423,112 +423,8 @@ app.get('/api/customers/search/:number', async (req, res) => {
   }
 });
 
-/* --------------------------- Chatbot Helpers -------------------------- */
-
-async function getReservationPrice(roomId, checkinDate, checkoutDate, discount) {
-  let originalPrice = 0;
-  let discountedPrice = 0;
-
-  const startDate = new Date(checkinDate).setHours(0, 0, 0, 0);
-  const endDate = new Date(checkoutDate).setHours(0, 0, 0, 0);
-
-  const isOvernight = startDate !== endDate;
-
-  let checkDate = new Date(startDate);
-  do {
-    let setting;
-    const daily = await roomsModule.getDailyByDate(
-      isOvernight ? 1 : 0,
-      checkDate.getFullYear(),
-      checkDate.getMonth() + 1,
-      checkDate.getDate()
-    );
-
-    if (daily.length > 0) {
-      setting = daily.find((row) => row.roomid == roomId);
-    } else {
-      const dayOfWeek = new Date(
-        checkDate.getFullYear(),
-        checkDate.getMonth(),
-        checkDate.getDate()
-      ).getDay();
-      const tmp = await roomsModule.getSettingById(Number(roomId), isOvernight ? 1 : 0);
-      setting = {
-        status: JSON.parse(tmp.status)[dayOfWeek],
-        price: JSON.parse(tmp.price)[dayOfWeek],
-      };
-    }
-
-    if (setting.status == 0) return [-1, -1];
-    originalPrice += Number(setting.price);
-
-    discountedPrice -= discount;
-    checkDate.setDate(checkDate.getDate() + 1);
-  } while (checkDate < endDate);
-
-  discountedPrice += originalPrice;
-  return [originalPrice, discountedPrice];
-}
-
-/* --------------------------- Chatbot APIs ----------------------------- */
-
 app.post('/api/chatbot/getReservationPrice', async (req, res) => {
-  try {
-    const { customerID, roomID, checkinDate, checkoutDate } = req.body;
-    if (!customerID) return res.status(400).json({ error: 'customerID 누락' });
-    if (!roomID) return res.status(400).json({ error: 'roomID 누락' });
-    if (!checkinDate) return res.status(400).json({ error: 'checkinDate 누락' });
-    if (!checkoutDate) return res.status(400).json({ error: 'checkoutDate 누락' });
-
-    const customerReservations = await roomsModule.getReservationListByCustomerID(Number(customerID));
-    const customerType = customerReservations.length > 0 ? 0 : 1;
-
-    const discountRow = await roomsModule.getDiscount();
-    const discount = customerType === 1
-      ? discountRow.firstvisitdiscount
-      : discountRow.recentvisitdiscount;
-
-    const [originalPrice, discountedPrice] = await getReservationPrice(
-      roomID,
-      checkinDate,
-      checkoutDate,
-      discount
-    );
-
-    if (originalPrice == -1) {
-      return res.status(200).json({
-        ok: false,
-        floatings: ['날짜 변경하기', '객실 변경하기', '취소하기'],
-        msg: ['선택하신 날짜에 해당 객실이 마감되었습니다. 다른 날짜나 객실을 선택해주세요.'],
-      });
-    }
-
-    let msg = [];
-    const room = await roomsModule.getRoomById(Number(roomID));
-    const szRoomName = room ? room.name : '삭제된 객실';
-    const szStartDate = new Date(checkinDate).toLocaleDateString('ko-KR');
-    const szEndDate = new Date(checkoutDate).toLocaleDateString('ko-KR');
-    const szCustomerType = customerType == 1 ? '첫 예약 고객' : '단골 고객';
-    const szOrginalPrice = originalPrice.toLocaleString();
-    const szDiscountedPrice = discountedPrice.toLocaleString();
-    const szDiscount = discount.toLocaleString();
-
-    const overnight = szStartDate !== szEndDate;
-    if (overnight) msg.push(`${szRoomName} ${szStartDate} 입실 ~ ${szEndDate} 퇴실`);
-    else msg.push(`${szRoomName} ${szStartDate} 대실`);
-
-    msg.push(`${szCustomerType} ${overnight ? '1박 당' : ''} ${szDiscount}원 할인 적용!`);
-    msg.push(`기준가: ${szOrginalPrice}원 → 할인 가격: ${szDiscountedPrice}원`);
-    msg.push(`예약하시겠습니까?`);
-
-    return res.status(200).json({
-      ok: true,
-      floatings: ['날짜 변경하기', '객실 변경하기', '예약하기', '취소하기'],
-      msg,
-    });
-  } catch (error) {
-    res.status(503).json({ error: error.message });
-  }
+  res.status(400).json({ error: 'deleted api' });
 });
 
 
@@ -550,6 +446,55 @@ function sendSMS(receiver, msg) {
   });
 }
 
+app.post('/api/client/rooms', async (req, res) => {
+  const { date, night } = req.body;
+
+  if(date == null || typeof date != 'string') return res.status(400).json({ error: 'date is required and must be a string' });
+  if(night == null || typeof night != 'number') return res.status(400).json({ error: 'night is required and must be a number' });
+
+  const discount = (await roomsModule.getDiscount()).firstvisitdiscount;
+  const roomList = (await roomsModule.getRoomList()).map((room) => ({
+    id: room.id,
+    name: room.name,
+    slots: [],
+    discount: discount
+  }));
+  
+  
+  const isOvernight = night == 0 ? false : true;
+  for(let i = 0; i < night; i++) {
+    const checkDate = new Date(date);
+    checkDate.setDate(checkDate.getDate() + i);
+    const year = checkDate.getFullYear();
+    const month = checkDate.getMonth() + 1;
+    const day = checkDate.getDate();
+    const dayOfWeek = new Date(year, month+1, day).getDay();
+    const dateStr = `${year}-${month}-${day}`;
+
+    const daily = await roomsModule.getDailyByDate(isOvernight ? 1 : 0, year, month, day);
+    
+    for(const room of roomList) {
+      if(daily.length > 0 && daily.find((row) => row.roomid == room.id)) {
+        room.slots.push({
+          date: dateStr,
+          price: daily.find((row) => row.roomid == room.id).price,
+          status: daily.find((row) => row.roomid == room.id).status
+        });
+      } else {
+        const setting = await roomsModule.getSettingById(Number(room.id), isOvernight ? 1 : 0);
+        room.slots.push({
+          date: dateStr,
+          price: JSON.parse(setting.price)[dayOfWeek],
+          status: JSON.parse(setting.status)[dayOfWeek]
+        });
+      }
+
+    }
+
+  }
+
+  res.status(200).json({rooms: roomList});
+});
 
 app.post('/api/client/reservation', async (req, res) => {
   const { date, night, roomType, phone } = req.body;
