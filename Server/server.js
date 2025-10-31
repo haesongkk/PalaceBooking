@@ -495,30 +495,68 @@ app.post('/api/client/rooms', async (req, res) => {
 });
 
 app.post('/api/client/reservation', async (req, res) => {
-  const { date, night, roomType, phone } = req.body;
-
-    if(date == null || typeof date != 'string') 
-      return res.status(400).json({ error: 'date is required and must be a string' });
-    if(night == null || typeof night != 'number') 
-      return res.status(400).json({ error: 'night is required and must be a number' });
-    if(roomType == null || typeof roomType != 'string') 
-      return res.status(400).json({ error: 'roomType is required and must be a string' });
-    if(phone == null || typeof phone != 'string') 
-      return res.status(400).json({ error: 'phone is required and must be a string' });
-
-    res.status(200).json({ msg: 'reservation success' });
+  const { date, nights, roomID, customerID } = req.body;
     
-    // 데이터베이스 구조 변경 이후 수정 필요
-    //await roomsModule.createReservation(customerID, roomID, checkinDate, checkoutDate, price, 0);
+  const id = Date.now();
     
-    sendSMS(process.env.SMS_FROM, "새로운 예약이 들어왔습니다.")
-      .then((r) => {
-        const code = Number(r.data.result_code);
-        if (code < 0) throw new Error(r.data.result_msg);
-      })
-      .catch((error) => {
-        console.error('SMS 발송 실패: ', error.message);
-      });
+  if(customerID == null || typeof customerID != 'string') 
+    return res.status(400).json({ error: 'customerID is required and must be a string' });
+    
+  if(roomID == null || typeof roomID != 'number') 
+    return res.status(400).json({ error: 'roomID is required and must be a number' });
+
+  if(date == null || typeof date != 'string') 
+    return res.status(400).json({ error: 'date is required and must be a string' });
+  const dateSplit = date.split('-');
+  if(dateSplit.length != 3) 
+    return res.status(400).json({ error: 'date is required and must be a string in the format of YYYY-MM-DD' });
+  for(const split of dateSplit) 
+    if(split == null || isNaN(Number(split))) 
+      return res.status(400).json({ error: 'date is required and must be a number' });
+  const year = Number(dateSplit[0]);
+  const month = Number(dateSplit[1]);
+  const day = Number(dateSplit[2]);
+
+  if(nights == null || typeof nights != 'number') 
+    return res.status(400).json({ error: 'night is required and must be a number' });
+
+
+  let cid = null;
+  const legacyCustomerID = await roomsModule.getCustomer(customerID);
+  if(legacyCustomerID != null) {
+    cid = legacyCustomerID.id;
+  } else {
+    cid = await roomsModule.createCustomer(Date.now(), "unknown", customerID, "");
+  }
+
+  const checkoutDate = new Date(year, month-1, day);
+  checkoutDate.setDate(checkoutDate.getDate() + nights);
+  const checkoutYear = checkoutDate.getFullYear();
+  const checkoutMonth = checkoutDate.getMonth() + 1;
+  const checkoutDay = checkoutDate.getDate();
+  const checkoutDateStr = `${checkoutYear}-${checkoutMonth}-${checkoutDay}`;
+
+
+  const price = 0;
+  const state = 0;
+
+  await roomsModule.createReservation(cid, roomID, date, checkoutDateStr, price, state);
+
+  // await pool.query(`
+  //   INSERT INTO reservations 
+  //   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+  //   `, [id, customerID, roomID, year, month, day, nights, state]);
+
+  res.status(200).json({ msg: 'reservation success' });
+
+  sendSMS(process.env.SMS_FROM, "새로운 예약이 들어왔습니다.")
+    .then((r) => {
+      const code = Number(r.data.result_code);
+      if (code < 0) throw new Error(r.data.result_msg);
+    })
+    .catch((error) => {
+      console.error('SMS 발송 실패: ', error.message);
+    });
 });
 
 

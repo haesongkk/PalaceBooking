@@ -297,6 +297,18 @@ async function saveCustomer(name, phone, memo) {
   }
 }
 
+async function createCustomer(id, name, phone, memo) {
+  const { rows } = await q(
+    `INSERT INTO customers 
+    (id, name, phone, memo) 
+    VALUES ($1,$2,$3,$4)
+    RETURNING id
+    `,
+    [id, name, phone, memo]
+  );
+  return rows[0].id;
+}
+
 async function getCustomerList() {
   const { rows } = await q(`SELECT * FROM customers`);
   return rows;
@@ -384,7 +396,8 @@ module.exports = {
   searchCustomer,
   getCustomer,
   getCustomerById,
-
+  createCustomer,
+  
   getTableList,
   getTableColumnList,
   getTableRowList,

@@ -636,14 +636,6 @@
             const btnRoomsInfo = document.getElementById('btnRoomsInfo');
             const btnHistory = document.getElementById('btnHistory');
 
-            const rooms = [
-                { id: 1, name: '스탠다드', orig: 40000, sale: 36000 },
-                { id: 2, name: '2베드', orig: 45000, sale: 40500 },
-                { id: 3, name: '2PC', orig: 60000, sale: 54000 },
-                { id: 4, name: '멀티2', orig: 60000, sale: 54000 },
-                { id: 5, name: '도보특가', orig: 35000, sale: 31500 },
-                { id: 6, name: '하루대실 (도보)', orig: 30000, sale: 27000 },
-            ];
             let selectedRoom = null;
 
             function daysText(n) {
@@ -1039,9 +1031,9 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         date: dateStr,
-                        night: nights,
-                        roomType: selectedRoom.name,
-                        phone: phoneInput.value
+                        nights: nights,
+                        roomID: selectedRoom.id,
+                        customerID: phoneInput.value
                     })
                 }).then(res => res.json()).then(data => {
                     if(data.error) {
