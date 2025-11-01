@@ -87,20 +87,53 @@ async function getRoomList() {
     SELECT * FROM rooms
     ORDER BY id DESC
   `);
-  await Promise.all(rows.map(async row => {
-    row.imgpath = await Promise.all(row.imgpath.map(async location => {
-      const url = new URL(location);
-      const key = decodeURIComponent(url.pathname.slice(1));
-      const signedUrl = await s3.getSignedUrl('getObject', {
-        Bucket: process.env.S3_BUCKET_NAME,
-        Key: key,
-        Expires: 60 * 60 * 24 * 7,
-      });
-      return signedUrl;
-    }));
+
+  // 디버그: SDK 버전/메서드 확인
+  console.log('[aws-sdk v2]', require('aws-sdk/package.json').version);
+  console.log('[s3.getSignedUrl]', typeof s3.getSignedUrl);
+
+  await Promise.all(rows.map(async (row, i) => {
+    try {
+      const paths = Array.isArray(row.imgpath) ? row.imgpath : [];
+      row.imgpath = await Promise.all(paths.map(async (location, j) => {
+        try {
+          const key = toKey(location); // 절대 URL/키 모두 허용
+          // v2는 동기 반환 → await 불필요
+          const signed = s3.getSignedUrl('getObject', {
+            Bucket: process.env.S3_BUCKET_NAME,
+            Key: key,
+            Expires: 60 * 60 * 24 * 7, // 초 단위
+          });
+          return signed;
+        } catch (e) {
+          console.error(`[sign error] row:${i} idx:${j}`, location, e);
+          throw e;
+        }
+      }));
+    } catch (e) {
+      console.error(`[row error] row:${i}`, row?.id, e);
+      throw e;
+    }
   }));
 
   return rows;
+
+  // 절대 URL이든 'images/room/101.jpg' 같은 키든 안전하게 Key 추출
+  function toKey(location) {
+    // null/undefined 대비
+    const raw = String(location ?? '');
+    // 1) 절대 URL 시도
+    try {
+      const u = new URL(raw);
+      // /prefix/path → prefix/path 로 정규화
+      const path = u.pathname.replace(/^\/+/, '');
+      try { return decodeURIComponent(path); } catch { return path; }
+    } catch {
+      // 2) 절대 URL 아님 → 키로 간주
+      const s = raw.replace(/^\/+/, '');
+      try { return decodeURIComponent(s); } catch { return s; }
+    }
+  }
 }
 
 async function getRoomById(id) {
